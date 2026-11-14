@@ -202,6 +202,77 @@ describe('createInput', () => {
     expect(actions).toEqual(['confirm']);
   });
 
+  describe('focused elements', () => {
+    const keyOn = (el: Element, type: 'keydown' | 'keyup', code: string) => {
+      const e = new KeyboardEvent(type, { code, cancelable: true, bubbles: true });
+      el.dispatchEvent(e);
+      return e;
+    };
+    const add = (html: string, parent: Element = document.body) => {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      const el = wrap.firstElementChild!;
+      parent.appendChild(el);
+      return el;
+    };
+
+    it.each(['input', 'textarea'])('typing in %s emits nothing and is not prevented', (tag) => {
+      const el = add(`<${tag}></${tag}>`);
+      for (const code of ['KeyW', 'KeyA', 'KeyZ', 'Space', 'Backspace', 'ArrowLeft', 'Enter', 'Escape']) {
+        t += 100;
+        expect(keyOn(el, 'keydown', code).defaultPrevented).toBe(false);
+        keyOn(el, 'keyup', code);
+      }
+      expect(actions).toEqual([]);
+    });
+
+    it('select keys emit nothing and are not prevented', () => {
+      const el = add('<select><option>a</option><option>b</option></select>');
+      for (const code of ['ArrowDown', 'ArrowUp', 'Enter', 'Space', 'KeyA']) {
+        t += 100;
+        expect(keyOn(el, 'keydown', code).defaultPrevented).toBe(false);
+        keyOn(el, 'keyup', code);
+      }
+      expect(actions).toEqual([]);
+    });
+
+    it('contenteditable and a[href] own every key', () => {
+      const ce = add('<div contenteditable="true"><span id="in">x</span></div>');
+      const a = add('<a href="#x">link</a>');
+      expect(keyOn(ce.querySelector('#in')!, 'keydown', 'KeyW').defaultPrevented).toBe(false);
+      expect(keyOn(a, 'keydown', 'Enter').defaultPrevented).toBe(false);
+      expect(actions).toEqual([]);
+    });
+
+    it('Enter/Space + click on a focused data-action button emits exactly one own action', () => {
+      const btn = target.querySelector<HTMLButtonElement>('[data-action="up"]')!;
+      for (const code of ['Enter', 'Space']) {
+        t += 200;
+        expect(keyOn(btn, 'keydown', code).defaultPrevented).toBe(false);
+        keyOn(btn, 'keyup', code);
+        btn.click(); // the native click a browser fires
+      }
+      expect(actions).toEqual(['up', 'up']);
+    });
+
+    it('Enter on a non-game button outside target emits nothing', () => {
+      const btn = add('<button>other</button>');
+      expect(keyOn(btn, 'keydown', 'Enter').defaultPrevented).toBe(false);
+      expect(actions).toEqual([]);
+    });
+
+    it('ArrowDown on a focused button still emits down', () => {
+      const btn = target.querySelector<HTMLButtonElement>('[data-action="up"]')!;
+      expect(keyOn(btn, 'keydown', 'ArrowDown').defaultPrevented).toBe(true);
+      expect(actions).toEqual(['down']);
+    });
+
+    it('a regular key on document.body still emits and is prevented', () => {
+      expect(keyOn(document.body, 'keydown', 'KeyW').defaultPrevented).toBe(true);
+      expect(actions).toEqual(['up']);
+    });
+  });
+
   it('dispose removes every listener and cancels polling', () => {
     dispose();
     expect(stopPoll).toHaveBeenCalledTimes(1);

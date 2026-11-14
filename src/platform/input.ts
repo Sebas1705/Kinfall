@@ -110,6 +110,13 @@ export function createInput(
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    const el = e.target as Element | null;
+    if (el && typeof el.closest === 'function') {
+      // Form controls and links own every key.
+      if (el.closest('input, textarea, select, a[href], [contenteditable]:not([contenteditable="false"])')) return;
+      // Buttons keep native Enter/Space activation (their click is handled by delegation).
+      if ((e.code === 'Enter' || e.code === 'Space') && el.closest('button, [role="button"]')) return;
+    }
     const action = mapKey(e);
     if (!action) return;
     e.preventDefault();
