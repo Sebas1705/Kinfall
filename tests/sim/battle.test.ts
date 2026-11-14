@@ -307,6 +307,24 @@ describe('applyAction', () => {
     expect(r3.state.teams.player[0]!.focus).toBe(3);
   });
 
+  it('focus regenerates only for the active creature of each side, never the bench', () => {
+    const s = edit(
+      createBattle('bench', { speciesIds: ['blaze', 'bramble'] }, { speciesIds: ['dummy', 'ripple'] }, FX),
+      (x) => {
+        x.teams.player[0]!.focus = 0;
+        x.teams.player[1]!.focus = 0;
+        x.teams.enemy[0]!.focus = 0;
+        x.teams.enemy[1]!.focus = 0;
+      },
+    );
+    const r = applyAction(s, MOVE(0), FX);
+    expect(r.state.teams.player.map((c) => c.focus)).toEqual([1, 0]);
+    expect(r.state.teams.enemy.map((c) => c.focus)).toEqual([1, 0]);
+    // after swapping, the newcomer regenerates and the creature now on the bench does not
+    const r2 = applyAction(r.state, SWAP(1), FX);
+    expect(r2.state.teams.player.map((c) => c.focus)).toEqual([1, 1]);
+  });
+
   it('heal restores floor(maxHp * power / 100) capped at maxHp', () => {
     const s = edit(createBattle('heal', { speciesIds: ['bramble'] }, { speciesIds: ['mote'] }, FX), (x) => {
       x.teams.player[0]!.hp = 50;
@@ -359,7 +377,8 @@ describe('applyAction', () => {
     const { state, events } = applyAction(s, MOVE(0), FX);
     expect(events.slice(1)).toEqual([
       { type: 'move', side: 'player', moveId: 'ember_hit', hit: true },
-      { type: 'damage', side: 'enemy', amount: 500, effectiveness: 200 },
+      // the formula gives 500 but mote only had 4 hp: the event reports the hp actually lost
+      { type: 'damage', side: 'enemy', amount: 4, effectiveness: 200 },
       { type: 'fainted', side: 'enemy' },
       { type: 'swap', side: 'enemy', toIndex: 1 },
     ]);
@@ -368,14 +387,14 @@ describe('applyAction', () => {
     expect(state.winner).toBeNull();
   });
 
-  it('a fainted player creature must be swapped out; the faster enemy does not act on it', () => {
+  it('a fainted player creature must be swapped out with a free swap', () => {
     const s = edit(createBattle('pfaint', { speciesIds: ['bramble', 'ripple'] }, { speciesIds: ['blaze'] }, FX), (x) => {
       x.teams.player[0]!.hp = 1;
     });
     const r = applyAction(s, MOVE(0), FX);
     expect(r.events.slice(1)).toEqual([
       { type: 'move', side: 'enemy', moveId: 'ember_hit', hit: true },
-      { type: 'damage', side: 'player', amount: 124, effectiveness: 200 },
+      { type: 'damage', side: 'player', amount: 1, effectiveness: 200 },
       { type: 'fainted', side: 'player' },
     ]);
     expect(r.state.winner).toBeNull();
@@ -383,8 +402,52 @@ describe('applyAction', () => {
     expect(legalActions(r.state, FX)).toEqual([SWAP(1)]);
     expect(applyAction(r.state, MOVE(0), FX).events).toEqual([{ type: 'rejected', reason: 'illegal' }]);
     const after = applyAction(r.state, SWAP(1), FX);
-    expect(after.state.active.player).toBe(1);
-    expect(after.events[1]).toEqual({ type: 'swap', side: 'player', toIndex: 1 });
+    // the forced replacement is free: only the swap, no enemy action, no turn, no rng draw
+    expect(after.events).toEqual([{ type: 'swap', side: 'player', toIndex: 1 }]);
+    expect(after.state).toEqual({ ...r.state, active: { player: 1, enemy: 0 } });
+    expect(after.state.teams.enemy).toEqual(r.state.teams.enemy);
+    expect(after.state.turn).toBe(r.state.turn);
+    expect(after.state.rng).toEqual(r.state.rng);
+    // the next action resolves a normal turn against the newcomer (blaze 60 outpaces ripple 45)
+    const next = applyAction(after.state, MOVE(0), FX);
+    expect(next.events[0]).toEqual({ type: 'turnStart', turn: r.state.turn });
+    expect(next.events.filter((e) => e.type === 'move').map((e) => (e as { side: string }).side)).toEqual([
+      'enemy',
+      'player',
+    ]);
+    expect(next.events).toContainEqual({ type: 'move', side: 'player', moveId: 'tide_hit', hit: true });
+    expect(next.state.turn).toBe(r.state.turn + 1);
+  });
+
+  it('a forced swap offers every living bench creature and none that fainted', () => {
+    const s = edit(
+      createBattle('pick', { speciesIds: ['bramble', 'ripple', 'dummy'] }, { speciesIds: ['blaze'] }, FX),
+      (x) => {
+        x.teams.player[0]!.hp = 0;
+        x.teams.player[0]!.fainted = true;
+      },
+    );
+    expect(legalActions(s, FX)).toEqual([SWAP(1), SWAP(2)]);
+    expect(applyAction(s, SWAP(2), FX).events).toEqual([{ type: 'swap', side: 'player', toIndex: 2 }]);
+    const dead = edit(s, (x) => {
+      x.teams.player[1]!.hp = 0;
+      x.teams.player[1]!.fainted = true;
+    });
+    expect(legalActions(dead, FX)).toEqual([SWAP(2)]);
+    expect(applyAction(dead, SWAP(1), FX).events).toEqual([{ type: 'rejected', reason: 'illegal' }]);
+  });
+
+  it('damage events reconcile with hp lost over a whole battle', () => {
+    const { state, events } = playOut(
+      createBattle('ledger', { speciesIds: ['blaze', 'ripple'] }, { speciesIds: ['bramble', 'mote', 'ripple'] }, FX),
+      FX,
+    );
+    for (const side of ['player', 'enemy'] as const) {
+      const dealt = events.reduce((n, e) => (e.type === 'damage' && e.side === side ? n + e.amount : n), 0);
+      const healed = events.reduce((n, e) => (e.type === 'heal' && e.side === side ? n + e.amount : n), 0);
+      const lost = state.teams[side].reduce((n, c) => n + c.maxHp - c.hp, 0);
+      expect(dealt - healed).toBe(lost);
+    }
   });
 
   it('win and loss', () => {

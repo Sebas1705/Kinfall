@@ -133,8 +133,9 @@ function resolveMove(
     let base = Math.floor((move.power * userSp.base.power) / targetSp.base.guard);
     if (userSp.elements.includes(move.element)) base = Math.floor((base * 125) / 100);
     const eff = effectiveness(move.element, targetSp.elements);
-    const amount = Math.max(1, Math.floor((base * eff) / 100));
-    target.hp = Math.max(0, target.hp - amount);
+    // The event reports the hp actually lost so logs reconcile with state.
+    const amount = Math.min(target.hp, Math.max(1, Math.floor((base * eff) / 100)));
+    target.hp -= amount;
     events.push({ type: 'damage', side: targetSide, amount, effectiveness: eff });
     if (target.hp === 0) {
       target.fainted = true;
@@ -164,6 +165,14 @@ export function applyAction(
   if (reason !== null) return { state: structuredClone(state), events: [{ type: 'rejected', reason }] };
 
   const s = structuredClone(state);
+
+  // Replacing a fainted active creature is free: no turn, no enemy action, no rng draw.
+  if (action.type === 'swap' && activeOf(s, 'player').fainted) {
+    const events: BattleEvent[] = [];
+    resolveSwap(s, 'player', action.toIndex, events);
+    return { state: s, events };
+  }
+
   const rng = restoreRng(s.rng);
   const events: BattleEvent[] = [{ type: 'turnStart', turn: s.turn }];
 
@@ -191,7 +200,7 @@ export function applyAction(
   else if (s.teams.enemy.every((c) => c.fainted)) s.winner = 'player';
 
   if (s.winner === null) {
-    // A fainted enemy is replaced by its next living creature; the player swaps on its next turn.
+    // A fainted enemy is replaced by its next living creature; the player picks its replacement with a free swap.
     if (activeOf(s, 'enemy').fainted) {
       const next = s.teams.enemy.findIndex((c) => !c.fainted);
       resolveSwap(s, 'enemy', next, events);
