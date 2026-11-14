@@ -62,7 +62,8 @@ export function createBattle(
 
 /** Refreshes `intent` in place: the AI choice when telegraphing and the battle is live, else null. */
 function withIntent(s: BattleState, content: Content): BattleState {
-  if (s.telegraph && s.winner === null) {
+  // A stunned enemy cannot act, so showing a move would be a lie the engine can see coming.
+  if (s.telegraph && s.winner === null && !stunned(s, 'enemy')) {
     const moveIndex = chooseEnemyMove(s, content);
     s.intent = moveIndex >= 0 ? { moveIndex } : null;
   } else {

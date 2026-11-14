@@ -25,6 +25,7 @@ const FX: Content = {
     move({ id: 'tide_twin', element: 'tide', kind: 'damage', power: 40 }),
     move({ id: 'umbra_hit', element: 'umbra', kind: 'damage', power: 40 }),
     move({ id: 'big', element: 'ember', kind: 'damage', power: 90, focusCost: 5 }),
+    move({ id: 'hush', element: 'gale', kind: 'status', status: 'stun' }),
     move({ id: 'mend', element: 'thorn', kind: 'heal', power: 50, target: 'self' }),
   ],
   species: [
@@ -33,8 +34,9 @@ const FX: Content = {
       'tide_hit',
       'ember_hit',
       'umbra_hit',
+      'hush',
     ]),
-    species('bramble', ['thorn'], { health: 50, power: 40, guard: 40, speed: 30, focus: 20 }, ['tide_hit', 'mend']),
+    species('bramble', ['thorn'], { health: 50, power: 40, guard: 40, speed: 30, focus: 20 }, ['tide_hit', 'mend', 'hush']),
     // two equal-best moves: the tie is broken by the seeded fork
     species('twin', ['tide'], { health: 50, power: 40, guard: 40, speed: 30, focus: 20 }, ['tide_hit', 'tide_twin']),
     // focus limited: 'big' costs 5 but max focus is 1
@@ -120,8 +122,10 @@ describe('telegraphed intent', () => {
     expect(applyAction(s, { type: 'move', moveIndex: 0 }, FX).state.intent).toBeNull();
   });
 
-  it('is honest: the enemy executes exactly the shown move, over 100 seeds and several turns', () => {
+  it('is honest: a shown intent is executed exactly, or the enemy fainted first; never a skip', () => {
+    const spOf = (id: string) => FX.species.find((p) => p.id === id)!;
     let checked = 0;
+    let stunSeen = 0;
     for (let i = 0; i < 100; i++) {
       let s = createBattle(
         `tele-${i}`,
@@ -133,20 +137,57 @@ describe('telegraphed intent', () => {
       expect(s.telegraph).toBe(true);
       for (let t = 0; t < 8 && s.winner === null; t++) {
         const shown = s.intent;
-        expect(shown).not.toBeNull();
         const enemy = s.teams.enemy[s.active.enemy]!;
-        const sp = FX.species.find((p) => p.id === enemy.speciesId)!;
-        const legal = legalActions(s, FX);
+        // a stunned enemy is known to lose its action, so nothing may be shown
+        if (enemy.status?.id === 'stun') {
+          expect(shown).toBeNull();
+          stunSeen++;
+        } else {
+          expect(shown).not.toBeNull();
+        }
+        const sp = spOf(enemy.speciesId);
+        const me = spOf(s.teams.player[s.active.player]!.speciesId);
+        // A stun landed by a faster-or-equal player mid-turn is unknowable at turn start: keep the
+        // player from doing that here, so any skip after a shown intent is a real lie.
+        const legal = legalActions(s, FX).filter(
+          (a) => !(a.type === 'move' && me.moves[a.moveIndex] === 'hush' && me.base.speed >= sp.base.speed),
+        );
         const r = applyAction(s, legal[(i + t) % legal.length]!, FX);
-        const em = r.events.find((e) => e.type === 'move' && e.side === 'enemy');
-        if (em && em.type === 'move') {
-          expect(em.moveId).toBe(sp.moves[shown!.moveIndex]);
-          checked++;
+        const em = r.events.find((x) => x.type === 'move' && x.side === 'enemy');
+        const skipped = r.events.some((x) => x.type === 'skip' && x.side === 'enemy');
+        // a forced replacement after a faint is free: no turn is played, so nothing is owed
+        const turnPlayed = r.events.some((x) => x.type === 'turnStart');
+        if (shown !== null && turnPlayed) {
+          expect(skipped).toBe(false);
+          if (em && em.type === 'move') {
+            expect(em.moveId).toBe(sp.moves[shown.moveIndex]);
+            checked++;
+          } else {
+            // no enemy move: only allowed when the enemy fainted before acting
+            expect(r.events).toContainEqual({ type: 'fainted', side: 'enemy' });
+          }
         }
         s = r.state;
       }
     }
     expect(checked).toBeGreaterThan(100);
+    expect(stunSeen).toBeGreaterThan(0);
+  });
+
+  it('is hidden while the enemy is stunned, and the stunned enemy then skips', () => {
+    // bramble (speed 30) is slower than blaze (60): blaze acts first, then bramble stuns it
+    const s = createBattle('stunhide', { speciesIds: ['bramble'] }, { speciesIds: ['blaze'] }, FX, {
+      telegraph: true,
+    });
+    expect(s.intent).not.toBeNull();
+    const r1 = applyAction(s, { type: 'move', moveIndex: 2 }, FX);
+    expect(r1.events).toContainEqual({ type: 'status', side: 'enemy', status: 'stun' });
+    expect(r1.state.teams.enemy[0]!.status).toEqual({ id: 'stun', turns: 1 });
+    expect(r1.state.intent).toBeNull();
+    const r2 = applyAction(r1.state, { type: 'move', moveIndex: 0 }, FX);
+    expect(r2.events).toContainEqual({ type: 'skip', side: 'enemy' });
+    expect(r2.events.some((x) => x.type === 'move' && x.side === 'enemy')).toBe(false);
+    expect(r2.state.intent).not.toBeNull();
   });
 
   it('is set right after creation, equals the AI choice and is refreshed each turn', () => {
