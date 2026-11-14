@@ -22,6 +22,7 @@ Run `npm run dev` and open the page. Pick a move or swap with the keyboard (arro
 
 `npm run test:e2e` starts the dev server on port 5199 and runs the specs in `tests/e2e`: golden-replay determinism, battle flows (keyboard, click, reduced motion, hidden tab) and an axe accessibility matrix (light/dark, en/es, 320 and 1000 px, text size 150%).
 
+- The hidden-tab specs simulate a document that reports itself hidden and a page whose animation frames never fire; they do not simulate real browser throttling or backgrounding.
 - Locally, the `chromium` and `mobile` (320x640, touch) projects run in Microsoft Edge (`channel: 'msedge'`), so no browser is downloaded. Set `PW_CHANNEL` to use another channel.
 - The `firefox` and `webkit` projects only exist when `CI` or `PW_ALL` is set. CI installs them with `npx playwright install --with-deps chromium firefox webkit`.
 - Cross-engine determinism (Firefox and WebKit) has **not** been verified locally; it is only verified when CI runs.

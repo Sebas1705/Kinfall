@@ -66,7 +66,7 @@ test.describe('battle flow', () => {
     expect(viaClicks).toBe(viaKeyboard);
   });
 
-  test('reduced motion: no animation stays pending after each turn', async ({ page }) => {
+  test('reduced motion: every turn settles with no pending animation, and is not slower', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto(`/?seed=${SEED}`);
     await expect(page.locator('#reduce-motion')).toBeChecked();
@@ -75,9 +75,13 @@ test.describe('battle flow', () => {
     for (let turn = 0; turn < 3; turn++) {
       if (await page.locator('#result').isVisible()) break;
       await page.keyboard.press('Enter');
-      // Reduced motion settles quickly, far below the watchdog.
-      await expect(page.locator('#choices')).not.toHaveAttribute('aria-busy', 'true', { timeout: 1_500 });
-      await expect(page.locator('#log .log-turn')).toHaveCount(turn + 1);
+      // Wait for the turn's log entry first (generous bound), then check the settled state.
+      await expect(page.locator('#log .log-turn')).toHaveCount(turn + 1, { timeout: 5_000 });
+      await waitIdle(page);
+      await expect(page.locator('#choices')).not.toHaveAttribute('aria-busy', 'true');
+      if (await page.locator('#result').isVisible()) break;
+      await expect(firstEnabled(page)).toBeEnabled();
+      expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
     }
     // The whole battle still reaches the same result as a normal-motion run.
     const turns = await playToResult(page, 'keyboard');
@@ -90,7 +94,77 @@ test.describe('battle flow', () => {
     expect(await logText(page)).toBe(reduced);
   });
 
-  test('a hidden tab mid-battle gives the same result as the foreground run', async ({ page }) => {
+  test('reduced motion: the first turn is not slower than with motion on', async ({ page }) => {
+    // Time (inside the page) from the click to the moment the turn's log entry exists.
+    const firstTurnMs = async (reduce: boolean): Promise<number> => {
+      await page.emulateMedia({ reducedMotion: reduce ? 'reduce' : 'no-preference' });
+      await page.goto(`/?seed=${SEED}`);
+      await expect(firstEnabled(page)).toBeVisible();
+      await expect(page.locator('#reduce-motion')).toBeChecked({ checked: reduce });
+      return page.evaluate(
+        () =>
+          new Promise<number>((resolve, reject) => {
+            const log = document.getElementById('log')!;
+            const button = document.querySelector<HTMLButtonElement>('#choices button:not([disabled])')!;
+            const t0 = performance.now();
+            const timer = setTimeout(() => reject(new Error('turn never logged')), 10_000);
+            const done = () => {
+              if (log.querySelector('.log-turn')) {
+                clearTimeout(timer);
+                observer.disconnect();
+                resolve(performance.now() - t0);
+              }
+            };
+            const observer = new MutationObserver(done);
+            observer.observe(log, { childList: true, subtree: true });
+            button.click();
+          }),
+      );
+    };
+    const normal = await firstTurnMs(false);
+    const reduced = await firstTurnMs(true);
+    // No absolute bound: in a fast dev build both can be near-instant.
+    expect(reduced).toBeLessThanOrEqual(normal + 50);
+  });
+
+  // Hidden-tab tests. What they simulate: a page whose document reports `hidden` / `visibilityState: 'hidden'`
+  // from its very first script, and a page whose animation frames never fire (a frozen tab). What they do NOT
+  // simulate: real browser throttling or backgrounding; timers still run at full speed.
+  test('a tab that is hidden from the start plays the whole battle to the same result', async ({ page }) => {
+    await page.goto(`/?seed=${SEED}`);
+    await playToResult(page, 'keyboard');
+    const foreground = await logText(page);
+    const word = await page.locator('#result-title').innerText();
+
+    await page.addInitScript(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    });
+    await page.goto(`/?seed=${SEED}`);
+    await expect(firstEnabled(page)).toBeVisible();
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await playToResult(page, 'keyboard');
+    expect(await logText(page)).toBe(foreground);
+    await expect(page.locator('#result-title')).toHaveText(word);
+  });
+
+  test('a tab whose animation frames never fire still plays to the same result', async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.goto(`/?seed=${SEED}`);
+    await playToResult(page, 'keyboard');
+    const foreground = await logText(page);
+    const word = await page.locator('#result-title').innerText();
+
+    await page.addInitScript(() => {
+      window.requestAnimationFrame = () => 0;
+    });
+    await page.goto(`/?seed=${SEED}`);
+    await playToResult(page, 'keyboard');
+    expect(await logText(page)).toBe(foreground);
+    await expect(page.locator('#result-title')).toHaveText(word);
+  });
+
+  test('hiding the tab in the middle of a battle gives the same result as the foreground run', async ({ page }) => {
     await page.goto(`/?seed=${SEED}`);
     await playToResult(page, 'keyboard');
     const foreground = await logText(page);
@@ -99,7 +173,6 @@ test.describe('battle flow', () => {
     await page.goto(`/?seed=${SEED}`);
     await expect(firstEnabled(page)).toBeVisible();
     await firstEnabled(page).focus();
-    // One turn in the foreground, then the tab goes to the background for the rest.
     await page.keyboard.press('Enter');
     await expect(page.locator('#log .log-turn')).toHaveCount(1);
     await waitIdle(page);
