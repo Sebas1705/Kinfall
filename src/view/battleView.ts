@@ -2,7 +2,6 @@
 // writes anything back: animation timing only changes visuals. Every animation also has a timeout
 // fallback, and a hidden tab finishes them at once, so `play` always resolves.
 import { Application, CanvasSource, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
-import type { Ticker } from 'pixi.js';
 import { generateCreature } from '../art/creatureGen';
 import { elementIcon } from '../art/elementIcon';
 import type { PixelGrid } from '../art/palette';
@@ -10,6 +9,8 @@ import { CONTENT } from '../content';
 import type { ElementId, SpeciesDef, StatusId } from '../content';
 import { speciesName, t } from '../platform/i18n';
 import type { BattleEvent, BattleState, Combatant, Side } from '../sim/state';
+import { createAnimator } from './animator';
+import type { PlayContext } from './animator';
 import { intentText } from './menu';
 
 export interface BattleView {
@@ -33,8 +34,6 @@ const COLORS = {
   focus: 0x6a9cf2,
 };
 
-/** Extra time after an animation's nominal length before the timeout fallback finishes it. */
-const FALLBACK_MS = 150;
 /** Hit flashes are at most 2 per second. */
 const FLASH_GAP_MS = 500;
 
@@ -124,14 +123,6 @@ interface SideView {
   baseY: number;
 }
 
-interface Anim {
-  elapsed: number;
-  duration: number;
-  step: (p: number) => void;
-  resolve: () => void;
-  timer: ReturnType<typeof setTimeout>;
-}
-
 function speciesOf(id: string): SpeciesDef {
   const sp = CONTENT.species.find((s) => s.id === id);
   if (!sp) throw new Error(`unknown species: ${id}`);
@@ -216,10 +207,18 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
   let lastState: BattleState | null = null;
   let width = 0;
   let destroyed = false;
-  /** Set by reduced motion or a hidden tab: remaining steps of the current `play` apply instantly. */
-  let instant = false;
   let lastFlash = -Infinity;
-  const anims = new Set<Anim>();
+  // Frames drive the animator only while something animates; idle scenes are drawn on demand.
+  const animator = createAnimator({
+    fallbackMs: 150,
+    onStart: () => {
+      if (!app.ticker.started) app.ticker.start();
+    },
+    onIdle: () => {
+      app.ticker.stop();
+      app.render();
+    },
+  });
 
   // Metrics recomputed by layout().
   let fontSize = 12;
@@ -230,7 +229,7 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
   let iconScale = 2;
 
   const redraw = () => {
-    if (!app.ticker.started) app.render();
+    if (!destroyed && !app.ticker.started) app.render();
   };
 
   const fit = (text: Text, maxWidth: number) => {
@@ -439,47 +438,15 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     }
   };
 
-  // ---- animation engine -------------------------------------------------------------------------
-  const finish = (a: Anim) => {
-    if (!anims.delete(a)) return;
-    clearTimeout(a.timer);
-    a.step(1);
-    a.resolve();
-    if (anims.size === 0) {
-      app.ticker.stop();
-      app.render();
-    }
-  };
-  const finishAll = () => {
-    for (const a of [...anims]) finish(a);
-  };
-  const tick = (ticker: Ticker) => {
-    for (const a of [...anims]) {
-      a.elapsed += ticker.deltaMS;
-      if (a.elapsed >= a.duration) finish(a);
-      else a.step(a.elapsed / a.duration);
-    }
-  };
+  // ---- animation engine (see animator.ts) ------------------------------------------------------
+  const tick = () => animator.tick(app.ticker.deltaMS);
   app.ticker.add(tick);
 
-  const animate = (duration: number, step: (p: number) => void): Promise<void> => {
-    if (instant || destroyed) {
-      step(1);
-      redraw();
-      return Promise.resolve();
-    }
-    return new Promise<void>((resolve) => {
-      const a: Anim = { elapsed: 0, duration, step, resolve, timer: setTimeout(() => finish(a), duration + FALLBACK_MS) };
-      anims.add(a);
-      step(0);
-      if (!app.ticker.started) app.ticker.start();
-    });
-  };
-
   const onVisibility = () => {
+    // A hidden tab gets no frames: finish now and play the rest of this turn instantly.
     if (doc.hidden) {
-      instant = true;
-      finishAll();
+      animator.setInstant(true);
+      animator.finishAll();
     }
   };
   doc.addEventListener('visibilitychange', onVisibility);
@@ -497,34 +464,35 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
   observer?.observe(host);
 
   // ---- event animations -------------------------------------------------------------------------
-  const tweenHp = (side: Side, to: number) => {
+  const tweenHp = (ctx: PlayContext, side: Side, to: number) => {
     const s = sides[side].shown;
     if (!s) return Promise.resolve();
     const from = s.hp;
     const target = Math.max(0, Math.min(s.maxHp, to));
-    return animate(380, (p) => {
+    return ctx.animate(380, (p) => {
       s.hp = lerp(from, target, p);
       drawHud(side, true);
     });
   };
 
-  const hitFlash = (side: Side) => {
+  const hitFlash = (ctx: PlayContext, side: Side) => {
     const now = performance.now();
-    if (instant || now - lastFlash < FLASH_GAP_MS) return Promise.resolve();
+    if (animator.isInstant() || now - lastFlash < FLASH_GAP_MS) return Promise.resolve();
     lastFlash = now;
     const f = sides[side].flash;
-    return animate(180, (p) => {
+    return ctx.animate(180, (p) => {
       f.alpha = p >= 1 ? 0 : there(p) * 0.8;
     });
   };
 
-  const playEvent = async (e: BattleEvent) => {
+  /** Animates one event. After every await it checks `ctx.live()` so a cancelled play stops touching the scene. */
+  const playEvent = async (e: BattleEvent, ctx: PlayContext) => {
     switch (e.type) {
       case 'move': {
         const v = sides[e.side];
         const reach = spriteScale * 5;
         const dir = e.side === 'player' ? 1 : -1;
-        await animate(260, (p) => {
+        await ctx.animate(260, (p) => {
           const k = p >= 1 ? 0 : there(p);
           v.body.position.set(v.baseX + dir * reach * k, v.baseY - dir * (reach / 2) * k);
         });
@@ -533,42 +501,44 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
       case 'damage': {
         const s = sides[e.side].shown;
         if (!s) return;
-        await Promise.all([hitFlash(e.side), tweenHp(e.side, s.hp - e.amount)]);
+        await Promise.all([hitFlash(ctx, e.side), tweenHp(ctx, e.side, s.hp - e.amount)]);
         return;
       }
       case 'heal': {
         const s = sides[e.side].shown;
         if (!s) return;
-        await tweenHp(e.side, s.hp + e.amount);
+        await tweenHp(ctx, e.side, s.hp + e.amount);
         return;
       }
       case 'status': {
         const s = sides[e.side].shown;
         if (s) s.status = e.status;
         drawHud(e.side);
-        await animate(220, () => {});
+        await ctx.animate(220, () => {});
         return;
       }
       case 'skip': {
         const s = sides[e.side].shown;
         if (s && s.status === 'stun') s.status = null;
         drawHud(e.side);
-        await animate(300, () => {});
+        await ctx.animate(300, () => {});
         return;
       }
       case 'swap': {
         const v = sides[e.side];
         const next = lastState?.teams[e.side][e.toIndex];
         if (!next) return;
-        await animate(160, (p) => {
+        await ctx.animate(160, (p) => {
           v.body.alpha = (v.shown?.fainted ? 0.3 : 1) * (1 - p);
         });
+        if (!ctx.live()) return;
         v.shown = shownOf(next);
         setCreature(e.side);
         drawHud(e.side);
-        await animate(160, (p) => {
+        await ctx.animate(160, (p) => {
           v.body.alpha = p;
         });
+        if (!ctx.live()) return;
         resetBody(e.side);
         return;
       }
@@ -580,7 +550,7 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
           v.shown.status = null;
         }
         drawHud(e.side);
-        await animate(360, (p) => {
+        await ctx.animate(360, (p) => {
           v.body.alpha = lerp(1, 0.3, p);
           v.body.position.set(v.baseX, v.baseY + Math.round(spriteScale * 2 * p));
         });
@@ -594,7 +564,8 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
   const view: BattleView = {
     render(state: BattleState) {
       if (destroyed) return;
-      finishAll();
+      // The real state wins: a play still running is cancelled before the scene is rebuilt.
+      animator.cancel();
       lastState = state;
       for (const side of ['player', 'enemy'] as const) {
         const c = state.teams[side][state.active[side]];
@@ -605,22 +576,16 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     },
     async play(events: BattleEvent[], opts: { reducedMotion: boolean }) {
       if (destroyed) return;
-      instant = opts.reducedMotion || doc.hidden;
       try {
-        for (const e of events) {
-          if (destroyed) break;
-          await playEvent(e);
-        }
+        await animator.play(events, playEvent, opts.reducedMotion || doc.hidden);
       } finally {
-        finishAll();
-        instant = false;
         redraw();
       }
     },
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      finishAll();
+      animator.dispose();
       doc.removeEventListener('visibilitychange', onVisibility);
       observer?.disconnect();
       app.ticker.remove(tick);
