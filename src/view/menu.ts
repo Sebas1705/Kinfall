@@ -41,7 +41,8 @@ function sameAction(a: Action, b: Action): boolean {
     : b.type === 'swap' && a.toIndex === b.toIndex;
 }
 
-function intentText(state: BattleState, content: Content): string | null {
+/** "Next: {move}" for the telegraphed enemy move, the stunned label, or null. */
+export function intentText(state: BattleState, content: Content): string | null {
   if (state.winner !== null) return null;
   const enemy = state.teams.enemy[state.active.enemy];
   if (!enemy) return null;

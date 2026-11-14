@@ -56,10 +56,11 @@ describe('buildMenu', () => {
 
   it('gives each move a detail with its element and focus cost', () => {
     const model = buildMenu(battle(), CONTENT);
-    expect(model.entries[0]!.detail).toBe('Ember · Focus 0');
-    expect(model.entries[1]!.detail).toBe('Ember · Focus 1');
+    // A no-break space keeps the cost on the same line as its label.
+    expect(model.entries[0]!.detail).toBe('Ember · Focus 0');
+    expect(model.entries[1]!.detail).toBe('Ember · Focus 1');
     setLang('es');
-    expect(buildMenu(battle(), CONTENT).entries[1]!.detail).toBe('Brasa · Concentración 1');
+    expect(buildMenu(battle(), CONTENT).entries[1]!.detail).toBe('Brasa · Concentración 1');
   });
 
   it('gives each swap a detail with the hp of that creature', () => {
@@ -186,7 +187,7 @@ describe('renderMenu', () => {
     }
     expect(buttons[1]!.disabled).toBe(true);
     expect(buttons[0]!.textContent).toContain('Ember Lash');
-    expect(buttons[0]!.textContent).toContain('Ember · Focus 0');
+    expect(buttons[0]!.textContent).toContain('Ember · Focus 0');
     buttons[0]!.click();
     expect(onPick).toHaveBeenCalledWith({ type: 'move', moveIndex: 0 });
     buttons[1]!.click();
