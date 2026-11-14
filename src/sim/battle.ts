@@ -185,7 +185,7 @@ function scorchTick(s: BattleState, side: Side, events: BattleEvent[]): void {
   if (c.fainted || c.status?.id !== 'scorch') return;
   const amount = Math.min(c.hp, Math.max(1, Math.floor(c.maxHp / 8)));
   c.hp -= amount;
-  events.push({ type: 'damage', side, amount, effectiveness: 100 });
+  events.push({ type: 'damage', side, amount, effectiveness: 100, source: 'scorch' });
   if (c.hp === 0) {
     c.fainted = true;
     c.status = null;

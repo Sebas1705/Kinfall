@@ -69,6 +69,7 @@ export function eventLine(event: BattleEvent, ctx: EventContext): string | null 
     case 'move':
       return t(event.hit ? 'log.move' : 'log.miss', { species: ctx.species(event.side), move: ctx.move(event.moveId) });
     case 'damage': {
+      if (event.source === 'scorch') return t('log.scorch', { species: ctx.species(event.side), amount: event.amount });
       const base = t('log.damage', { species: ctx.species(event.side), amount: event.amount });
       if (event.effectiveness >= 200) return `${base} ${t('effect.very')}`;
       if (event.effectiveness <= 50) return `${base} ${t('effect.not')}`;

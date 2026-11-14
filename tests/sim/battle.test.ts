@@ -611,11 +611,20 @@ describe('statuses', () => {
       turns.push(s.teams.enemy[0]!.status?.turns);
       const ticks = r.events.filter((e) => e.type === 'damage' && e.side === 'enemy');
       expect(ticks).toHaveLength(i < 3 ? 1 : 0);
-      if (i < 3) expect(ticks[0]).toEqual({ type: 'damage', side: 'enemy', amount: 125, effectiveness: 100 });
+      if (i < 3) expect(ticks[0]).toEqual({ type: 'damage', side: 'enemy', amount: 125, effectiveness: 100, source: 'scorch' });
     }
     expect(hp).toEqual([875, 750, 625, 625]);
     expect(turns).toEqual([2, 1, undefined, undefined]);
     expect(s.teams.enemy[0]!.status).toBeNull();
+  });
+
+  it('only scorch ticks carry source scorch; move damage does not', () => {
+    const s = edit(createBattle('pscorch2', { speciesIds: ['bramble'] }, { speciesIds: ['dummy'] }, FX), (x) => {
+      x.teams.player[0]!.status = { id: 'scorch', turns: 1 };
+    });
+    const dmg = applyAction(s, MOVE(2), FX).events.filter((e) => e.type === 'damage');
+    expect(dmg.map((e) => (e.type === 'damage' ? e.source : null))).toEqual([undefined, 'scorch']);
+    expect('source' in dmg[0]!).toBe(false);
   });
 
   it('scorch deals at least 1 damage', () => {
@@ -636,7 +645,7 @@ describe('statuses', () => {
     // dummy's tide_hit deals 1, then the scorch tick of floor(200/8) = 25
     expect(dmg).toEqual([
       { type: 'damage', side: 'player', amount: 1, effectiveness: 50 },
-      { type: 'damage', side: 'player', amount: 25, effectiveness: 100 },
+      { type: 'damage', side: 'player', amount: 25, effectiveness: 100, source: 'scorch' },
     ]);
     expect(r.state.teams.player[0]!.hp).toBe(200 - 26);
     expect(r.state.teams.player[0]!.status).toBeNull();
@@ -649,7 +658,7 @@ describe('statuses', () => {
     });
     const r = applyAction(s, MOVE(2), FX);
     expect(r.events.slice(-3)).toEqual([
-      { type: 'damage', side: 'enemy', amount: 1, effectiveness: 100 },
+      { type: 'damage', side: 'enemy', amount: 1, effectiveness: 100, source: 'scorch' },
       { type: 'fainted', side: 'enemy' },
       { type: 'swap', side: 'enemy', toIndex: 1 },
     ]);

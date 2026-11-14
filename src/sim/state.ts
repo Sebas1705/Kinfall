@@ -35,7 +35,7 @@ export interface BattleState {
 export type BattleEvent =
   | { type: 'turnStart'; turn: number }
   | { type: 'move'; side: Side; moveId: string; hit: boolean }
-  | { type: 'damage'; side: Side; amount: number; effectiveness: number }
+  | { type: 'damage'; side: Side; amount: number; effectiveness: number; source?: 'scorch' }
   | { type: 'heal'; side: Side; amount: number }
   | { type: 'status'; side: Side; status: StatusId }
   | { type: 'skip'; side: Side }

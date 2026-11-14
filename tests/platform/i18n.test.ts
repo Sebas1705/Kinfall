@@ -115,6 +115,7 @@ describe('eventLine', () => {
     { type: 'move', side: 'player', moveId: 'a', hit: true },
     { type: 'move', side: 'player', moveId: 'a', hit: false },
     { type: 'damage', side: 'enemy', amount: 7, effectiveness: 100 },
+    { type: 'damage', side: 'enemy', amount: 5, effectiveness: 100, source: 'scorch' },
     { type: 'heal', side: 'player', amount: 3 },
     { type: 'status', side: 'enemy', status: 'scorch' },
     { type: 'skip', side: 'enemy' },
@@ -142,6 +143,14 @@ describe('eventLine', () => {
   it('interpolates names and amounts', () => {
     expect(eventLine(events[3]!, ctx)).toBe('Theirs takes 7 damage.');
     expect(eventLine(events[1]!, ctx)).toBe('Mine uses M:a.');
+  });
+  it('names burn damage in both languages', () => {
+    const burn: BattleEvent = { type: 'damage', side: 'enemy', amount: 5, effectiveness: 100, source: 'scorch' };
+    setLang('en');
+    expect(eventLine(burn, ctx)).toBe('Theirs takes 5 burn damage.');
+    setLang('es');
+    expect(eventLine(burn, ctx)).toBe('Theirs sufre 5 de daño por quemadura.');
+    setLang('en');
   });
   it('appends effectiveness messages', () => {
     const very = eventLine({ type: 'damage', side: 'enemy', amount: 9, effectiveness: 200 }, ctx)!;
