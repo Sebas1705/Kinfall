@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCANNED_DIRS = ['src/sim', 'src/content', 'src/art'];
+/** Individual determinism-critical files outside those directories. */
+const SCANNED_FILES = ['src/view/demo.ts'];
 const MIN_FILES = 6;
 
 /** Math members that are exact on every engine (integer-valued results only). */
@@ -129,8 +131,11 @@ function listTs(dir: string): string[] {
 }
 
 describe('determinism guard', () => {
-  it('src/sim, src/content and src/art avoid non-deterministic APIs', () => {
-    const files = SCANNED_DIRS.flatMap((d) => listTs(join(ROOT, d)));
+  it('src/sim, src/content, src/art and src/view/demo.ts avoid non-deterministic APIs', () => {
+    const files = [
+      ...SCANNED_DIRS.flatMap((d) => listTs(join(ROOT, d))),
+      ...SCANNED_FILES.map((f) => join(ROOT, f)),
+    ];
     expect(files.length).toBeGreaterThanOrEqual(MIN_FILES);
     const offenders = files
       .map((f) => ({ f: f.slice(ROOT.length + 1), v: findViolations(readFileSync(f, 'utf8')) }))

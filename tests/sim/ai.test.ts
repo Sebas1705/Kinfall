@@ -3,6 +3,7 @@ import { CONTENT } from '../../src/content';
 import type { Content, MoveDef, SpeciesDef, Stats } from '../../src/content';
 import { chooseEnemyMove } from '../../src/sim/ai';
 import { applyAction, createBattle, legalActions } from '../../src/sim/battle';
+import type { BattleState } from '../../src/sim/state';
 
 function move(m: Partial<MoveDef> & Pick<MoveDef, 'id' | 'element' | 'kind'>): MoveDef {
   return { names: { en: m.id, es: m.id }, power: 0, focusCost: 0, accuracy: 100, target: 'enemy', ...m };
@@ -115,6 +116,37 @@ describe('chooseEnemyMove', () => {
 });
 
 describe('telegraphed intent', () => {
+  it('is information only: outcomes are identical with telegraph on and off', () => {
+    const ids = CONTENT.species.map((p) => p.id);
+    const setups: Array<[string, Content, string[], string[]]> = [
+      ['fx', FX, ['blaze', 'bramble'], ['twin', 'blaze', 'tired']],
+      ['content', CONTENT, [ids[0]!, ids[1]!, ids[2]!], [ids[3]!, ids[4]!, ids[5]!]],
+    ];
+    const strip = (st: BattleState) => ({ ...st, telegraph: null, intent: null });
+    for (const [label, content, pl, en] of setups) {
+      for (let i = 0; i < 100; i++) {
+        const seed = `${label}-tele-eq-${i}`;
+        let a = createBattle(seed, { speciesIds: pl }, { speciesIds: en }, content, { telegraph: true });
+        let b = createBattle(seed, { speciesIds: pl }, { speciesIds: en }, content, { telegraph: false });
+        const evA: unknown[] = [];
+        const evB: unknown[] = [];
+        for (let t = 0; t < 60 && (a.winner === null || b.winner === null); t++) {
+          const legal = legalActions(a, content);
+          const act = legal[(i + t * 3) % legal.length]!;
+          const ra = applyAction(a, act, content);
+          const rb = applyAction(b, act, content);
+          evA.push(ra.events);
+          evB.push(rb.events);
+          a = ra.state;
+          b = rb.state;
+          expect(strip(a)).toEqual(strip(b));
+        }
+        expect(evA).toEqual(evB);
+        expect(a.winner).toBe(b.winner);
+      }
+    }
+  });
+
   it('is null without telegraph', () => {
     const s = createBattle('n', { speciesIds: ['bramble'] }, { speciesIds: ['twin'] }, FX);
     expect(s.telegraph).toBe(false);

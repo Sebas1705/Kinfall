@@ -185,4 +185,19 @@ test.describe('battle flow', () => {
     expect(await logText(page)).toBe(foreground);
     await expect(page.locator('#result-title')).toHaveText(word);
   });
+
+  test('holding Enter on a focused choice plays exactly one turn', async ({ page }) => {
+    await page.goto(`/?seed=${SEED}`);
+    await expect(firstEnabled(page)).toBeVisible();
+    await firstEnabled(page).focus();
+    for (let n = 0; n < 8; n++) {
+      await page.keyboard.down('Enter'); // repeated down without up sends key repeat
+      await page.waitForTimeout(200);
+    }
+    await page.keyboard.up('Enter');
+    await waitIdle(page);
+    await expect(page.locator('#log .log-turn')).toHaveCount(1);
+    await page.waitForTimeout(500);
+    await expect(page.locator('#log .log-turn')).toHaveCount(1);
+  });
 });
