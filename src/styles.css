@@ -103,14 +103,17 @@ body {
 
 .setting {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
+  max-width: 100%;
   gap: 0.4rem;
   min-height: 44px;
 }
 
 .setting select,
 .setting input[type='range'] {
-  min-height: 2rem;
+  min-height: 44px;
+  min-width: 44px;
   font: inherit;
   color: inherit;
 }
@@ -119,7 +122,7 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0.4rem;
-  padding: 0.2rem 0.4rem;
+  padding: 0.2rem 0.6rem;
 }
 
 .setting input[type='checkbox'] {
@@ -354,6 +357,7 @@ button {
 .dpad {
   grid-area: dpad;
   display: none;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;

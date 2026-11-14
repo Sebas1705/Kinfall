@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "size": "node scripts/check-size.mjs",
     "typecheck": "tsc --noEmit",
     "golden:update": "node scripts/run-ts.mjs scripts/update-golden.ts",
     "art:preview": "node scripts/run-ts.mjs scripts/preview-art.ts"
