@@ -9,7 +9,8 @@
     "build": "vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "golden:update": "node scripts/run-ts.mjs scripts/update-golden.ts"
+    "golden:update": "node scripts/run-ts.mjs scripts/update-golden.ts",
+    "art:preview": "node scripts/run-ts.mjs scripts/preview-art.ts"
   },
   "dependencies": {
     "pixi.js": "^8.23.0"

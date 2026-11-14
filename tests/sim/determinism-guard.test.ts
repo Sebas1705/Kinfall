@@ -5,7 +5,7 @@ import { parseAst } from 'vite';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SCANNED_DIRS = ['src/sim', 'src/content'];
+const SCANNED_DIRS = ['src/sim', 'src/content', 'src/art'];
 const MIN_FILES = 6;
 
 /** Math members that are exact on every engine (integer-valued results only). */
@@ -129,7 +129,7 @@ function listTs(dir: string): string[] {
 }
 
 describe('determinism guard', () => {
-  it('src/sim and src/content avoid non-deterministic APIs', () => {
+  it('src/sim, src/content and src/art avoid non-deterministic APIs', () => {
     const files = SCANNED_DIRS.flatMap((d) => listTs(join(ROOT, d)));
     expect(files.length).toBeGreaterThanOrEqual(MIN_FILES);
     const offenders = files
