@@ -79,6 +79,35 @@ describe('language', () => {
   });
 });
 
+describe('t edge cases', () => {
+  const table = STRINGS as Record<string, Record<string, string>>;
+  it.each(['en', 'es'] as const)('substitutes params literally in a single pass (%s)', (lang) => {
+    const orig = table[lang]!['log.move']!;
+    table[lang]!['log.move'] = '[{species}|{move}]';
+    setLang(lang);
+    try {
+      expect(t('log.move', { species: '$&{move}', move: 'Z' })).toBe('[$&{move}|Z]');
+      expect(t('log.move', { species: '$1', move: '$$' })).toBe('[$1|$$]');
+      expect(t('log.move', { species: '{move}', move: '{species}' })).toBe('[{move}|{species}]');
+    } finally {
+      table[lang]!['log.move'] = orig;
+    }
+  });
+});
+
+describe('gender-neutral Spanish', () => {
+  // Deny-list approximation: no word ending in -ado/-ada/-ido/-ida in any Spanish string that
+  // names a creature (or the stunned label), since such an adjective would have to agree with
+  // the creature's gender. Accented participles ('ha caído') do not agree and are not matched.
+  const gendered = /(?<!\p{L})\p{L}*(ado|ada|ido|ida)(?!\p{L})/u;
+  it('has no agreeing adjectives next to {species}', () => {
+    for (const k of keys) {
+      const v = STRINGS.es[k];
+      if (v.includes('{species}') || k === 'intent.stunned') expect(v, k).not.toMatch(gendered);
+    }
+  });
+});
+
 describe('eventLine', () => {
   const ctx = { species: (side: string) => (side === 'player' ? 'Mine' : 'Theirs'), move: (id: string) => `M:${id}` };
   const events: BattleEvent[] = [
