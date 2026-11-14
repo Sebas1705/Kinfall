@@ -1,0 +1,149 @@
+[
+  {
+    "name": "player-win-plain",
+    "seed": "golden-win-2",
+    "player": {
+      "speciesIds": [
+        "emberveil",
+        "brambleback"
+      ]
+    },
+    "enemy": {
+      "speciesIds": [
+        "skirrow"
+      ]
+    },
+    "telegraph": false,
+    "actions": [
+      {
+        "type": "swap",
+        "toIndex": 1
+      },
+      {
+        "type": "move",
+        "moveIndex": 1
+      },
+      {
+        "type": "move",
+        "moveIndex": 0
+      },
+      {
+        "type": "move",
+        "moveIndex": 3
+      },
+      {
+        "type": "swap",
+        "toIndex": 0
+      },
+      {
+        "type": "move",
+        "moveIndex": 3
+      },
+      {
+        "type": "move",
+        "moveIndex": 0
+      }
+    ],
+    "finalHash": "e27ad92cf1d5fd41",
+    "winner": "player"
+  },
+  {
+    "name": "player-loss-telegraph",
+    "seed": "golden-loss-16",
+    "player": {
+      "speciesIds": [
+        "skirrow"
+      ]
+    },
+    "enemy": {
+      "speciesIds": [
+        "emberveil",
+        "brambleback",
+        "dusklurk"
+      ]
+    },
+    "telegraph": true,
+    "actions": [
+      {
+        "type": "move",
+        "moveIndex": 0
+      },
+      {
+        "type": "move",
+        "moveIndex": 0
+      },
+      {
+        "type": "move",
+        "moveIndex": 2
+      },
+      {
+        "type": "move",
+        "moveIndex": 2
+      },
+      {
+        "type": "move",
+        "moveIndex": 3
+      },
+      {
+        "type": "move",
+        "moveIndex": 3
+      }
+    ],
+    "finalHash": "27f3926d177e3766",
+    "winner": "enemy"
+  },
+  {
+    "name": "status-and-swap",
+    "seed": "golden-status",
+    "player": {
+      "speciesIds": [
+        "cindermite",
+        "tidewisp",
+        "dusklurk"
+      ]
+    },
+    "enemy": {
+      "speciesIds": [
+        "brambleback",
+        "skirrow"
+      ]
+    },
+    "telegraph": false,
+    "actions": [
+      {
+        "type": "move",
+        "moveIndex": 1
+      },
+      {
+        "type": "move",
+        "moveIndex": 0
+      },
+      {
+        "type": "swap",
+        "toIndex": 1
+      },
+      {
+        "type": "move",
+        "moveIndex": 1
+      },
+      {
+        "type": "move",
+        "moveIndex": 2
+      },
+      {
+        "type": "swap",
+        "toIndex": 2
+      },
+      {
+        "type": "move",
+        "moveIndex": 0
+      },
+      {
+        "type": "move",
+        "moveIndex": 2
+      }
+    ],
+    "finalHash": "5147e7f13faae75d",
+    "winner": "enemy"
+  }
+]
