@@ -78,8 +78,13 @@ const DEDUPE_MS = 50;
 function defaultPoll(cb: () => void): () => void {
   let id = 0;
   const loop = () => {
-    cb();
+    // Schedule first so a throwing callback can never kill gamepad polling.
     id = requestAnimationFrame(loop);
+    try {
+      cb();
+    } catch (err) {
+      console.error(err);
+    }
   };
   id = requestAnimationFrame(loop);
   return () => cancelAnimationFrame(id);
@@ -112,10 +117,19 @@ export function createInput(
   const onKeyDown = (e: KeyboardEvent) => {
     const el = e.target as Element | null;
     if (el && typeof el.closest === 'function') {
+      // A focused log region must stay keyboard-scrollable (WCAG 2.1.1).
+      if (el.closest('[role="log"]')) return;
       // Form controls and links own every key.
       if (el.closest('input, textarea, select, a[href], [contenteditable]:not([contenteditable="false"])')) return;
       // Buttons keep native Enter/Space activation (their click is handled by delegation).
-      if ((e.code === 'Enter' || e.code === 'Space') && el.closest('button, [role="button"]')) return;
+      if (
+        (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') &&
+        el.closest('button, [role="button"]')
+      ) {
+        // A held key must not fire a native click per repeat.
+        if (e.repeat) e.preventDefault();
+        return;
+      }
     }
     const action = mapKey(e);
     if (!action) return;
@@ -130,7 +144,7 @@ export function createInput(
   };
   const onBlur = () => {
     held.clear();
-    prevPad = [];
+    // prevPad is kept: a pad button still held after refocus is not a new press.
   };
   const onClick = (e: Event) => {
     const el = (e.target as Element | null)?.closest?.('button[data-action]');

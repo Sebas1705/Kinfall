@@ -119,13 +119,54 @@ describe('createInput', () => {
     expect(actions).toEqual(['up', 'up']);
   });
 
-  it('blur resets gamepad edge state', () => {
+  it('a gamepad button still held after blur is not a new press', () => {
     setPad(0);
     frame();
     window.dispatchEvent(new Event('blur'));
     t += 200;
     frame();
+    expect(actions).toEqual(['confirm']);
+  });
+
+  it('releasing and pressing again after blur emits a new action', () => {
+    setPad(0);
+    frame();
+    window.dispatchEvent(new Event('blur'));
+    setPad();
+    frame();
+    t += 200;
+    setPad(0);
+    frame();
     expect(actions).toEqual(['confirm', 'confirm']);
+  });
+
+  it('gamepad polling keeps running when the callback throws', () => {
+    dispose();
+    const callbacks: Array<() => void> = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: () => void) => callbacks.push(cb));
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let boom = true;
+    const got: GameAction[] = [];
+    const i = createInput(target, (a) => {
+      got.push(a);
+      if (boom) throw new Error('boom');
+    }, { now: () => t, getGamepads: () => pads });
+    setPad(0);
+    callbacks.shift()!(); // throws inside onAction; must still schedule the next frame
+    expect(callbacks.length).toBe(1);
+    expect(err).toHaveBeenCalled();
+    boom = false;
+    setPad();
+    callbacks.shift()!();
+    t += 200;
+    setPad(0);
+    callbacks.shift()!();
+    expect(got).toEqual(['confirm', 'confirm']);
+    i.dispose();
+    vi.unstubAllGlobals();
+    err.mockRestore();
+    ({ dispose } = createInput(target, () => {}, { poll: () => () => {}, getGamepads: () => [] }));
   });
 
   it('holding gamepad A for 10 frames emits one confirm; re-press emits another', () => {
@@ -259,6 +300,34 @@ describe('createInput', () => {
       const btn = add('<button>other</button>');
       expect(keyOn(btn, 'keydown', 'Enter').defaultPrevented).toBe(false);
       expect(actions).toEqual([]);
+    });
+
+    it('a repeated Enter/Space on a focused button is prevented; the first press is not', () => {
+      const btn = target.querySelector<HTMLButtonElement>('[data-action="up"]')!;
+      for (const code of ['Enter', 'NumpadEnter', 'Space']) {
+        const first = new KeyboardEvent('keydown', { code, cancelable: true, bubbles: true });
+        btn.dispatchEvent(first);
+        expect(first.defaultPrevented).toBe(false);
+        const again = new KeyboardEvent('keydown', { code, repeat: true, cancelable: true, bubbles: true });
+        btn.dispatchEvent(again);
+        expect(again.defaultPrevented).toBe(true);
+      }
+      expect(actions).toEqual([]);
+    });
+
+    it('every key inside a role=log region is left to the browser', () => {
+      const log = add('<div role="log" tabindex="0"><p id="line">x</p></div>');
+      for (const code of ['ArrowUp', 'ArrowDown', 'PageDown', 'KeyW', 'Enter', 'Space', 'Escape']) {
+        t += 100;
+        expect(keyOn(log, 'keydown', code).defaultPrevented).toBe(false);
+        keyOn(log, 'keyup', code);
+        expect(keyOn(log.querySelector('#line')!, 'keydown', code).defaultPrevented).toBe(false);
+        keyOn(log, 'keyup', code);
+      }
+      expect(actions).toEqual([]);
+      t += 100;
+      expect(keyOn(document.body, 'keydown', 'ArrowDown').defaultPrevented).toBe(true);
+      expect(actions).toEqual(['down']);
     });
 
     it('ArrowDown on a focused button still emits down', () => {
