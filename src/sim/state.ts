@@ -27,6 +27,8 @@ export interface BattleState {
   active: Record<Side, number>;
   turn: number;
   winner: Side | null;
+  /** When true the enemy's next move is shown in `intent` before the player acts. */
+  telegraph: boolean;
   intent: { moveIndex: number } | null;
 }
 
@@ -36,6 +38,7 @@ export type BattleEvent =
   | { type: 'damage'; side: Side; amount: number; effectiveness: number }
   | { type: 'heal'; side: Side; amount: number }
   | { type: 'status'; side: Side; status: StatusId }
+  | { type: 'skip'; side: Side }
   | { type: 'swap'; side: Side; toIndex: number }
   | { type: 'fainted'; side: Side }
   | { type: 'rejected'; reason: 'illegal' | 'ended' | 'focus' }

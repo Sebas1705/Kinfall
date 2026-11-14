@@ -1,5 +1,6 @@
 import { effectiveness } from '../content';
 import type { Content, MoveDef, SpeciesDef, StatusId } from '../content';
+import { chooseEnemyMove, enemyMoveLegal } from './ai';
 import { createRng, restoreRng } from './rng';
 import type { Rng } from './rng';
 import type { Action, BattleEvent, BattleState, Combatant, Side, TeamSpec } from './state';
@@ -43,8 +44,9 @@ export function createBattle(
   player: TeamSpec,
   enemy: TeamSpec,
   content: Content,
+  options?: { telegraph?: boolean },
 ): BattleState {
-  return {
+  const s: BattleState = {
     version: 1,
     seed,
     rng: createRng(seed).getState(),
@@ -52,8 +54,21 @@ export function createBattle(
     active: { player: 0, enemy: 0 },
     turn: 1,
     winner: null,
+    telegraph: options?.telegraph === true,
     intent: null,
   };
+  return withIntent(s, content);
+}
+
+/** Refreshes `intent` in place: the AI choice when telegraphing and the battle is live, else null. */
+function withIntent(s: BattleState, content: Content): BattleState {
+  if (s.telegraph && s.winner === null) {
+    const moveIndex = chooseEnemyMove(s, content);
+    s.intent = moveIndex >= 0 ? { moveIndex } : null;
+  } else {
+    s.intent = null;
+  }
+  return s;
 }
 
 function activeOf(state: BattleState, side: Side): Combatant {
@@ -67,6 +82,7 @@ type Rejection = 'illegal' | 'ended' | 'focus';
 /** Why `action` is not allowed for the player right now, or null when it is legal. */
 function rejection(state: BattleState, action: Action, content: Content): Rejection | null {
   if (state.winner !== null) return 'ended';
+  if (typeof action !== 'object' || action === null) return 'illegal';
   const team = state.teams.player;
   const current = activeOf(state, 'player');
   if (action.type === 'swap') {
@@ -75,6 +91,7 @@ function rejection(state: BattleState, action: Action, content: Content): Reject
     if (i === state.active.player || team[i]!.fainted) return 'illegal';
     return null;
   }
+  if (action.type !== 'move') return 'illegal';
   // A fainted active creature must be swapped out before anything else.
   if (current.fainted) return 'illegal';
   const moves = speciesOf(current.speciesId, content).moves;
@@ -102,9 +119,13 @@ export function legalActions(state: BattleState, content: Content): Action[] {
   return out;
 }
 
-/** Task 4 enemy: the first legal move of its active creature (the AI arrives in Task 5). */
+/** The enemy's move: the telegraphed intent when there is one, else the AI's choice; null when it has none. */
 function enemyAction(state: BattleState, content: Content): Action | null {
-  return moveActions(activeOf(state, 'enemy'), content)[0] ?? null;
+  const idx =
+    state.intent !== null && enemyMoveLegal(state, state.intent.moveIndex, content)
+      ? state.intent.moveIndex
+      : chooseEnemyMove(state, content);
+  return idx >= 0 ? { type: 'move', moveIndex: idx } : null;
 }
 
 function resolveMove(
@@ -139,6 +160,7 @@ function resolveMove(
     events.push({ type: 'damage', side: targetSide, amount, effectiveness: eff });
     if (target.hp === 0) {
       target.fainted = true;
+      target.status = null;
       events.push({ type: 'fainted', side: targetSide });
     }
   } else if (move.kind === 'heal') {
@@ -149,6 +171,28 @@ function resolveMove(
     target.status = { id: move.status, turns: STATUS_TURNS[move.status] };
     events.push({ type: 'status', side: targetSide, status: move.status });
   }
+}
+
+/** True when the side's active creature is conscious and stunned (its next move is lost). */
+function stunned(s: BattleState, side: Side): boolean {
+  const c = activeOf(s, side);
+  return !c.fainted && c.status?.id === 'stun';
+}
+
+function scorchTick(s: BattleState, side: Side, events: BattleEvent[]): void {
+  const c = activeOf(s, side);
+  if (c.fainted || c.status?.id !== 'scorch') return;
+  const amount = Math.min(c.hp, Math.max(1, Math.floor(c.maxHp / 8)));
+  c.hp -= amount;
+  events.push({ type: 'damage', side, amount, effectiveness: 100 });
+  if (c.hp === 0) {
+    c.fainted = true;
+    c.status = null;
+    events.push({ type: 'fainted', side });
+    return;
+  }
+  c.status.turns -= 1;
+  if (c.status.turns <= 0) c.status = null;
 }
 
 function resolveSwap(s: BattleState, side: Side, toIndex: number, events: BattleEvent[]): void {
@@ -170,7 +214,7 @@ export function applyAction(
   if (action.type === 'swap' && activeOf(s, 'player').fainted) {
     const events: BattleEvent[] = [];
     resolveSwap(s, 'player', action.toIndex, events);
-    return { state: s, events };
+    return { state: withIntent(s, content), events };
   }
 
   const rng = restoreRng(s.rng);
@@ -192,8 +236,14 @@ export function applyAction(
     const act = side === 'player' ? action : enemyAct;
     if (act === null) continue;
     if (act.type === 'swap') resolveSwap(s, side, act.toIndex, events);
-    else resolveMove(s, side, act.moveIndex, rng, content, events);
+    else if (stunned(s, side)) {
+      activeOf(s, side).status = null;
+      events.push({ type: 'skip', side });
+    } else resolveMove(s, side, act.moveIndex, rng, content, events);
   }
+
+  // End of turn: scorch burns each active creature, in action order.
+  for (const side of order) scorchTick(s, side, events);
 
   // Win check (player wipe first: a mutual wipe counts as a loss).
   if (s.teams.player.every((c) => c.fainted)) s.winner = 'enemy';
@@ -216,5 +266,5 @@ export function applyAction(
 
   s.turn += 1;
   s.rng = rng.getState();
-  return { state: s, events };
+  return { state: withIntent(s, content), events };
 }

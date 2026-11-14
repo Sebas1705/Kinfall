@@ -184,9 +184,9 @@ describe('damage', () => {
     const { state, events } = applyAction(s, MOVE(0), FX);
     expect(events).toContainEqual({ type: 'damage', side: 'enemy', amount: 124, effectiveness: 200 });
     expect(state.teams.enemy[0]!.hp).toBe(200 - 124);
-    // bramble answers: thorn 40 * 40 / 40 = 40, STAB 50, vs ember 50% = 25
-    expect(events).toContainEqual({ type: 'damage', side: 'player', amount: 25, effectiveness: 50 });
-    expect(state.teams.player[0]!.hp).toBe(200 - 25);
+    // the AI picks bramble's highest power x effectiveness move: whiff (tide, 200% vs ember), which misses
+    expect(events).toContainEqual({ type: 'move', side: 'enemy', moveId: 'whiff', hit: false });
+    expect(state.teams.player[0]!.hp).toBe(200);
   });
 
   it('deals at least 1 damage', () => {
@@ -345,15 +345,17 @@ describe('applyAction', () => {
     const r = applyAction(s, MOVE(2), FX);
     expect(r.events[1]).toEqual({ type: 'move', side: 'player', moveId: 'scorch_hex', hit: true });
     expect(r.events[2]).toEqual({ type: 'status', side: 'enemy', status: 'scorch' });
-    expect(r.state.teams.enemy[0]!.status).toEqual({ id: 'scorch', turns: 3 });
-    // already statused: move event only, status unchanged
+    // applied with 3 turns; the end-of-turn tick already used one
+    expect(r.state.teams.enemy[0]!.status).toEqual({ id: 'scorch', turns: 2 });
+    // already statused: move event only, status unchanged (apart from the next tick)
     const r2 = applyAction(r.state, MOVE(3), FX);
     expect(r2.events[1]).toEqual({ type: 'move', side: 'player', moveId: 'stun_hex', hit: true });
     expect(r2.events.some((e) => e.type === 'status')).toBe(false);
-    expect(r2.state.teams.enemy[0]!.status).toEqual({ id: 'scorch', turns: 3 });
+    expect(r2.state.teams.enemy[0]!.status).toEqual({ id: 'scorch', turns: 1 });
 
     const stun = applyAction(s, MOVE(3), FX);
-    expect(stun.state.teams.enemy[0]!.status).toEqual({ id: 'stun', turns: 1 });
+    // the slower enemy loses its action this turn, which consumes the stun
+    expect(stun.state.teams.enemy[0]!.status).toBeNull();
     expect(stun.events).toContainEqual({ type: 'status', side: 'enemy', status: 'stun' });
   });
 
@@ -393,7 +395,8 @@ describe('applyAction', () => {
     });
     const r = applyAction(s, MOVE(0), FX);
     expect(r.events.slice(1)).toEqual([
-      { type: 'move', side: 'enemy', moveId: 'ember_hit', hit: true },
+      // the AI prefers ember_big (60) over ember_hit (40) while it can pay the focus
+      { type: 'move', side: 'enemy', moveId: 'ember_big', hit: true },
       { type: 'damage', side: 'player', amount: 1, effectiveness: 200 },
       { type: 'fainted', side: 'player' },
     ]);
@@ -587,5 +590,177 @@ describe('CONTENT smoke', () => {
     expect(a.state.winner).not.toBeNull();
     expect(a.events.at(-1)).toEqual({ type: 'end', winner: a.state.winner });
     expect(run()).toEqual(a);
+  });
+});
+
+describe('statuses', () => {
+  const dummyScorched = (turns = 3) =>
+    edit(createBattle('scorch', { speciesIds: ['bramble'] }, { speciesIds: ['dummy', 'ripple'] }, FX), (x) => {
+      x.teams.enemy[0]!.status = { id: 'scorch', turns };
+    });
+
+  it('scorch ticks floor(maxHp / 8) for exactly 3 turns, then clears', () => {
+    // dummy maxHp 1000 -> 125 per tick; bramble's whiff (index 2) never hurts it
+    let s = dummyScorched();
+    const hp: number[] = [];
+    const turns: (number | undefined)[] = [];
+    for (let i = 0; i < 4; i++) {
+      const r = applyAction(s, MOVE(2), FX);
+      s = r.state;
+      hp.push(s.teams.enemy[0]!.hp);
+      turns.push(s.teams.enemy[0]!.status?.turns);
+      const ticks = r.events.filter((e) => e.type === 'damage' && e.side === 'enemy');
+      expect(ticks).toHaveLength(i < 3 ? 1 : 0);
+      if (i < 3) expect(ticks[0]).toEqual({ type: 'damage', side: 'enemy', amount: 125, effectiveness: 100 });
+    }
+    expect(hp).toEqual([875, 750, 625, 625]);
+    expect(turns).toEqual([2, 1, undefined, undefined]);
+    expect(s.teams.enemy[0]!.status).toBeNull();
+  });
+
+  it('scorch deals at least 1 damage', () => {
+    const s = edit(createBattle('tiny', { speciesIds: ['bramble'] }, { speciesIds: ['mote'] }, FX), (x) => {
+      x.teams.enemy[0]!.status = { id: 'scorch', turns: 3 };
+    });
+    // mote maxHp 4 -> floor(4/8) = 0 -> 1
+    const r = applyAction(s, MOVE(2), FX);
+    expect(r.state.teams.enemy[0]!.hp).toBe(3);
+  });
+
+  it('scorch ticks apply to the player too and reconcile with the event amount', () => {
+    const s = edit(createBattle('pscorch', { speciesIds: ['bramble'] }, { speciesIds: ['dummy'] }, FX), (x) => {
+      x.teams.player[0]!.status = { id: 'scorch', turns: 1 };
+    });
+    const r = applyAction(s, MOVE(2), FX);
+    const dmg = r.events.filter((e) => e.type === 'damage' && e.side === 'player');
+    // dummy's tide_hit deals 1, then the scorch tick of floor(200/8) = 25
+    expect(dmg).toEqual([
+      { type: 'damage', side: 'player', amount: 1, effectiveness: 50 },
+      { type: 'damage', side: 'player', amount: 25, effectiveness: 100 },
+    ]);
+    expect(r.state.teams.player[0]!.hp).toBe(200 - 26);
+    expect(r.state.teams.player[0]!.status).toBeNull();
+  });
+
+  it('a scorch tick that faints the enemy is handled like any faint', () => {
+    const s = edit(createBattle('sfaint', { speciesIds: ['bramble'] }, { speciesIds: ['mote', 'ripple'] }, FX), (x) => {
+      x.teams.enemy[0]!.hp = 1;
+      x.teams.enemy[0]!.status = { id: 'scorch', turns: 2 };
+    });
+    const r = applyAction(s, MOVE(2), FX);
+    expect(r.events.slice(-3)).toEqual([
+      { type: 'damage', side: 'enemy', amount: 1, effectiveness: 100 },
+      { type: 'fainted', side: 'enemy' },
+      { type: 'swap', side: 'enemy', toIndex: 1 },
+    ]);
+    expect(r.state.teams.enemy[0]).toMatchObject({ hp: 0, fainted: true, status: null });
+    expect(r.state.active.enemy).toBe(1);
+    expect(r.state.winner).toBeNull();
+  });
+
+  it('a scorch tick that faints the last creature ends the battle', () => {
+    const s = edit(createBattle('send', { speciesIds: ['bramble'] }, { speciesIds: ['mote'] }, FX), (x) => {
+      x.teams.enemy[0]!.hp = 1;
+      x.teams.enemy[0]!.status = { id: 'scorch', turns: 2 };
+    });
+    const r = applyAction(s, MOVE(2), FX);
+    expect(r.state.winner).toBe('player');
+    expect(r.events.at(-1)).toEqual({ type: 'end', winner: 'player' });
+  });
+
+  it('a scorch tick that faints the player forces a replacement next turn', () => {
+    const s = edit(createBattle('pf', { speciesIds: ['bramble', 'ripple'] }, { speciesIds: ['dummy'] }, FX), (x) => {
+      x.teams.player[0]!.hp = 1;
+      x.teams.player[0]!.status = { id: 'scorch', turns: 3 };
+    });
+    const r = applyAction(s, MOVE(2), FX);
+    expect(r.state.teams.player[0]).toMatchObject({ fainted: true, status: null });
+    expect(legalActions(r.state, FX)).toEqual([SWAP(1)]);
+  });
+
+  it('stun skips exactly one enemy action, then clears', () => {
+    const s = edit(createBattle('stun', { speciesIds: ['bramble'] }, { speciesIds: ['dummy'] }, FX), (x) => {
+      x.teams.enemy[0]!.status = { id: 'stun', turns: 1 };
+    });
+    const r1 = applyAction(s, MOVE(2), FX);
+    expect(r1.events).toContainEqual({ type: 'skip', side: 'enemy' });
+    expect(r1.events.some((e) => e.type === 'move' && e.side === 'enemy')).toBe(false);
+    expect(r1.state.teams.enemy[0]!.status).toBeNull();
+    const r2 = applyAction(r1.state, MOVE(2), FX);
+    expect(r2.events.some((e) => e.type === 'skip')).toBe(false);
+    expect(r2.events).toContainEqual({ type: 'move', side: 'enemy', moveId: 'tide_hit', hit: true });
+  });
+
+  it('stun applied by a faster player also costs the enemy that same turn', () => {
+    const s = createBattle('stun2', { speciesIds: ['blaze'] }, { speciesIds: ['ripple'] }, FX);
+    const r = applyAction(s, MOVE(3), FX);
+    expect(r.events.filter((e) => e.type === 'move').map((e) => (e as { side: string }).side)).toEqual(['player']);
+    expect(r.events).toContainEqual({ type: 'skip', side: 'enemy' });
+    expect(r.state.teams.enemy[0]!.status).toBeNull();
+  });
+
+  it('a stunned player skips their move; the enemy still acts', () => {
+    const s = edit(createBattle('pstun', { speciesIds: ['blaze'] }, { speciesIds: ['ripple'] }, FX), (x) => {
+      x.teams.player[0]!.status = { id: 'stun', turns: 1 };
+    });
+    const r = applyAction(s, MOVE(1), FX);
+    expect(r.events).toContainEqual({ type: 'skip', side: 'player' });
+    expect(r.state.teams.player[0]!.focus).toBe(3); // the skipped move cost nothing
+    expect(r.state.teams.player[0]!.status).toBeNull();
+    expect(r.events.some((e) => e.type === 'move' && e.side === 'enemy')).toBe(true);
+    expect(r.events.some((e) => e.type === 'move' && e.side === 'player')).toBe(false);
+  });
+
+  it('a creature keeps at most one status: a second one is ignored', () => {
+    const s = createBattle('one', { speciesIds: ['blaze'] }, { speciesIds: ['dummy'] }, FX);
+    const a = applyAction(s, MOVE(2), FX); // scorch (one tick already taken)
+    expect(a.state.teams.enemy[0]!.status).toEqual({ id: 'scorch', turns: 2 });
+    const b = applyAction(a.state, MOVE(3), FX); // stun ignored
+    expect(b.events.some((e) => e.type === 'status')).toBe(false);
+    expect(b.state.teams.enemy[0]!.status).toEqual({ id: 'scorch', turns: 1 });
+    const c = applyAction(a.state, MOVE(2), FX); // scorch again ignored: turns keep counting down
+    expect(c.events.some((e) => e.type === 'status')).toBe(false);
+    expect(c.state.teams.enemy[0]!.status).toEqual({ id: 'scorch', turns: 1 });
+  });
+});
+
+describe('folded-in fixes', () => {
+  const base = createBattle('fold', { speciesIds: ['blaze', 'bramble'] }, { speciesIds: ['bramble'] }, FX);
+  const bad: [string, unknown][] = [
+    ['null', null],
+    ['undefined', undefined],
+    ['a string', 'move'],
+    ['a number', 3],
+    ['an array', [0]],
+    ['NaN moveIndex', { type: 'move', moveIndex: NaN }],
+    ['missing moveIndex', { type: 'move' }],
+    ['missing toIndex', { type: 'swap' }],
+    ['unknown type', { type: 'flee' }],
+    ['missing type', {}],
+    ['string moveIndex', { type: 'move', moveIndex: '0' }],
+    ['SWAP(1.5)', SWAP(1.5)],
+  ];
+  for (const [name, action] of bad) {
+    it(`rejects ${name} as illegal without throwing or changing state`, () => {
+      const before = structuredClone(base);
+      const r = applyAction(base, action as Action, FX);
+      expect(r.events).toEqual([{ type: 'rejected', reason: 'illegal' }]);
+      expect(r.state).toEqual(before);
+    });
+  }
+
+  it('a move that misses still costs its focus', () => {
+    const c: Content = {
+      moves: [move({ id: 'dud', element: 'ember', kind: 'damage', power: 40, accuracy: 0, focusCost: 2 }), ...FX.moves],
+      species: [
+        species('shy', ['ember'], { health: 50, power: 50, guard: 40, speed: 60, focus: 30 }, ['dud', 'ember_hit']),
+        FX.species.find((x) => x.id === 'dummy')!,
+      ],
+    };
+    const s = createBattle('dud', { speciesIds: ['shy'] }, { speciesIds: ['dummy'] }, c);
+    const r = applyAction(s, MOVE(0), c);
+    expect(r.events).toContainEqual({ type: 'move', side: 'player', moveId: 'dud', hit: false });
+    // 3 - 2 spent + 1 regenerated
+    expect(r.state.teams.player[0]!.focus).toBe(2);
   });
 });
