@@ -1,0 +1,448 @@
+/* UI chrome only; the battle scene keeps its own palette. Sizes are in rem so the text-size
+   setting (which sets the root font size) scales the whole interface. */
+:root {
+  color-scheme: light dark;
+  --bg: #f6f6fa;
+  --surface: #ffffff;
+  --surface-2: #ececf3;
+  --text: #16161d;
+  --muted: #4c4f60;
+  --border: #c9cad6;
+  --accent: #3a5bd9;
+  --accent-text: #ffffff;
+  --focus: #1f46c4;
+  --win: #1e7a34;
+  --lose: #b3261e;
+  --disabled-text: #6b6e7d;
+  --radius: 0.6rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0e13;
+    --surface: #181922;
+    --surface-2: #232532;
+    --text: #f1f1f6;
+    --muted: #b6b9c9;
+    --border: #3a3d4f;
+    --accent: #8ea8ff;
+    --accent-text: #0e0e13;
+    --focus: #b6c6ff;
+    --win: #74d68a;
+    --lose: #ff8a80;
+    --disabled-text: #9a9db0;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.app {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 0.5rem 1rem 1rem;
+}
+
+/* ---- top bar and settings ---- */
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding-bottom: 0.5rem;
+}
+
+.title {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.setting {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+}
+
+.setting select,
+.setting input[type='range'] {
+  min-height: 2rem;
+  font: inherit;
+  color: inherit;
+}
+
+.setting select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.setting input[type='checkbox'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.setting input[type='range'] {
+  width: 6.5rem;
+  accent-color: var(--accent);
+}
+
+.setting output {
+  min-width: 2.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- battle layout (mobile first: scene, log, menu, d-pad) ---- */
+.battle {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'stage' 'log' 'menu' 'dpad';
+}
+
+.stage {
+  grid-area: stage;
+  min-width: 0;
+}
+
+.scene {
+  width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #1b1d2a;
+  min-height: 10rem;
+}
+
+.scene-canvas {
+  display: block;
+}
+
+.summary:not(.sr-only) {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  white-space: pre-line;
+}
+
+.panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.log-panel {
+  grid-area: log;
+  min-width: 0;
+}
+
+.log {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  height: 5.5rem;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+.log p {
+  margin: 0 0 0.15rem;
+}
+
+.log .log-turn {
+  border-top: 1px solid var(--border);
+  padding-top: 0.2rem;
+  margin-top: 0.2rem;
+}
+
+.log .log-turn:first-child {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.menu-panel {
+  grid-area: menu;
+  min-width: 0;
+}
+
+.prompt {
+  font-size: 1rem;
+  margin: 0 0 0.4rem;
+}
+
+.prompt:empty {
+  display: none;
+}
+
+.choices.busy {
+  opacity: 0.7;
+}
+
+.choice-group + .choice-group {
+  margin-top: 0.6rem;
+}
+
+.choice-heading {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.choice-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  gap: 0.5rem;
+}
+
+button {
+  font: inherit;
+}
+
+.choice,
+.primary,
+.pad {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.45rem 0.7rem;
+  text-align: start;
+  min-height: 3.25rem;
+}
+
+.choice-label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.choice-detail {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.choice:hover:not(:disabled),
+.pad:hover {
+  border-color: var(--accent);
+}
+
+.choice:focus-visible,
+.choice.selected {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.choice:disabled {
+  cursor: not-allowed;
+  background: var(--surface-2);
+  color: var(--disabled-text);
+  border-style: dashed;
+}
+
+.choice:disabled .choice-detail {
+  color: var(--disabled-text);
+}
+
+.result {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+}
+
+.result-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+}
+
+.result-title.win {
+  color: var(--win);
+}
+
+.result-title.lose {
+  color: var(--lose);
+}
+
+.result-title.win::before {
+  content: '★ ';
+}
+
+.result-title.lose::before {
+  content: '✕ ';
+}
+
+.result-note {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 600;
+  padding: 0.5rem 1.1rem;
+}
+
+/* ---- on-screen controls: only on touch screens ---- */
+.dpad {
+  grid-area: dpad;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+@media (pointer: coarse) {
+  .dpad {
+    display: flex;
+  }
+}
+
+.dpad-cross {
+  display: grid;
+  grid-template-columns: repeat(3, 48px);
+  grid-template-rows: repeat(3, 48px);
+  gap: 2px;
+}
+
+.pad {
+  font-size: 1rem;
+  padding: 0 0.6rem;
+}
+
+.pad--up {
+  grid-area: 1 / 2;
+}
+
+.pad--left {
+  grid-area: 2 / 1;
+}
+
+.pad--right {
+  grid-area: 2 / 3;
+}
+
+.pad--down {
+  grid-area: 3 / 2;
+}
+
+.dpad-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pad--wide {
+  min-width: 6.5rem;
+}
+
+.pad--confirm {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.footer {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.footer p {
+  margin: 0;
+}
+
+/* ---- wider screens: scene on top, log beside the menu ---- */
+@media (min-width: 48rem) {
+  .battle {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-areas:
+      'stage stage'
+      'log menu'
+      'dpad dpad';
+  }
+
+  .log {
+    height: 14rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

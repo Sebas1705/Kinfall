@@ -3,10 +3,77 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>webgames</title>
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Echo battle</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div class="app" id="app">
+      <header class="topbar">
+        <h1 class="title" data-i18n="app.title">Echo battle</h1>
+        <section class="settings" aria-labelledby="settings-title">
+          <h2 class="sr-only" id="settings-title" data-i18n="settings.title">Settings</h2>
+          <label class="setting">
+            <span data-i18n="settings.language">Language</span>
+            <select id="lang">
+              <option value="en" lang="en">English</option>
+              <option value="es" lang="es">Español</option>
+            </select>
+          </label>
+          <label class="setting setting--check">
+            <input type="checkbox" id="reduce-motion" />
+            <span data-i18n="settings.reduceMotion">Reduce motion</span>
+          </label>
+          <label class="setting">
+            <span data-i18n="settings.textSize">Text size</span>
+            <input type="range" id="text-size" min="80" max="150" step="10" value="100" />
+            <output id="text-size-value" for="text-size">100%</output>
+          </label>
+        </section>
+      </header>
+
+      <main class="battle">
+        <section class="stage">
+          <div class="scene" id="scene"></div>
+          <p class="summary sr-only" id="summary"></p>
+        </section>
+
+        <section class="log-panel" aria-labelledby="log-title">
+          <h2 class="panel-title" id="log-title" data-i18n="battle.log">Battle log</h2>
+          <div class="log" id="log" role="log" aria-live="polite" aria-labelledby="log-title" tabindex="0"></div>
+        </section>
+
+        <section class="menu-panel" id="menu-panel" aria-labelledby="prompt">
+          <h2 class="prompt" id="prompt"></h2>
+          <p class="intent sr-only" id="intent"></p>
+          <div class="choices" id="choices"></div>
+          <div class="result" id="result" hidden>
+            <h2 class="result-title" id="result-title" tabindex="-1"></h2>
+            <p class="result-note" id="result-note"></p>
+            <button type="button" class="primary" id="new-battle" data-i18n="battle.new">New battle</button>
+          </div>
+        </section>
+
+        <nav class="dpad" id="dpad" aria-labelledby="dpad-title">
+          <h2 class="sr-only" id="dpad-title" data-i18n="controls.label">On-screen controls</h2>
+          <div class="dpad-cross">
+            <button type="button" class="pad pad--up" data-action="up" data-i18n-label="controls.up" aria-label="Up">▲</button>
+            <button type="button" class="pad pad--left" data-action="left" data-i18n-label="controls.left" aria-label="Left">◀</button>
+            <button type="button" class="pad pad--right" data-action="right" data-i18n-label="controls.right" aria-label="Right">▶</button>
+            <button type="button" class="pad pad--down" data-action="down" data-i18n-label="controls.down" aria-label="Down">▼</button>
+          </div>
+          <div class="dpad-buttons">
+            <button type="button" class="pad pad--wide" data-action="swap" data-i18n="menu.swap">Swap</button>
+            <button type="button" class="pad pad--wide" data-action="back" data-i18n="menu.back">Back</button>
+            <button type="button" class="pad pad--wide pad--confirm" data-action="confirm" data-i18n="controls.confirm">Confirm</button>
+          </div>
+        </nav>
+      </main>
+
+      <footer class="footer">
+        <p id="seed"></p>
+      </footer>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
