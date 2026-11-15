@@ -49,12 +49,14 @@ function validateRun(c: Content, speciesIds: Set<string>, errs: string[]): void 
       errs.push(`species ${s.id}: evolution target ${s.evolvesTo} does not exist`);
     if (!Number.isInteger(s.evolveCost) || (s.evolveCost as number) < 1)
       errs.push(`species ${s.id}: evolveCost must be an integer >= 1 when evolvesTo is set`);
-    // Walk the chain; report the cycle once, on the species where the walk started repeating.
+    // Walk the chain; a cycle is reported once, by its alphabetically first member.
     const seen = new Set<string>([s.id]);
     let next = byId.get(s.evolvesTo);
     while (next) {
       if (next.id === s.id) {
-        errs.push(`species ${s.id}: evolution cycle`);
+        const members = [...seen].sort();
+        if (members[0] === s.id)
+          errs.push(`species ${s.id}: evolution cycle (${members.join(' -> ')})`);
         break;
       }
       if (seen.has(next.id)) break;

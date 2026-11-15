@@ -60,6 +60,19 @@ describe('run content', () => {
   });
 });
 
+describe('zone pools', () => {
+  it('the zone-2 boss species is in no wild pool', () => {
+    const finalBoss = CONTENT.bosses.find((b) => b.zone === 2)!.speciesId;
+    for (const z of CONTENT.zones) expect(z.wild).not.toContain(finalBoss);
+  });
+
+  it('zone 0 is starters plus gale; zone 1 adds umbra; zone 2 matches zone 1', () => {
+    expect(CONTENT.zones[0]!.wild).toEqual([...CONTENT.starters, 'skirrow']);
+    expect(CONTENT.zones[1]!.wild).toEqual([...CONTENT.starters, 'skirrow', 'dusklurk']);
+    expect(CONTENT.zones[2]!.wild).toEqual(CONTENT.zones[1]!.wild);
+  });
+});
+
 describe('run content validator', () => {
   it('evolution target missing', () => {
     const c = clone();
@@ -73,8 +86,9 @@ describe('run content validator', () => {
     evo.evolvesTo = 'cindermite';
     evo.evolveCost = 3;
     const errs = validateContent(c);
-    expect(errs.length).toBeGreaterThanOrEqual(1);
-    expect(errs.some((e) => e.includes('cycle') && e.includes('cindermite'))).toBe(true);
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toContain('cycle');
+    expect(errs[0]).toContain('cindermite');
   });
 
   it('evolveCost below 1', () => {
