@@ -104,3 +104,10 @@ export function generateZoneMap(seed: string, zone: number): ZoneMap {
 
   return { zone, layers };
 }
+
+/** The node with id `id` in `map`, or undefined when the map or the node is missing. */
+export function findNode(map: ZoneMap | undefined, id: string): MapNode | undefined {
+  if (!map) return undefined;
+  for (const layer of map.layers) for (const node of layer) if (node.id === id) return node;
+  return undefined;
+}

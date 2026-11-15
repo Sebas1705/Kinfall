@@ -1,10 +1,11 @@
 import type { Content } from '../../content';
-import { lookup } from '../../content/lookup';
 import { applyAction, createBattle, legalActions } from '../battle';
 import { createRng } from '../rng';
 import type { Action } from '../state';
 import { buildEncounter } from './encounters';
-import { generateZoneMap } from './map';
+import { findNode as findInMap, generateZoneMap } from './map';
+import { maxHpOf } from './party';
+import { resolveBattle } from './resolve';
 import type { MapNode, RunAction, RunEvent, RunPhase, RunState, RunStep } from './types';
 
 const ZONES = 3;
@@ -20,10 +21,7 @@ const ACTION_PHASE: Record<RunAction['type'], RunPhase['kind']> = {
   mystery: 'mystery',
 };
 
-/** A party member's max HP: the player side never scales (hpPercent 100). */
-export function maxHpOf(speciesId: string, content: Content): number {
-  return lookup(content).species(speciesId).base.health * 4;
-}
+export { maxHpOf };
 
 export function startRun(seed: string, starterId: string, content: Content): RunState {
   if (!content.starters.includes(starterId)) {
@@ -46,10 +44,7 @@ export function startRun(seed: string, starterId: string, content: Content): Run
 }
 
 function findNode(run: RunState, id: string): MapNode | undefined {
-  const map = run.maps[run.zone];
-  if (!map) return undefined;
-  for (const layer of map.layers) for (const node of layer) if (node.id === id) return node;
-  return undefined;
+  return findInMap(run.maps[run.zone], id);
 }
 
 /** Nodes the player may enter next, in column order; empty outside the map phase. */
@@ -116,8 +111,13 @@ function battleStep(run: RunState, action: unknown, content: Content): RunStep {
   const phase = run.phase;
   const result = applyAction(phase.battle, action as Action, content);
   if (result.events.some((e) => e.type === 'rejected')) return reject(run, 'illegal');
+  const events: RunEvent[] = result.events.map((event) => ({ type: 'battle', event }));
+  if (result.state.winner !== null) {
+    const resolved = resolveBattle(run, phase.nodeId, result.state, content);
+    return { run: resolved.run, events: [...events, ...resolved.events] };
+  }
   run.phase = { kind: 'battle', nodeId: phase.nodeId, battle: result.state };
-  return { run, events: result.events.map((event) => ({ type: 'battle', event })) };
+  return { run, events };
 }
 
 /**

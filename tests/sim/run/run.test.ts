@@ -5,7 +5,7 @@ import { createRng } from '../../../src/sim/rng';
 import { buildEncounter } from '../../../src/sim/run/encounters';
 import { generateZoneMap } from '../../../src/sim/run/map';
 import { applyRunAction, availableNodes, legalRunActions, maxHpOf, startRun } from '../../../src/sim/run/run';
-import type { MapNode, NodeType, RunAction, RunState } from '../../../src/sim/run/types';
+import type { MapNode, NodeType, RunAction, RunEvent, RunState } from '../../../src/sim/run/types';
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -234,10 +234,19 @@ describe('applyRunAction: entering nodes', () => {
 
 describe('applyRunAction: battle steps', () => {
   it('applies a battle action and wraps every event', () => {
-    const run = wildBattleRun();
-    if (run.phase.kind !== 'battle') throw new Error('expected battle');
+    // First seed whose opening battle action leaves the battle live.
+    let run: RunState | undefined;
+    for (let i = 0; i < 100 && !run; i++) {
+      const r = startRun(`battle-step-${i}`, 'brambleback', CONTENT);
+      const b = enter(r, r.maps[0]!.layers[0]![0]!.id).run;
+      if (b.phase.kind !== 'battle') throw new Error('expected battle');
+      const a = legalActions(b.phase.battle, CONTENT)[0]!;
+      if (applyAction(b.phase.battle, a, CONTENT).state.winner === null) run = b;
+    }
+    if (!run || run.phase.kind !== 'battle') throw new Error('expected a live battle');
     const action = legalActions(run.phase.battle, CONTENT)[0]!;
     const direct = applyAction(run.phase.battle, action, CONTENT);
+    expect(direct.state.winner).toBeNull();
     const step = applyRunAction(run, { type: 'battle', action }, CONTENT);
     expect(step.events).toEqual(direct.events.map((event) => ({ type: 'battle', event })));
     expect(step.run.phase).toEqual({ kind: 'battle', nodeId: run.phase.nodeId, battle: direct.state });
@@ -258,18 +267,19 @@ describe('applyRunAction: battle steps', () => {
     }
   });
 
-  it('stays in the battle phase once the battle is won or lost, with no legal actions', () => {
+  it('resolves the battle as soon as it ends; battle actions are then rejected as phase', () => {
     let run = wildBattleRun();
-    for (let i = 0; i < 500; i++) {
-      if (run.phase.kind !== 'battle' || run.phase.battle.winner !== null) break;
-      const actions = legalRunActions(run, CONTENT);
-      run = applyRunAction(run, actions[0]!, CONTENT).run;
+    let last: RunEvent[] = [];
+    for (let i = 0; i < 500 && run.phase.kind === 'battle'; i++) {
+      const step = applyRunAction(run, legalRunActions(run, CONTENT)[0]!, CONTENT);
+      run = step.run;
+      last = step.events;
     }
-    if (run.phase.kind !== 'battle') throw new Error('expected battle');
-    expect(run.phase.battle.winner).not.toBeNull();
-    expect(legalRunActions(run, CONTENT)).toEqual([]);
+    expect(['recruit', 'ended']).toContain(run.phase.kind);
+    expect(last.some((e) => e.type === 'battle' && e.event.type === 'end')).toBe(true);
+    if (run.phase.kind === 'ended') return;
     const step = applyRunAction(run, { type: 'battle', action: { type: 'move', moveIndex: 0 } }, CONTENT);
-    expect(step.events).toEqual(rejected('illegal'));
+    expect(step.events).toEqual(rejected('phase'));
     expect(step.run).toEqual(run);
   });
 });
@@ -405,6 +415,17 @@ describe('applyRunAction: purity, determinism, malformed input', () => {
     { type: 'NODE', nodeId: 'z0-l0-c0' },
     { type: 'recruit' },
     { type: 'shrine', choice: 'dance' },
+    // Prototype keys must not be mistaken for action types or node ids.
+    { type: 'toString' },
+    { type: 'constructor' },
+    { type: '__proto__' },
+    { type: 'hasOwnProperty' },
+    { type: 'valueOf', nodeId: 'z0-l0-c0' },
+    { type: 'node', nodeId: '__proto__' },
+    { type: 'node', nodeId: 'toString' },
+    { type: 'battle', action: { type: 'constructor' } },
+    { type: 'battle', action: { type: '__proto__', moveIndex: 0 } },
+    JSON.parse('{"__proto__": {"type": "node", "nodeId": "z0-l0-c0"}}'),
   ];
 
   it(`never throws on ${MALFORMED.length} malformed actions in the map and battle phases`, () => {
@@ -441,8 +462,12 @@ describe('applyRunAction: purity, determinism, malformed input', () => {
 describe('random walk over legal actions', () => {
   const PHASES = ['map', 'battle', 'recruit', 'shrine', 'cache', 'mystery', 'ended'];
 
+  /** Phases whose actions arrive in a later task: the walk stops there. */
+  const LATER = ['recruit', 'shrine', 'cache', 'mystery'];
+
   function checkSane(run: RunState): void {
-    expect(run.party.length).toBeGreaterThanOrEqual(1);
+    if (run.phase.kind === 'ended' && run.phase.result === 'lost') expect(run.party).toEqual([]);
+    else expect(run.party.length).toBeGreaterThanOrEqual(1);
     expect(run.party.length).toBeLessThanOrEqual(3);
     for (const m of run.party) {
       expect(Number.isInteger(m.hp)).toBe(true);
@@ -455,31 +480,42 @@ describe('random walk over legal actions', () => {
     expect(run.souls).toBeGreaterThanOrEqual(0);
   }
 
-  it('never offers an action that applyRunAction rejects (50 seeds, up to 300 steps)', () => {
+  it('never offers an action that applyRunAction rejects (50 seeds, walked until ended or a later-task phase)', () => {
     let totalSteps = 0;
+    const stops: Record<string, number> = {};
     for (let s = 0; s < 50; s++) {
       const pick = createRng(`walk-pick-${s}`);
       const starter = CONTENT.starters[s % CONTENT.starters.length]!;
       let run = startRun(`walk-${s}`, starter, CONTENT);
+      let souls = 0;
       checkSane(run);
-      for (let step = 0; step < 300; step++) {
-        if (run.phase.kind === 'ended') break;
+      for (let step = 0; ; step++) {
+        expect(step).toBeLessThan(2000);
+        if (run.phase.kind === 'ended' || LATER.includes(run.phase.kind)) break;
         const actions = legalRunActions(run, CONTENT);
-        if (actions.length === 0) break; // battle resolution and node events arrive in later tasks
-        // Every sampled legal action must be accepted.
-        for (let k = 0; k < Math.min(3, actions.length); k++) {
-          const sample = actions[pick.nextInt(actions.length)]!;
-          const r = applyRunAction(run, sample, CONTENT);
+        // No dead ends in the map and battle phases.
+        expect(actions.length).toBeGreaterThan(0);
+        // Every legal action is plain data and is accepted.
+        for (const a of actions) {
+          expect(JSON.parse(JSON.stringify(a))).toEqual(a);
+          const r = applyRunAction(run, a, CONTENT);
           expect(r.events.some((e) => e.type === 'rejected')).toBe(false);
         }
         const chosen = actions[pick.nextInt(actions.length)]!;
         const next = applyRunAction(run, chosen, CONTENT);
         expect(next.events.some((e) => e.type === 'rejected')).toBe(false);
+        for (const e of next.events) if (e.type === 'soul') souls += e.amount;
         run = next.run;
         totalSteps++;
         checkSane(run);
+        expect(run.souls).toBe(souls);
       }
+      const stop = run.phase.kind === 'ended' ? `ended-${run.phase.result}` : run.phase.kind;
+      stops[stop] = (stops[stop] ?? 0) + 1;
     }
     expect(totalSteps).toBeGreaterThan(50);
+    // Battles were resolved: every walk ends in a recruit offer (layer 0 is all wild) or a lost run.
+    expect(Object.keys(stops).every((k) => k === 'recruit' || k === 'ended-lost')).toBe(true);
+    expect(stops['recruit'] ?? 0).toBeGreaterThan(0);
   });
 });
