@@ -1,4 +1,5 @@
 import type { MoveDef, SpeciesDef } from '../content';
+import type { NodeType, RunEvent } from '../sim/run/types';
 import type { BattleEvent, Side } from '../sim/state';
 import { STRINGS, type Lang, type StringKey } from './strings';
 
@@ -89,5 +90,55 @@ export function eventLine(event: BattleEvent, ctx: EventContext): string | null 
       return t(`log.rejected.${event.reason}`);
     case 'end':
       return t(event.winner === 'player' ? 'log.end.win' : 'log.end.lose');
+  }
+}
+
+export function nodeTypeLabel(type: NodeType): string {
+  return t(`node.${type}`);
+}
+
+export interface RunEventContext {
+  species: (id: string) => string;
+  /** Localised label of a map node, or null when the id is unknown. */
+  node: (id: string) => string | null;
+}
+
+/**
+ * Localised run-log line for a run event, or null for events with no text of their own:
+ * `battle` (the battle log renders those) and `rejected`. The switch is exhaustive.
+ */
+export function runEventLine(event: RunEvent, ctx: RunEventContext): string | null {
+  switch (event.type) {
+    case 'battle':
+    case 'rejected':
+      return null;
+    case 'enter':
+      return t('runlog.enter', { node: ctx.node(event.nodeId) ?? nodeTypeLabel(event.nodeType) });
+    case 'soul':
+      return t(`runlog.soul.${event.reason}`, { amount: event.amount });
+    case 'lost':
+      return t('runlog.lost', { species: ctx.species(event.speciesId) });
+    case 'recruited':
+      return event.replaced === undefined
+        ? t('runlog.recruited', { species: ctx.species(event.speciesId) })
+        : t('runlog.recruitedReplace', { species: ctx.species(event.speciesId), replaced: ctx.species(event.replaced) });
+    case 'declined':
+      return t('runlog.declined', { species: ctx.species(event.speciesId) });
+    case 'evolved':
+      return t('runlog.evolved', { from: ctx.species(event.from), to: ctx.species(event.to) });
+    case 'healed':
+      return t('runlog.healed', { n: event.memberIndex + 1, amount: event.amount });
+    case 'hurt':
+      return t('runlog.hurt', { n: event.memberIndex + 1, amount: event.amount });
+    case 'zoneCleared': {
+      const zone = event.zone >= 0 && event.zone <= 2 ? t(`zone.${event.zone as 0 | 1 | 2}`) : String(event.zone + 1);
+      return t('runlog.zoneCleared', { zone });
+    }
+    case 'ended':
+      return t(event.result === 'won' ? 'runlog.ended.won' : 'runlog.ended.lost');
+    default: {
+      const unreachable: never = event;
+      return unreachable;
+    }
   }
 }

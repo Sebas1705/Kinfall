@@ -1,6 +1,8 @@
+import { runEn, runEs } from './strings.run';
+
 export type Lang = 'en' | 'es';
 
-const en = {
+const base = {
   'app.title': 'Echo battle',
   'menu.moves': 'Moves',
   'menu.team': 'Team',
@@ -60,9 +62,11 @@ const en = {
   'log.end.lose': 'You lost the battle.',
 } as const;
 
+const en = { ...base, ...runEn } as const;
+
 export type StringKey = keyof typeof en;
 
-const es: Record<StringKey, string> = {
+const esBase: Record<keyof typeof base, string> = {
   'app.title': 'Combate de ecos',
   'menu.moves': 'Movimientos',
   'menu.team': 'Equipo',
@@ -121,5 +125,7 @@ const es: Record<StringKey, string> = {
   'log.end.win': '¡Has ganado el combate!',
   'log.end.lose': 'Has perdido el combate.',
 };
+
+const es: Record<StringKey, string> = { ...esBase, ...runEs };
 
 export const STRINGS: Record<Lang, Record<StringKey, string>> = { en, es };

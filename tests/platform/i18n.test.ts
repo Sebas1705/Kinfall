@@ -1,7 +1,18 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { STRINGS, type StringKey } from '../../src/platform/strings';
-import { detectLang, eventLine, getLang, moveName, setLang, speciesName, t } from '../../src/platform/i18n';
+import {
+  detectLang,
+  eventLine,
+  getLang,
+  moveName,
+  nodeTypeLabel,
+  runEventLine,
+  setLang,
+  speciesName,
+  t,
+} from '../../src/platform/i18n';
+import type { NodeType, RunEvent } from '../../src/sim/run/types';
 import type { BattleEvent } from '../../src/sim/state';
 import { CONTENT } from '../../src/content';
 
@@ -103,7 +114,7 @@ describe('gender-neutral Spanish', () => {
   it('has no agreeing adjectives next to {species}', () => {
     for (const k of keys) {
       const v = STRINGS.es[k];
-      if (v.includes('{species}') || k === 'intent.stunned') expect(v, k).not.toMatch(gendered);
+      if (/{(species|from|to|replaced)}/.test(v) || k === 'intent.stunned') expect(v, k).not.toMatch(gendered);
     }
   });
 });
@@ -158,5 +169,128 @@ describe('eventLine', () => {
     expect(very.endsWith(STRINGS.en['effect.very'])).toBe(true);
     expect(not.endsWith(STRINGS.en['effect.not'])).toBe(true);
     expect(eventLine(events[3]!, ctx)).not.toMatch(/effective/);
+  });
+});
+
+describe('run strings', () => {
+  const nodeTypes: NodeType[] = ['wild', 'elite', 'shrine', 'cache', 'mystery', 'boss'];
+  const nodeKey = (n: NodeType) => `node.${n}` as StringKey;
+  const buttonKeys: StringKey[] = [
+    'title.newRun',
+    'title.continue',
+    'title.discard',
+    'map.abandon',
+    'map.abandonYes',
+    'map.abandonNo',
+    'node.action.fight',
+    'node.action.enter',
+    'event.recruit.take',
+    'event.recruit.replace',
+    'event.recruit.decline',
+    'event.shrine.rest',
+    'event.shrine.evolve',
+    'event.shrine.leave',
+    'event.cache.open',
+    'event.mystery.open',
+    'event.mystery.leave',
+    'end.newRun',
+    'save.dismiss',
+  ];
+  const labelKeys: StringKey[] = [
+    ...nodeTypes.map(nodeKey),
+    'zone.0',
+    'zone.1',
+    'zone.2',
+    'map.available',
+    'map.cleared',
+    'map.locked',
+    'map.current',
+    ...buttonKeys,
+  ];
+  it('has the title, map, event, end and save keys', () => {
+    for (const k of ['title.savesNote', 'title.corrupt', 'save.failed', 'map.step', 'end.canRestart', 'map.partyMember'] as const) {
+      expect(STRINGS.en[k]).toBeTruthy();
+    }
+    expect(STRINGS.en['save.failed']).toBe('Could not save your run: {reason}. You can keep playing.');
+    expect(t('map.step', { n: 3 })).toBe('Step 3');
+  });
+  it('labels every node type in both languages', () => {
+    for (const lang of ['en', 'es'] as const) {
+      setLang(lang);
+      for (const n of nodeTypes) expect(nodeTypeLabel(n), `${lang} ${n}`).toBe(STRINGS[lang][nodeKey(n)]);
+    }
+    setLang('en');
+    expect(nodeTypeLabel('boss')).toBe('Boss');
+    setLang('es');
+    expect(nodeTypeLabel('boss')).toBe('Jefe');
+  });
+  it('keeps labels, zone names and button texts at 28 characters or fewer in both languages', () => {
+    for (const lang of ['en', 'es'] as const) {
+      for (const k of labelKeys) expect(STRINGS[lang][k].length, `${lang}.${k}`).toBeLessThanOrEqual(28);
+    }
+  });
+  it('has three distinct zone names per language', () => {
+    for (const lang of ['en', 'es'] as const) {
+      expect(new Set(([0, 1, 2] as const).map((n) => STRINGS[lang][`zone.${n}`])).size).toBe(3);
+    }
+  });
+});
+
+describe('runEventLine', () => {
+  const names: Record<string, string> = { cindermite: 'Cindermite', cindermaw: 'Cindermaw', skirrow: 'Skirrow' };
+  const ctx = {
+    species: (id: string) => names[id] ?? id,
+    node: (id: string) => (id === 'z0-l0-c0' ? 'Wild creature' : null),
+  };
+  const all: RunEvent[] = [
+    { type: 'enter', nodeId: 'z0-l0-c0', nodeType: 'wild' },
+    { type: 'enter', nodeId: 'z0-l1-c9', nodeType: 'shrine' },
+    { type: 'soul', amount: 1, reason: 'fallen' },
+    { type: 'soul', amount: 1, reason: 'elite' },
+    { type: 'soul', amount: 2, reason: 'boss' },
+    { type: 'soul', amount: 2, reason: 'cache' },
+    { type: 'soul', amount: 3, reason: 'mystery' },
+    { type: 'lost', speciesId: 'cindermite' },
+    { type: 'recruited', speciesId: 'skirrow' },
+    { type: 'recruited', speciesId: 'skirrow', replaced: 'cindermite' },
+    { type: 'declined', speciesId: 'skirrow' },
+    { type: 'evolved', from: 'cindermite', to: 'cindermaw' },
+    { type: 'healed', memberIndex: 0, amount: 12 },
+    { type: 'hurt', memberIndex: 1, amount: 8 },
+    { type: 'zoneCleared', zone: 0 },
+    { type: 'zoneCleared', zone: 7 },
+    { type: 'ended', result: 'won' },
+    { type: 'ended', result: 'lost' },
+  ];
+  it('returns a clean, non-empty line for every run event in both languages', () => {
+    for (const lang of ['en', 'es'] as const) {
+      setLang(lang);
+      for (const e of all) {
+        const line = runEventLine(e, ctx);
+        expect(line, `${lang} ${e.type}`).toBeTruthy();
+        expect(line).not.toMatch(/\{\w+\}/);
+      }
+    }
+  });
+  it('returns null for battle and rejected events', () => {
+    expect(runEventLine({ type: 'battle', event: { type: 'turnStart', turn: 1 } }, ctx)).toBeNull();
+    expect(runEventLine({ type: 'rejected', reason: 'phase' }, ctx)).toBeNull();
+  });
+  it('pins the English text of literal cases', () => {
+    setLang('en');
+    expect(runEventLine({ type: 'lost', speciesId: 'cindermite' }, ctx)).toBe('Cindermite is lost.');
+    expect(runEventLine({ type: 'evolved', from: 'cindermite', to: 'cindermaw' }, ctx)).toBe(
+      'Cindermite evolves into Cindermaw!',
+    );
+    expect(runEventLine({ type: 'soul', amount: 1, reason: 'fallen' }, ctx)).toBe('Souls +1: a creature fell.');
+    expect(runEventLine(all[0]!, ctx)).toBe('You head to: Wild creature.');
+  });
+  it('falls back to the node type label when the node is unknown', () => {
+    setLang('en');
+    expect(runEventLine(all[1]!, ctx)).toBe('You head to: Shrine.');
+  });
+  it('pins a Spanish line', () => {
+    setLang('es');
+    expect(runEventLine({ type: 'lost', speciesId: 'cindermite' }, ctx)).toBe('Pierdes a Cindermite.');
   });
 });
