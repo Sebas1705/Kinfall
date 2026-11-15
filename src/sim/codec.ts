@@ -1,5 +1,8 @@
 import type { Content } from '../content';
-import type { BattleState } from './state';
+import { lookup } from '../content/lookup';
+import { STATUS_TURNS } from './battle';
+import { hasOwn, isInt, isRecord, isUint32Quad, unknownKey } from './guards';
+import type { BattleState, Side } from './state';
 
 /** JSON text with object keys sorted by UTF-16 code unit order and no whitespace. */
 export function canonicalize(value: unknown): string {
@@ -66,20 +69,17 @@ export function serializeState(state: BattleState): string {
 
 export type DeserializeResult = { ok: true; state: BattleState } | { ok: false; error: string };
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
+const STATE_KEYS = ['version', 'seed', 'rng', 'teams', 'active', 'turn', 'winner', 'telegraph', 'intent', 'script'] as const;
+const SIDE_KEYS = ['player', 'enemy'] as const;
+const COMBATANT_KEYS = ['speciesId', 'hp', 'maxHp', 'focus', 'maxFocus', 'status', 'fainted'] as const;
+const STATUS_KEYS = ['id', 'turns'] as const;
 
-function isInt(v: unknown): v is number {
-  return typeof v === 'number' && Number.isInteger(v);
-}
-
-function validateCombatant(c: unknown, where: string, content: Content | undefined): string | null {
+function validateCombatant(c: unknown, where: string, side: Side, content: Content | undefined): string | null {
   if (!isRecord(c)) return `${where} is not an object`;
+  const extra = unknownKey(c, COMBATANT_KEYS, where);
+  if (extra) return extra;
   if (typeof c.speciesId !== 'string') return `${where}.speciesId must be a string`;
-  if (content && !content.species.some((s) => s.id === c.speciesId)) {
-    return `${where} has unknown species "${c.speciesId}"`;
-  }
+  if (content && !lookup(content).hasSpecies(c.speciesId)) return `${where} has unknown species "${c.speciesId}"`;
   const { hp, maxHp, focus, maxFocus } = c;
   if (!isInt(maxHp) || maxHp < 1) return `${where}.maxHp must be a positive integer`;
   if (!isInt(hp) || hp < 0 || hp > maxHp) return `${where}.hp must be an integer between 0 and maxHp`;
@@ -90,44 +90,100 @@ function validateCombatant(c: unknown, where: string, content: Content | undefin
   const st = c.status;
   if (st !== null) {
     if (!isRecord(st)) return `${where}.status must be null or an object`;
+    const stExtra = unknownKey(st, STATUS_KEYS, `${where}.status`);
+    if (stExtra) return stExtra;
     if (st.id !== 'scorch' && st.id !== 'stun') return `${where}.status.id is unknown`;
-    if (!isInt(st.turns) || st.turns < 1) return `${where}.status.turns must be a positive integer`;
+    if (!isInt(st.turns) || st.turns < 1 || st.turns > STATUS_TURNS[st.id]) {
+      return `${where}.status.turns must be an integer between 1 and ${STATUS_TURNS[st.id]}`;
+    }
+    if (c.fainted) return `${where}.status must be null on a fainted combatant`;
+  }
+  if (content) {
+    const { base } = lookup(content).species(c.speciesId);
+    if (maxFocus !== Math.max(1, Math.floor(base.focus / 10))) return `${where}.maxFocus does not match its species`;
+    // Enemy max HP may be scaled by hpPercent; the player side never is.
+    if (side === 'player' && maxHp !== base.health * 4) return `${where}.maxHp does not match its species`;
   }
   return null;
 }
 
-function validateState(s: unknown, content: Content | undefined): string | null {
+/** Checks `intent` against telegraph, winner, stun, the enemy's legal moves and the boss script. */
+function validateIntent(s: Record<string, unknown>, state: BattleState, content: Content | undefined): string | null {
+  const intent = s.intent;
+  if (intent !== null) {
+    if (!isRecord(intent)) return 'state.intent is invalid';
+    const extra = unknownKey(intent, ['moveIndex'], 'state.intent');
+    if (extra) return extra;
+    if (!isInt(intent.moveIndex) || intent.moveIndex < 0) return 'state.intent is invalid';
+  }
+  const enemy = state.teams.enemy[state.active.enemy]!;
+  // The engine shows an intent exactly when the battle is live, telegraphed and the active enemy is not stunned.
+  const shown = state.telegraph && state.winner === null && enemy.status?.id !== 'stun';
+  if (state.intent !== null && !shown) {
+    return 'state.intent must be null unless the battle is live, telegraphed and the active enemy is not stunned';
+  }
+  if (!content) return null;
+  const l = lookup(content);
+  const moves = l.species(enemy.speciesId).moves;
+  const legal = (i: number): boolean => i < moves.length && l.move(moves[i]!).focusCost <= enemy.focus;
+  if (state.intent !== null && !legal(state.intent.moveIndex)) return 'state.intent is not a legal move for the active enemy';
+  if (!shown) return null;
+  if (state.intent === null) {
+    return moves.some((_, i) => legal(i)) ? 'state.intent is missing for a telegraphed enemy' : null;
+  }
+  if (state.script !== undefined) {
+    const scripted = state.script[(state.turn - 1) % state.script.length]!;
+    if (legal(scripted) && state.intent.moveIndex !== scripted) return 'state.intent must be the scripted move';
+  }
+  return null;
+}
+
+/**
+ * Structural and consistency checks for a battle state from untrusted data (a save).
+ * With `content` it also checks species ids, derived stats and the enemy intent.
+ * Returns a message for the first problem, or null when the state is valid.
+ */
+export function validateState(s: unknown, content: Content | undefined): string | null {
   if (!isRecord(s)) return 'state must be an object';
+  const extra = unknownKey(s, STATE_KEYS, 'state');
+  if (extra) return extra;
   if (s.version !== 1) return 'state.version must be 1';
   if (typeof s.seed !== 'string') return 'state.seed must be a string';
-  const rng = s.rng;
-  if (!Array.isArray(rng) || rng.length !== 4 || !rng.every((w) => isInt(w) && w >= 0 && w <= 0xffffffff)) {
-    return 'state.rng must be four uint32 numbers';
-  }
+  if (!isUint32Quad(s.rng)) return 'state.rng must be four uint32 numbers';
   if (!isRecord(s.teams) || !isRecord(s.active)) return 'state.teams and state.active must be objects';
-  for (const side of ['player', 'enemy'] as const) {
+  const teamsExtra = unknownKey(s.teams, SIDE_KEYS, 'state.teams') ?? unknownKey(s.active, SIDE_KEYS, 'state.active');
+  if (teamsExtra) return teamsExtra;
+  for (const side of SIDE_KEYS) {
     const team = s.teams[side];
     if (!Array.isArray(team) || team.length < 1 || team.length > 3) return `teams.${side} must have 1 to 3 combatants`;
     for (let i = 0; i < team.length; i++) {
-      const err = validateCombatant(team[i], `teams.${side}[${i}]`, content);
+      const err = validateCombatant(team[i], `teams.${side}[${i}]`, side, content);
       if (err) return err;
     }
     const a = s.active[side];
     if (!isInt(a) || a < 0 || a >= team.length) return `active.${side} is out of range`;
   }
-  if (!isInt(s.turn) || s.turn < 0) return 'state.turn must be a non-negative integer';
+  if (!isInt(s.turn) || s.turn < 1) return 'state.turn must be a positive integer';
   if (s.winner !== null && s.winner !== 'player' && s.winner !== 'enemy') return 'state.winner is invalid';
-  if (s.intent !== null) {
-    if (!isRecord(s.intent) || !isInt(s.intent.moveIndex) || s.intent.moveIndex < 0) return 'state.intent is invalid';
-  }
   if (typeof s.telegraph !== 'boolean') return 'state.telegraph must be a boolean';
-  if ('script' in s) {
+  if (hasOwn(s, 'script')) {
     const sc = s.script;
     if (!Array.isArray(sc) || sc.length < 1 || !sc.every((n) => isInt(n) && n >= 0)) {
       return 'state.script must be a non-empty array of non-negative integers';
     }
   }
-  return null;
+  const state = s as unknown as BattleState;
+  // A mutual wipe counts as a loss, exactly as the engine decides it.
+  const expected: Side | null = state.teams.player.every((c) => c.fainted)
+    ? 'enemy'
+    : state.teams.enemy.every((c) => c.fainted)
+      ? 'player'
+      : null;
+  if (state.winner !== expected) return 'state.winner is inconsistent with the fainted flags';
+  if (state.winner === null && state.teams.enemy[state.active.enemy]!.fainted) {
+    return 'the active enemy must be conscious while the battle is live';
+  }
+  return validateIntent(s, state, content);
 }
 
 /** Never throws; any parse, version, checksum or structure failure returns `{ ok: false }`. */

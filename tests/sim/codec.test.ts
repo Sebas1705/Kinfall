@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CONTENT } from '../../src/content';
 import type { Content } from '../../src/content';
 import { applyAction, createBattle } from '../../src/sim/battle';
-import { canonicalize, deserializeState, fnv1a64, hashState, serializeState } from '../../src/sim/codec';
+import { canonicalize, deserializeState, fnv1a64, hashState, serializeState, validateState } from '../../src/sim/codec';
 import type { BattleState } from '../../src/sim/state';
 
 const PLAYER = { speciesIds: ['cindermite', 'brambleback'] };
@@ -161,3 +161,145 @@ describe('serializeState / deserializeState', () => {
 function team(s: Record<string, unknown>, side: 'player' | 'enemy'): Record<string, unknown>[] {
   return (s.teams as Record<string, Record<string, unknown>[]>)[side] as Record<string, unknown>[];
 }
+
+describe('validateState (complete rules)', () => {
+  const LIVE = (): Record<string, unknown> => JSON.parse(JSON.stringify(fresh(true))) as Record<string, unknown>;
+  const enemyMoves = (s: Record<string, unknown>): string[] =>
+    CONTENT.species.find((x) => x.id === team(s, 'enemy')[0]!.speciesId)!.moves;
+  const costOf = (id: string): number => CONTENT.moves.find((m) => m.id === id)!.focusCost;
+
+  function invalid(mutate: (s: Record<string, unknown>) => void, content: Content | undefined = CONTENT): string {
+    const s = LIVE();
+    mutate(s);
+    const err = validateState(s, content);
+    expect(err).not.toBeNull();
+    expect(err!.length).toBeGreaterThan(0);
+    return err!;
+  }
+
+  it('accepts engine states with and without content', () => {
+    for (const s of [fresh(), fresh(true), played()]) {
+      expect(validateState(s, CONTENT)).toBeNull();
+      expect(validateState(s, undefined)).toBeNull();
+    }
+  });
+
+  it('checks winner against the fainted flags', () => {
+    const faintAll = (s: Record<string, unknown>, side: 'player' | 'enemy') => {
+      for (const c of team(s, side)) Object.assign(c, { hp: 0, fainted: true, status: null });
+    };
+    expect(invalid((s) => faintAll(s, 'player'))).toMatch(/winner/);
+    expect(invalid((s) => faintAll(s, 'enemy'))).toMatch(/winner/);
+    expect(invalid((s) => Object.assign(s, { winner: 'player', intent: null }))).toMatch(/winner/);
+    expect(invalid((s) => Object.assign(s, { winner: 'enemy', intent: null }))).toMatch(/winner/);
+    // Mutual wipe counts as an enemy win.
+    expect(
+      invalid((s) => {
+        faintAll(s, 'player');
+        faintAll(s, 'enemy');
+        Object.assign(s, { winner: 'player', intent: null });
+      }),
+    ).toMatch(/winner/);
+    const ok = LIVE();
+    faintAll(ok, 'player');
+    faintAll(ok, 'enemy');
+    Object.assign(ok, { winner: 'enemy', intent: null });
+    expect(validateState(ok, CONTENT)).toBeNull();
+  });
+
+  it('rejects a live battle whose active enemy is fainted', () => {
+    expect(
+      invalid((s) => {
+        Object.assign(team(s, 'enemy')[0]!, { hp: 0, fainted: true, status: null });
+      }),
+    ).toMatch(/active enemy/);
+  });
+
+  it('rejects an intent the active enemy cannot play', () => {
+    expect(invalid((s) => (s.intent = { moveIndex: enemyMoves(s).length }))).toMatch(/intent/);
+    expect(
+      invalid((s) => {
+        const i = enemyMoves(s).findIndex((id) => costOf(id) > 0);
+        team(s, 'enemy')[0]!.focus = 0;
+        s.intent = { moveIndex: i };
+      }),
+    ).toMatch(/intent/);
+  });
+
+  it('keeps intent consistent with telegraph, winner and stun', () => {
+    expect(invalid((s) => (s.telegraph = false), undefined)).toMatch(/intent/);
+    expect(invalid((s) => (team(s, 'enemy')[0]!.status = { id: 'stun', turns: 1 }), undefined)).toMatch(/intent/);
+    expect(invalid((s) => (s.intent = null))).toMatch(/intent/);
+    const quiet = JSON.parse(JSON.stringify(fresh(false))) as Record<string, unknown>;
+    quiet.intent = { moveIndex: 0 };
+    expect(validateState(quiet, undefined)).toMatch(/intent/);
+  });
+
+  it('requires the scripted move as intent when it is playable', () => {
+    const s = createBattle('scripted', { speciesIds: ['cindermite'] }, { speciesIds: ['cindermaw'], hpPercent: 220 }, CONTENT, {
+      telegraph: true,
+      script: [2, 0],
+    });
+    expect(validateState(s, CONTENT)).toBeNull();
+    expect(s.intent).toEqual({ moveIndex: 2 });
+    expect(validateState({ ...s, intent: { moveIndex: 0 } }, CONTENT)).toMatch(/script/);
+  });
+
+  it('checks maxFocus and player maxHp against the species when content is given', () => {
+    expect(
+      invalid((s) => {
+        const c = team(s, 'enemy')[0]!;
+        c.maxFocus = (c.maxFocus as number) + 1;
+      }),
+    ).toMatch(/maxFocus/);
+    expect(
+      invalid((s) => {
+        const c = team(s, 'player')[1]!;
+        c.maxHp = (c.maxHp as number) + 1;
+      }),
+    ).toMatch(/maxHp/);
+    // Enemy max HP may be scaled.
+    const s = LIVE();
+    const e = team(s, 'enemy')[1]!;
+    e.maxHp = (e.maxHp as number) * 2;
+    expect(validateState(s, CONTENT)).toBeNull();
+  });
+
+  it('bounds status turns and clears status on fainted combatants', () => {
+    expect(invalid((s) => (team(s, 'player')[0]!.status = { id: 'scorch', turns: 4 }))).toMatch(/status/);
+    expect(invalid((s) => (team(s, 'player')[0]!.status = { id: 'stun', turns: 2 }))).toMatch(/status/);
+    expect(
+      invalid((s) => Object.assign(team(s, 'player')[1]!, { hp: 0, fainted: true, status: { id: 'scorch', turns: 1 } })),
+    ).toMatch(/status/);
+  });
+
+  it('rejects a script with non-integers or negatives', () => {
+    expect(invalid((s) => (s.script = [0, 1.5]))).toMatch(/script/);
+    expect(invalid((s) => (s.script = [0, -1]))).toMatch(/script/);
+  });
+
+  it('rejects unknown keys anywhere in the state', () => {
+    const cases: Array<(s: Record<string, unknown>) => void> = [
+      (s) => (s.extra = 1),
+      (s) => ((s.teams as Record<string, unknown>).extra = []),
+      (s) => ((s.active as Record<string, unknown>).extra = 0),
+      (s) => (team(s, 'player')[0]!.extra = true),
+      (s) => (team(s, 'player')[0]!.status = { id: 'stun', turns: 1, extra: 1 }),
+      (s) => (s.intent = { moveIndex: (s.intent as { moveIndex: number }).moveIndex, extra: 1 }),
+      (s) => Object.defineProperty(s, '__proto__', { value: {}, enumerable: true, configurable: true, writable: true }),
+    ];
+    for (const mutate of cases) expect(invalid(mutate, undefined)).toMatch(/unknown key/);
+  });
+
+  it('the codec reports the new rules through deserializeState', () => {
+    const text = forge((s) => (s.winner = 'player'));
+    expect(reject(text, CONTENT)).toMatch(/winner/);
+    // A JSON `__proto__` key becomes an own property; with a recomputed checksum it is still rejected.
+    const parsed = JSON.parse(serializeState(fresh(true)).replace('"active":', '"__proto__":{},"active":')) as {
+      checksum: string;
+      state: unknown;
+    };
+    parsed.checksum = fnv1a64(canonicalize(parsed.state));
+    expect(reject(JSON.stringify(parsed), CONTENT)).toMatch(/unknown key/);
+  });
+});

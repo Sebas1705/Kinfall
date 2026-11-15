@@ -7,7 +7,8 @@ import type { Rng } from './rng';
 import type { Action, BattleEvent, BattleState, Combatant, Side, TeamSpec } from './state';
 
 const MAX_TEAM = 3;
-const STATUS_TURNS: Record<StatusId, number> = { scorch: 3, stun: 1 };
+/** Turns a freshly applied status lasts; also the upper bound the save validator accepts. */
+export const STATUS_TURNS: Record<StatusId, number> = { scorch: 3, stun: 1 };
 
 function other(side: Side): Side {
   return side === 'player' ? 'enemy' : 'player';
