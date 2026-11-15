@@ -3,6 +3,7 @@ import { applyAction, createBattle, legalActions } from '../battle';
 import { createRng } from '../rng';
 import type { Action } from '../state';
 import { buildEncounter } from './encounters';
+import { applyCache, applyEvolve, applyMystery, applyRecruit, applyShrine, legalEventActions } from './events';
 import { findNode as findInMap, generateZoneMap } from './map';
 import { maxHpOf } from './party';
 import { resolveBattle } from './resolve';
@@ -67,7 +68,7 @@ export function legalRunActions(run: RunState, content: Content): RunAction[] {
   const phase = run.phase;
   if (phase.kind === 'map') return availableNodes(run).map((n) => ({ type: 'node', nodeId: n.id }));
   if (phase.kind === 'battle') return legalActions(phase.battle, content).map((action) => ({ type: 'battle', action }));
-  return [];
+  return legalEventActions(run, content);
 }
 
 function reject(run: RunState, reason: 'illegal' | 'phase' | 'ended'): RunStep {
@@ -137,6 +138,18 @@ export function applyRunAction(run: RunState, action: RunAction, content: Conten
 
   if (raw['type'] === 'node') return enterNode(next, raw['nodeId'], content);
   if (raw['type'] === 'battle') return battleStep(next, raw['action'], content);
-  // Recruit, shrine, evolve, cache and mystery handling arrives with node resolution.
-  return reject(next, 'illegal');
+  switch (action.type) {
+    case 'recruit':
+      return applyRecruit(next, action, content);
+    case 'shrine':
+      return applyShrine(next, action, content);
+    case 'evolve':
+      return applyEvolve(next, action, content);
+    case 'cache':
+      return applyCache(next, action, content);
+    case 'mystery':
+      return applyMystery(next, action, content);
+    default:
+      return reject(next, 'illegal');
+  }
 }

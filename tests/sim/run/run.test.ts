@@ -120,16 +120,10 @@ describe('legalRunActions', () => {
     );
   });
 
-  it('is empty in other phases and after the run ended', () => {
+  it('is empty after the run ended', () => {
     const run = startRun('legal-x', 'cindermite', CONTENT);
-    for (const phase of [
-      { kind: 'shrine', nodeId: 'z0-l5-c0' },
-      { kind: 'cache', nodeId: 'z0-l3-c0' },
-      { kind: 'mystery', nodeId: 'z0-l3-c0' },
-      { kind: 'recruit', speciesId: 'tidewisp', hp: 10 },
-      { kind: 'ended', result: 'lost' },
-    ] as RunState['phase'][]) {
-      expect(legalRunActions({ ...run, phase }, CONTENT)).toEqual([]);
+    for (const result of ['won', 'lost'] as const) {
+      expect(legalRunActions({ ...run, phase: { kind: 'ended', result } }, CONTENT)).toEqual([]);
     }
   });
 });
@@ -462,9 +456,6 @@ describe('applyRunAction: purity, determinism, malformed input', () => {
 describe('random walk over legal actions', () => {
   const PHASES = ['map', 'battle', 'recruit', 'shrine', 'cache', 'mystery', 'ended'];
 
-  /** Phases whose actions arrive in a later task: the walk stops there. */
-  const LATER = ['recruit', 'shrine', 'cache', 'mystery'];
-
   function checkSane(run: RunState): void {
     if (run.phase.kind === 'ended' && run.phase.result === 'lost') expect(run.party).toEqual([]);
     else expect(run.party.length).toBeGreaterThanOrEqual(1);
@@ -480,9 +471,10 @@ describe('random walk over legal actions', () => {
     expect(run.souls).toBeGreaterThanOrEqual(0);
   }
 
-  it('never offers an action that applyRunAction rejects (50 seeds, walked until ended or a later-task phase)', () => {
+  it('never offers an action that applyRunAction rejects (50 seeds, walked to the end of the run)', () => {
     let totalSteps = 0;
     const stops: Record<string, number> = {};
+    const visited = new Set<string>();
     for (let s = 0; s < 50; s++) {
       const pick = createRng(`walk-pick-${s}`);
       const starter = CONTENT.starters[s % CONTENT.starters.length]!;
@@ -491,9 +483,9 @@ describe('random walk over legal actions', () => {
       checkSane(run);
       for (let step = 0; ; step++) {
         expect(step).toBeLessThan(2000);
-        if (run.phase.kind === 'ended' || LATER.includes(run.phase.kind)) break;
+        if (run.phase.kind === 'ended') break;
         const actions = legalRunActions(run, CONTENT);
-        // No dead ends in the map and battle phases.
+        // No dead ends in any phase.
         expect(actions.length).toBeGreaterThan(0);
         // Every legal action is plain data and is accepted.
         for (const a of actions) {
@@ -504,18 +496,23 @@ describe('random walk over legal actions', () => {
         const chosen = actions[pick.nextInt(actions.length)]!;
         const next = applyRunAction(run, chosen, CONTENT);
         expect(next.events.some((e) => e.type === 'rejected')).toBe(false);
-        for (const e of next.events) if (e.type === 'soul') souls += e.amount;
+        visited.add(run.phase.kind);
+        for (const e of next.events) {
+          if (e.type === 'soul') souls += e.amount;
+          if (e.type === 'evolved') souls -= CONTENT.species.find((x) => x.id === e.from)!.evolveCost!;
+        }
         run = next.run;
         totalSteps++;
         checkSane(run);
         expect(run.souls).toBe(souls);
       }
-      const stop = run.phase.kind === 'ended' ? `ended-${run.phase.result}` : run.phase.kind;
+      const end = run.phase;
+      const stop = end.kind === 'ended' ? `ended-${end.result}` : end.kind;
       stops[stop] = (stops[stop] ?? 0) + 1;
     }
     expect(totalSteps).toBeGreaterThan(50);
-    // Battles were resolved: every walk ends in a recruit offer (layer 0 is all wild) or a lost run.
-    expect(Object.keys(stops).every((k) => k === 'recruit' || k === 'ended-lost')).toBe(true);
-    expect(stops['recruit'] ?? 0).toBeGreaterThan(0);
+    // Every walk reaches the end of the run.
+    expect(Object.keys(stops).every((k) => k === 'ended-won' || k === 'ended-lost')).toBe(true);
+    expect([...visited].sort()).toEqual(['battle', 'cache', 'map', 'mystery', 'recruit', 'shrine']);
   });
 });
