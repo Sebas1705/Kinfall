@@ -15,6 +15,10 @@ export interface Combatant {
 
 export interface TeamSpec {
   speciesIds: string[];
+  /** Current hp per member (carried between battles); each 1 <= hp[i] <= maxHp. Defaults to full. */
+  hp?: number[];
+  /** Integer 50..500 scaling every member's maxHp (default 100). */
+  hpPercent?: number;
 }
 
 export type Action = { type: 'move'; moveIndex: number } | { type: 'swap'; toIndex: number };
@@ -30,6 +34,8 @@ export interface BattleState {
   /** When true the enemy's next move is shown in `intent` before the player acts. */
   telegraph: boolean;
   intent: { moveIndex: number } | null;
+  /** Boss script: the enemy plays `script[(turn - 1) % length]` when that move is legal. Absent when unscripted. */
+  script?: number[];
 }
 
 export type BattleEvent =

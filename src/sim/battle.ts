@@ -13,11 +13,14 @@ function other(side: Side): Side {
   return side === 'player' ? 'enemy' : 'player';
 }
 
-function makeCombatant(speciesId: string, content: Content): Combatant {
+function makeCombatant(speciesId: string, content: Content, hpPercent: number, hp: number | undefined): Combatant {
   const { base } = lookup(content).species(speciesId);
-  const maxHp = base.health * 4;
+  const maxHp = Math.max(1, Math.floor((base.health * 4 * hpPercent) / 100));
+  if (hp !== undefined && (!Number.isInteger(hp) || hp < 1 || hp > maxHp)) {
+    throw new Error(`${speciesId}: hp must be an integer between 1 and ${maxHp}, got ${hp}`);
+  }
   const maxFocus = Math.max(1, Math.floor(base.focus / 10));
-  return { speciesId, hp: maxHp, maxHp, focus: maxFocus, maxFocus, status: null, fainted: false };
+  return { speciesId, hp: hp ?? maxHp, maxHp, focus: maxFocus, maxFocus, status: null, fainted: false };
 }
 
 function makeTeam(spec: TeamSpec, label: string, content: Content): Combatant[] {
@@ -25,7 +28,14 @@ function makeTeam(spec: TeamSpec, label: string, content: Content): Combatant[] 
   if (ids.length < 1 || ids.length > MAX_TEAM) {
     throw new Error(`${label} team must have 1..${MAX_TEAM} members, got ${ids.length}`);
   }
-  return ids.map((id) => makeCombatant(id, content));
+  const pct = spec.hpPercent ?? 100;
+  if (!Number.isInteger(pct) || pct < 50 || pct > 500) {
+    throw new Error(`${label} hpPercent must be an integer between 50 and 500, got ${pct}`);
+  }
+  if (spec.hp !== undefined && spec.hp.length !== ids.length) {
+    throw new Error(`${label} hp must list one value per member (${ids.length}), got ${spec.hp.length}`);
+  }
+  return ids.map((id, i) => makeCombatant(id, content, pct, spec.hp?.[i]));
 }
 
 export function createBattle(
@@ -33,8 +43,12 @@ export function createBattle(
   player: TeamSpec,
   enemy: TeamSpec,
   content: Content,
-  options?: { telegraph?: boolean },
+  options?: { telegraph?: boolean; script?: number[] },
 ): BattleState {
+  const script = options?.script;
+  if (script !== undefined && (!Array.isArray(script) || script.length < 1 || !script.every((n) => Number.isInteger(n) && n >= 0))) {
+    throw new Error('script must be a non-empty array of non-negative integers');
+  }
   const s: BattleState = {
     version: 1,
     seed,
@@ -46,6 +60,7 @@ export function createBattle(
     telegraph: options?.telegraph === true,
     intent: null,
   };
+  if (script !== undefined) s.script = [...script];
   return withIntent(s, content);
 }
 
@@ -254,4 +269,15 @@ export function applyAction(
   s.turn += 1;
   s.rng = rng.getState();
   return { state: withIntent(s, content), events };
+}
+
+/** The player team in team order (hp and fainted flag per member) plus the winner; null while the battle is live. */
+export function battleOutcome(state: BattleState): {
+  winner: Side | null;
+  members: Array<{ index: number; hp: number; fainted: boolean }>;
+} {
+  return {
+    winner: state.winner,
+    members: state.teams.player.map((c, index) => ({ index, hp: c.hp, fainted: c.fainted })),
+  };
 }

@@ -121,6 +121,12 @@ function validateState(s: unknown, content: Content | undefined): string | null 
     if (!isRecord(s.intent) || !isInt(s.intent.moveIndex) || s.intent.moveIndex < 0) return 'state.intent is invalid';
   }
   if (typeof s.telegraph !== 'boolean') return 'state.telegraph must be a boolean';
+  if ('script' in s) {
+    const sc = s.script;
+    if (!Array.isArray(sc) || sc.length < 1 || !sc.every((n) => isInt(n) && n >= 0)) {
+      return 'state.script must be a non-empty array of non-negative integers';
+    }
+  }
   return null;
 }
 
