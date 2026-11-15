@@ -6,6 +6,7 @@ import { generateCreature } from '../art/creatureGen';
 import { elementIcon } from '../art/elementIcon';
 import type { PixelGrid } from '../art/palette';
 import { CONTENT } from '../content';
+import { lookup } from '../content/lookup';
 import type { ElementId, SpeciesDef, StatusId } from '../content';
 import { speciesName, t } from '../platform/i18n';
 import type { BattleEvent, BattleState, Combatant, Side } from '../sim/state';
@@ -123,12 +124,6 @@ interface SideView {
   baseY: number;
 }
 
-function speciesOf(id: string): SpeciesDef {
-  const sp = CONTENT.species.find((s) => s.id === id);
-  if (!sp) throw new Error(`unknown species: ${id}`);
-  return sp;
-}
-
 /** 0 -> 1 -> 0 over p in [0, 1]. */
 const there = (p: number) => (p < 0.5 ? p * 2 : (1 - p) * 2);
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
@@ -163,7 +158,7 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     return tex;
   };
   const creatureTex = (id: string, white = false) =>
-    texture(`creature:${id}`, () => generateCreature(speciesOf(id)), white);
+    texture(`creature:${id}`, () => generateCreature(lookup(CONTENT).species(id)), white);
   const elementTex = (el: ElementId) => texture(`element:${el}`, () => elementIcon(el));
   const statusTex = (id: StatusId) => texture(`status:${id}`, () => statusGrid(id));
 
@@ -254,7 +249,7 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     v.hud.visible = s !== null;
     v.body.visible = s !== null;
     if (!s) return;
-    const sp = speciesOf(s.speciesId);
+    const sp = lookup(CONTENT).species(s.speciesId);
     const inner = panelW - pad * 2;
     if (!barsOnly) drawHeader(v, side, sp, inner);
     drawBars(v, s, inner);

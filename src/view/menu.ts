@@ -1,6 +1,7 @@
 // Battle menu (presentation side). `buildMenu` and `logLines` are pure: they read the sim's state and
 // events and produce text and choices; nothing here feeds back into the simulation.
-import type { Content, MoveDef, SpeciesDef } from '../content';
+import type { Content } from '../content';
+import { lookup } from '../content/lookup';
 import { eventLine, moveName, speciesName, t } from '../platform/i18n';
 import { legalActions } from '../sim/battle';
 import type { Action, BattleEvent, BattleState, Side } from '../sim/state';
@@ -23,18 +24,6 @@ export interface MenuModel {
   prompt: string;
 }
 
-function speciesOf(id: string, content: Content): SpeciesDef {
-  const sp = content.species.find((s) => s.id === id);
-  if (!sp) throw new Error(`unknown species: ${id}`);
-  return sp;
-}
-
-function moveOf(id: string, content: Content): MoveDef {
-  const m = content.moves.find((x) => x.id === id);
-  if (!m) throw new Error(`unknown move: ${id}`);
-  return m;
-}
-
 function sameAction(a: Action, b: Action): boolean {
   return a.type === 'move'
     ? b.type === 'move' && a.moveIndex === b.moveIndex
@@ -47,8 +36,8 @@ export function intentText(state: BattleState, content: Content): string | null 
   const enemy = state.teams.enemy[state.active.enemy];
   if (!enemy) return null;
   if (state.intent !== null) {
-    const id = speciesOf(enemy.speciesId, content).moves[state.intent.moveIndex];
-    return id === undefined ? null : t('intent.next', { move: moveName(moveOf(id, content)) });
+    const id = lookup(content).species(enemy.speciesId).moves[state.intent.moveIndex];
+    return id === undefined ? null : t('intent.next', { move: moveName(lookup(content).move(id)) });
   }
   if (!enemy.fainted && enemy.status?.id === 'stun') return t('intent.stunned');
   return null;
@@ -65,8 +54,8 @@ export function buildMenu(state: BattleState, content: Content): MenuModel {
   const entries: MenuEntry[] = [];
 
   if (state.winner === null && active && !active.fainted) {
-    speciesOf(active.speciesId, content).moves.forEach((id, moveIndex) => {
-      const m = moveOf(id, content);
+    lookup(content).species(active.speciesId).moves.forEach((id, moveIndex) => {
+      const m = lookup(content).move(id);
       const action: Action = { type: 'move', moveIndex };
       entries.push({
         action,
@@ -81,7 +70,7 @@ export function buildMenu(state: BattleState, content: Content): MenuModel {
     const c = state.teams.player[action.toIndex]!;
     entries.push({
       action,
-      label: t('menu.swapTo', { species: speciesName(speciesOf(c.speciesId, content)) }),
+      label: t('menu.swapTo', { species: speciesName(lookup(content).species(c.speciesId)) }),
       disabled: false,
       detail: `${t('hud.hp')} ${c.hp}/${c.maxHp}`,
     });
@@ -92,7 +81,7 @@ export function buildMenu(state: BattleState, content: Content): MenuModel {
   if (state.winner === null && active) {
     prompt = mustSwap
       ? t('menu.chooseNext')
-      : t('menu.prompt', { species: speciesName(speciesOf(active.speciesId, content)) });
+      : t('menu.prompt', { species: speciesName(lookup(content).species(active.speciesId)) });
   }
   return { entries, intent: intentText(state, content), mustSwap, prompt };
 }
@@ -105,9 +94,9 @@ export function logLines(prev: BattleState, events: BattleEvent[], content: Cont
   const active: Record<Side, number> = { ...prev.active };
   const species = (side: Side) => {
     const c = prev.teams[side][active[side]];
-    return c ? speciesName(speciesOf(c.speciesId, content)) : '?';
+    return c ? speciesName(lookup(content).species(c.speciesId)) : '?';
   };
-  const move = (id: string) => moveName(moveOf(id, content));
+  const move = (id: string) => moveName(lookup(content).move(id));
   const out: string[] = [];
   for (const e of events) {
     if (e.type === 'swap') active[e.side] = e.toIndex;

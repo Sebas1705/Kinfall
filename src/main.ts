@@ -2,6 +2,7 @@
 // (src/view/controller.ts), which owns the pick -> applyAction -> play -> rebuild cycle.
 import './styles.css';
 import { CONTENT } from './content';
+import { lookup } from './content/lookup';
 import { detectLang, getLang, setLang, speciesName, t } from './platform/i18n';
 import type { StringKey } from './platform/i18n';
 import { createInput } from './platform/input';
@@ -103,7 +104,7 @@ async function main(): Promise<void> {
 
   const sideSummary = (state: BattleState, side: Side): string => {
     const c = state.teams[side][state.active[side]];
-    const sp = c && CONTENT.species.find((s) => s.id === c.speciesId);
+    const sp = c && lookup(CONTENT).species(c.speciesId);
     if (!c || !sp) return '';
     const line = t('hud.summary', {
       side: t(side === 'player' ? 'hud.player' : 'hud.enemy'),

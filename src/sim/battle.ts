@@ -1,6 +1,7 @@
 import { effectiveness } from '../content';
-import type { Content, MoveDef, SpeciesDef, StatusId } from '../content';
-import { chooseEnemyMove, enemyMoveLegal } from './ai';
+import type { Content, StatusId } from '../content';
+import { lookup } from '../content/lookup';
+import { chooseEnemyMove } from './ai';
 import { createRng, restoreRng } from './rng';
 import type { Rng } from './rng';
 import type { Action, BattleEvent, BattleState, Combatant, Side, TeamSpec } from './state';
@@ -12,20 +13,8 @@ function other(side: Side): Side {
   return side === 'player' ? 'enemy' : 'player';
 }
 
-function speciesOf(id: string, content: Content): SpeciesDef {
-  const sp = content.species.find((s) => s.id === id);
-  if (!sp) throw new Error(`unknown species: ${id}`);
-  return sp;
-}
-
-function moveOf(id: string, content: Content): MoveDef {
-  const m = content.moves.find((x) => x.id === id);
-  if (!m) throw new Error(`unknown move: ${id}`);
-  return m;
-}
-
 function makeCombatant(speciesId: string, content: Content): Combatant {
-  const { base } = speciesOf(speciesId, content);
+  const { base } = lookup(content).species(speciesId);
   const maxHp = base.health * 4;
   const maxFocus = Math.max(1, Math.floor(base.focus / 10));
   return { speciesId, hp: maxHp, maxHp, focus: maxFocus, maxFocus, status: null, fainted: false };
@@ -95,18 +84,18 @@ function rejection(state: BattleState, action: Action, content: Content): Reject
   if (action.type !== 'move') return 'illegal';
   // A fainted active creature must be swapped out before anything else.
   if (current.fainted) return 'illegal';
-  const moves = speciesOf(current.speciesId, content).moves;
+  const moves = lookup(content).species(current.speciesId).moves;
   const i = action.moveIndex;
   if (!Number.isInteger(i) || i < 0 || i >= moves.length) return 'illegal';
-  if (moveOf(moves[i]!, content).focusCost > current.focus) return 'focus';
+  if (lookup(content).move(moves[i]!).focusCost > current.focus) return 'focus';
   return null;
 }
 
 function moveActions(c: Combatant, content: Content): Action[] {
   if (c.fainted) return [];
   const out: Action[] = [];
-  speciesOf(c.speciesId, content).moves.forEach((id, moveIndex) => {
-    if (moveOf(id, content).focusCost <= c.focus) out.push({ type: 'move', moveIndex });
+  lookup(content).species(c.speciesId).moves.forEach((id, moveIndex) => {
+    if (lookup(content).move(id).focusCost <= c.focus) out.push({ type: 'move', moveIndex });
   });
   return out;
 }
@@ -120,12 +109,9 @@ export function legalActions(state: BattleState, content: Content): Action[] {
   return out;
 }
 
-/** The enemy's move: the telegraphed intent when there is one, else the AI's choice; null when it has none. */
+/** The enemy's move: the telegraphed intent when there is one (always executed as shown), else the AI's choice; null when it has none. */
 function enemyAction(state: BattleState, content: Content): Action | null {
-  const idx =
-    state.intent !== null && enemyMoveLegal(state, state.intent.moveIndex, content)
-      ? state.intent.moveIndex
-      : chooseEnemyMove(state, content);
+  const idx = state.intent !== null ? state.intent.moveIndex : chooseEnemyMove(state, content);
   return idx >= 0 ? { type: 'move', moveIndex: idx } : null;
 }
 
@@ -139,8 +125,8 @@ function resolveMove(
 ): void {
   const user = activeOf(s, side);
   if (user.fainted) return; // knocked out earlier this turn
-  const userSp = speciesOf(user.speciesId, content);
-  const move = moveOf(userSp.moves[moveIndex]!, content);
+  const userSp = lookup(content).species(user.speciesId);
+  const move = lookup(content).move(userSp.moves[moveIndex]!);
   user.focus -= move.focusCost;
 
   const hit = rng.nextInt(100) < move.accuracy;
@@ -151,7 +137,7 @@ function resolveMove(
   const target = activeOf(s, targetSide);
 
   if (move.kind === 'damage') {
-    const targetSp = speciesOf(target.speciesId, content);
+    const targetSp = lookup(content).species(target.speciesId);
     let base = Math.floor((move.power * userSp.base.power) / targetSp.base.guard);
     if (userSp.elements.includes(move.element)) base = Math.floor((base * 125) / 100);
     const eff = effectiveness(move.element, targetSp.elements);
@@ -227,8 +213,8 @@ export function applyAction(
   if (action.type === 'swap' || enemyAct === null) {
     order = ['player', 'enemy'];
   } else {
-    const ps = speciesOf(activeOf(s, 'player').speciesId, content).base.speed;
-    const es = speciesOf(activeOf(s, 'enemy').speciesId, content).base.speed;
+    const ps = lookup(content).species(activeOf(s, 'player').speciesId).base.speed;
+    const es = lookup(content).species(activeOf(s, 'enemy').speciesId).base.speed;
     const playerFirst = ps > es || (ps === es && rng.nextInt(2) === 0);
     order = playerFirst ? ['player', 'enemy'] : ['enemy', 'player'];
   }

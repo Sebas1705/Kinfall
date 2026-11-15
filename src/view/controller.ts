@@ -69,7 +69,6 @@ export function createBattleController(deps: ControllerDeps): BattleController {
   let pending = false;
   let dirty = false;
   let resultShown = false;
-  let turnId = 0;
 
   const renderView = () => {
     if (!view || !state) return;
@@ -104,11 +103,10 @@ export function createBattleController(deps: ControllerDeps): BattleController {
     pending = true;
     ui.setBusy(true);
 
-    const turn = ++turnId;
     let settled = false;
     let watchdog: unknown;
     const settle = () => {
-      if (settled || turn !== turnId) return;
+      if (settled) return;
       settled = true;
       timers.clearTimeout(watchdog);
       pending = false;
