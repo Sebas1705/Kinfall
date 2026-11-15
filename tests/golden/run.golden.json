@@ -1,0 +1,723 @@
+[
+  {
+    "seed": "golden-1",
+    "starterId": "brambleback",
+    "actions": [
+      {
+        "type": "node",
+        "nodeId": "z0-l0-c1"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "recruit",
+        "take": true
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l1-c1"
+      },
+      {
+        "type": "cache"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l2-c0"
+      },
+      {
+        "type": "shrine",
+        "choice": "rest"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l3-c2"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "recruit",
+        "take": true
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l4-c0"
+      },
+      {
+        "type": "shrine",
+        "choice": "rest"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l5-c0"
+      },
+      {
+        "type": "shrine",
+        "choice": "leave"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l6-c0"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "swap",
+          "toIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "swap",
+          "toIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "node",
+        "nodeId": "z1-l0-c1"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      }
+    ],
+    "finalHash": "513aa6a10ce7eeed",
+    "result": "lost",
+    "score": 1460,
+    "tags": [
+      "result:lost",
+      "zone:1"
+    ]
+  },
+  {
+    "seed": "golden-1",
+    "starterId": "cindermite",
+    "actions": [
+      {
+        "type": "node",
+        "nodeId": "z0-l0-c1"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "recruit",
+        "take": true
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l1-c1"
+      },
+      {
+        "type": "cache"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l2-c0"
+      },
+      {
+        "type": "shrine",
+        "choice": "rest"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l3-c2"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "swap",
+          "toIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "recruit",
+        "take": true
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l4-c0"
+      },
+      {
+        "type": "evolve",
+        "memberIndex": 1
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l5-c0"
+      },
+      {
+        "type": "shrine",
+        "choice": "rest"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l6-c0"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "swap",
+          "toIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      }
+    ],
+    "finalHash": "938c48614e42ea1a",
+    "result": "lost",
+    "score": 140,
+    "tags": [
+      "result:lost",
+      "zone:0",
+      "evolved"
+    ]
+  },
+  {
+    "seed": "golden-0",
+    "starterId": "cindermite",
+    "actions": [
+      {
+        "type": "node",
+        "nodeId": "z0-l0-c1"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      }
+    ],
+    "finalHash": "280338e8c541b53c",
+    "result": "lost",
+    "score": 10,
+    "tags": [
+      "result:lost",
+      "zone:0"
+    ]
+  },
+  {
+    "seed": "golden-2",
+    "starterId": "brambleback",
+    "actions": [
+      {
+        "type": "node",
+        "nodeId": "z0-l0-c1"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "recruit",
+        "take": true
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l1-c1"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "swap",
+          "toIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      }
+    ],
+    "finalHash": "764d82017445e778",
+    "result": "lost",
+    "score": 40,
+    "tags": [
+      "result:lost",
+      "zone:0"
+    ]
+  },
+  {
+    "seed": "golden-0",
+    "starterId": "tidewisp",
+    "actions": [
+      {
+        "type": "node",
+        "nodeId": "z0-l0-c1"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "recruit",
+        "take": true
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l1-c0"
+      },
+      {
+        "type": "mystery",
+        "choice": "open"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l2-c1"
+      },
+      {
+        "type": "cache"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l3-c0"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "swap",
+          "toIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      }
+    ],
+    "finalHash": "777ef73685803e26",
+    "result": "lost",
+    "score": 130,
+    "tags": [
+      "result:lost",
+      "zone:0"
+    ]
+  },
+  {
+    "seed": "golden-3",
+    "starterId": "cindermite",
+    "actions": [
+      {
+        "type": "node",
+        "nodeId": "z0-l0-c2"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "recruit",
+        "take": true
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l1-c1"
+      },
+      {
+        "type": "shrine",
+        "choice": "rest"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l2-c0"
+      },
+      {
+        "type": "mystery",
+        "choice": "open"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l3-c1"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "recruit",
+        "take": true
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l4-c1"
+      },
+      {
+        "type": "cache"
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l5-c1"
+      },
+      {
+        "type": "evolve",
+        "memberIndex": 0
+      },
+      {
+        "type": "node",
+        "nodeId": "z0-l6-c0"
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "swap",
+          "toIndex": 1
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "swap",
+          "toIndex": 2
+        }
+      },
+      {
+        "type": "battle",
+        "action": {
+          "type": "move",
+          "moveIndex": 3
+        }
+      }
+    ],
+    "finalHash": "de54c030fc4a3e18",
+    "result": "lost",
+    "score": 170,
+    "tags": [
+      "result:lost",
+      "zone:0",
+      "evolved"
+    ]
+  }
+]

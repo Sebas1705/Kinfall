@@ -12,6 +12,8 @@
     "size": "node scripts/check-size.mjs",
     "typecheck": "tsc --noEmit",
     "golden:update": "node scripts/run-ts.mjs scripts/update-golden.ts",
+    "golden:runs": "node scripts/run-ts.mjs scripts/update-run-golden.ts",
+    "bots": "node scripts/run-ts.mjs scripts/run-bots.ts",
     "art:preview": "node scripts/run-ts.mjs scripts/preview-art.ts"
   },
   "dependencies": {
