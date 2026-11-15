@@ -8,6 +8,8 @@ export const SPECIES: SpeciesDef[] = [
     base: { health: 48, power: 44, guard: 30, speed: 40, focus: 34 },
     moves: ['ember_lash', 'cinder_burst', 'smoulder_hex', 'dusk_claw'],
     art: { body: 'blob', limbs: 4, pattern: 'spots', eyes: 2, key: 'cindermite' },
+    evolvesTo: 'cindermaw',
+    evolveCost: 3,
   },
   {
     id: 'brambleback',
@@ -16,6 +18,8 @@ export const SPECIES: SpeciesDef[] = [
     base: { health: 56, power: 38, guard: 52, speed: 24, focus: 30 },
     moves: ['bramble_whip', 'thorn_volley', 'mending_moss', 'brine_jet'],
     art: { body: 'wide', limbs: 4, pattern: 'stripes', eyes: 2, key: 'brambleback' },
+    evolvesTo: 'bramblewarden',
+    evolveCost: 3,
   },
   {
     id: 'tidewisp',
@@ -24,6 +28,8 @@ export const SPECIES: SpeciesDef[] = [
     base: { health: 44, power: 42, guard: 34, speed: 46, focus: 50 },
     moves: ['brine_jet', 'undertow', 'mending_moss', 'static_hush'],
     art: { body: 'serpent', limbs: 0, pattern: 'plain', eyes: 1, key: 'tidewisp' },
+    evolvesTo: 'tidewraith',
+    evolveCost: 3,
   },
   {
     id: 'skirrow',
@@ -48,5 +54,29 @@ export const SPECIES: SpeciesDef[] = [
     base: { health: 50, power: 52, guard: 36, speed: 42, focus: 40 },
     moves: ['ember_lash', 'cinder_burst', 'dusk_claw', 'smoulder_hex'],
     art: { body: 'blob', limbs: 1, pattern: 'plain', eyes: 3, key: 'emberveil' },
+  },
+  {
+    id: 'cindermaw',
+    names: { en: 'Cindermaw', es: 'Cenizarrón' },
+    elements: ['ember'],
+    base: { health: 60, power: 55, guard: 37, speed: 50, focus: 42 },
+    moves: ['ember_lash', 'dusk_claw', 'smoulder_hex', 'cinder_burst'],
+    art: { body: 'wide', limbs: 4, pattern: 'spots', eyes: 2, key: 'cindermaw' },
+  },
+  {
+    id: 'bramblewarden',
+    names: { en: 'Bramblewarden', es: 'Zarzaguardián' },
+    elements: ['thorn'],
+    base: { health: 70, power: 47, guard: 65, speed: 30, focus: 37 },
+    moves: ['bramble_whip', 'brine_jet', 'mending_moss', 'thorn_volley'],
+    art: { body: 'tall', limbs: 4, pattern: 'stripes', eyes: 2, key: 'bramblewarden' },
+  },
+  {
+    id: 'tidewraith',
+    names: { en: 'Tidewraith', es: 'Marespectro' },
+    elements: ['tide'],
+    base: { health: 55, power: 52, guard: 42, speed: 57, focus: 62 },
+    moves: ['brine_jet', 'static_hush', 'mending_moss', 'undertow'],
+    art: { body: 'serpent', limbs: 2, pattern: 'stripes', eyes: 2, key: 'tidewraith' },
   },
 ];

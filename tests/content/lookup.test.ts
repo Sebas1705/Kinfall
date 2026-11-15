@@ -29,7 +29,7 @@ describe('lookup', () => {
   });
 
   it('works on a two-species fixture', () => {
-    const c: Content = { species: CONTENT.species.slice(0, 2), moves: CONTENT.moves };
+    const c: Content = { species: CONTENT.species.slice(0, 2), moves: CONTENT.moves, zones: [], bosses: [], starters: [] };
     const l = lookup(c);
     expect(l.species(c.species[1]!.id)).toBe(c.species[1]);
     expect(l.hasSpecies(CONTENT.species[2]!.id)).toBe(false);
@@ -40,6 +40,7 @@ describe('lookup', () => {
     const id0 = CONTENT.species[0]!.id;
     const state = createBattle('s', { speciesIds: [id0] }, { speciesIds: [id0] }, CONTENT);
     const broken: Content = {
+      zones: [], bosses: [], starters: [],
       species: CONTENT.species.map((s) => ({ ...s, moves: ['ghost-move', ...s.moves.slice(1)] })),
       moves: CONTENT.moves,
     };

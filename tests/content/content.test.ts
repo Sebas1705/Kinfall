@@ -41,7 +41,7 @@ describe('content', () => {
   });
 
   it('has the slice sizes and 4 moves per species', () => {
-    expect(CONTENT.species.length).toBe(6);
+    expect(CONTENT.species.length).toBe(9);
     expect(CONTENT.moves.length).toBe(12);
     for (const s of CONTENT.species) expect(s.moves).toHaveLength(4);
   });

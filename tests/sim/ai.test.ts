@@ -20,6 +20,7 @@ function species(id: string, elements: SpeciesDef['elements'], base: Stats, move
 }
 
 const FX: Content = {
+  zones: [], bosses: [], starters: [],
   moves: [
     move({ id: 'ember_hit', element: 'ember', kind: 'damage', power: 40 }),
     move({ id: 'tide_hit', element: 'tide', kind: 'damage', power: 40 }),

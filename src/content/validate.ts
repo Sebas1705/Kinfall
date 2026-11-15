@@ -32,5 +32,69 @@ export function validateContent(c: Content): string[] {
     if (!dupId && artKeys.has(s.art.key)) errs.push(`species ${s.id}: duplicate art key ${s.art.key}`);
     artKeys.add(s.art.key);
   }
+  validateRun(c, speciesIds, errs);
   return errs;
+}
+
+function arr<T>(v: T[] | undefined): T[] {
+  return Array.isArray(v) ? v : [];
+}
+
+/** Evolution, zone, boss and starter rules; tolerant of missing or malformed fields. */
+function validateRun(c: Content, speciesIds: Set<string>, errs: string[]): void {
+  const byId = new Map(arr(c.species).map((s) => [s.id, s]));
+  for (const s of arr(c.species)) {
+    if (s.evolvesTo === undefined) continue;
+    if (!speciesIds.has(s.evolvesTo))
+      errs.push(`species ${s.id}: evolution target ${s.evolvesTo} does not exist`);
+    if (!Number.isInteger(s.evolveCost) || (s.evolveCost as number) < 1)
+      errs.push(`species ${s.id}: evolveCost must be an integer >= 1 when evolvesTo is set`);
+    // Walk the chain; report the cycle once, on the species where the walk started repeating.
+    const seen = new Set<string>([s.id]);
+    let next = byId.get(s.evolvesTo);
+    while (next) {
+      if (next.id === s.id) {
+        errs.push(`species ${s.id}: evolution cycle`);
+        break;
+      }
+      if (seen.has(next.id)) break;
+      seen.add(next.id);
+      next = next.evolvesTo === undefined ? undefined : byId.get(next.evolvesTo);
+    }
+  }
+
+  const zones = arr(c.zones);
+  if (zones.length !== 3) errs.push(`zones: expected 3, found ${zones.length}`);
+  zones.forEach((z, i) => {
+    for (const pool of ['wild', 'elite'] as const) {
+      const ids = arr(z?.[pool]);
+      if (ids.length === 0) errs.push(`zone ${i}: ${pool} pool is empty`);
+      for (const id of ids)
+        if (!speciesIds.has(id)) errs.push(`zone ${i}: ${pool} pool has unknown species ${id}`);
+    }
+  });
+
+  const bosses = arr(c.bosses);
+  if (bosses.length !== 3) errs.push(`bosses: expected 3, found ${bosses.length}`);
+  else if (new Set(bosses.map((b) => b?.zone)).size !== 3 || bosses.some((b) => ![0, 1, 2].includes(b?.zone)))
+    errs.push('bosses: expected exactly one per zone 0, 1 and 2');
+  for (const b of bosses) {
+    const sp = byId.get(b.speciesId);
+    if (!sp) errs.push(`boss ${b.id}: unknown species ${b.speciesId}`);
+    const script = arr(b.script);
+    if (script.length === 0) errs.push(`boss ${b.id}: script is empty`);
+    else if (sp) {
+      const n = arr(sp.moves).length;
+      for (const i of script)
+        if (!Number.isInteger(i) || i < 0 || i >= n)
+          errs.push(`boss ${b.id}: script index ${i} is outside the moves of ${sp.id}`);
+    }
+    if (!Number.isInteger(b.hpPercent) || b.hpPercent < 100 || b.hpPercent > 500)
+      errs.push(`boss ${b.id}: hpPercent must be 100..500`);
+  }
+
+  const starters = arr(c.starters);
+  if (starters.length !== 3) errs.push(`starters: expected 3, found ${starters.length}`);
+  for (const id of starters)
+    if (!speciesIds.has(id)) errs.push(`starters: unknown species ${id}`);
 }

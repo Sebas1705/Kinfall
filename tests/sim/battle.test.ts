@@ -36,6 +36,7 @@ function species(
 }
 
 const FX: Content = {
+  zones: [], bosses: [], starters: [],
   moves: [
     move({ id: 'ember_hit', element: 'ember', kind: 'damage', power: 40 }),
     move({ id: 'ember_big', element: 'ember', kind: 'damage', power: 60, focusCost: 2 }),
@@ -151,6 +152,7 @@ describe('createBattle', () => {
 
   it('maxFocus is at least 1', () => {
     const tiny: Content = {
+      zones: [], bosses: [], starters: [],
       moves: FX.moves,
       species: [species('tiny', ['gale'], { health: 1, power: 1, guard: 1, speed: 1, focus: 3 }, ['tide_hit'])],
     };
@@ -191,6 +193,7 @@ describe('damage', () => {
 
   it('deals at least 1 damage', () => {
     const tanky: Content = {
+      zones: [], bosses: [], starters: [],
       moves: FX.moves,
       species: [
         ...FX.species,
@@ -205,6 +208,7 @@ describe('damage', () => {
     expect(events).toContainEqual({ type: 'damage', side: 'enemy', amount: 5, effectiveness: 50 });
 
     const zero: Content = {
+      zones: [], bosses: [], starters: [],
       moves: [...FX.moves, move({ id: 'tap', element: 'gale', kind: 'damage', power: 1 })],
       species: [
         species('poke', ['umbra'], { health: 50, power: 1, guard: 40, speed: 99, focus: 10 }, ['tap']),
@@ -364,6 +368,7 @@ describe('applyAction', () => {
       x.teams.enemy[0]!.focus = 0;
     });
     const broke: Content = {
+      zones: [], bosses: [], starters: [],
       moves: FX.moves,
       species: FX.species.map((sp) => (sp.id === 'bramble' ? { ...sp, moves: ['mend'] } : sp)),
     };
@@ -760,6 +765,7 @@ describe('folded-in fixes', () => {
 
   it('a move that misses still costs its focus', () => {
     const c: Content = {
+      zones: [], bosses: [], starters: [],
       moves: [move({ id: 'dud', element: 'ember', kind: 'damage', power: 40, accuracy: 0, focusCost: 2 }), ...FX.moves],
       species: [
         species('shy', ['ember'], { health: 50, power: 50, guard: 40, speed: 60, focus: 30 }, ['dud', 'ember_hit']),

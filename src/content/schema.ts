@@ -24,6 +24,10 @@ export interface SpeciesDef {
   base: Stats;
   moves: string[];
   art: ArtParams;
+  /** Species this one evolves into; evolved forms have none. */
+  evolvesTo?: string;
+  /** Evolution cost in run currency; required (>= 1) when `evolvesTo` is set. */
+  evolveCost?: number;
 }
 
 export interface MoveDef {
@@ -38,7 +42,26 @@ export interface MoveDef {
   target: 'enemy' | 'self';
 }
 
+export interface BossDef {
+  id: string;
+  zone: number;
+  speciesId: string;
+  names: { en: string; es: string };
+  /** Boss health as a percentage of the species' normal health (100..500). */
+  hpPercent: number;
+  /** Repeating cycle of indices into the species' own `moves`. */
+  script: number[];
+}
+
+export interface ZoneDef {
+  wild: string[];
+  elite: string[];
+}
+
 export interface Content {
   species: SpeciesDef[];
   moves: MoveDef[];
+  zones: ZoneDef[];
+  bosses: BossDef[];
+  starters: string[];
 }
