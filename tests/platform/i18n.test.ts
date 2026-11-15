@@ -294,3 +294,20 @@ describe('runEventLine', () => {
     expect(runEventLine({ type: 'lost', speciesId: 'cindermite' }, ctx)).toBe('Pierdes a Cindermite.');
   });
 });
+
+describe('map.nodeLabel', () => {
+  it('has the exact "label: state" shape for every node type and state in both languages', () => {
+    const types: NodeType[] = ['wild', 'elite', 'shrine', 'cache', 'mystery', 'boss'];
+    const states = ['available', 'cleared', 'locked'] as const;
+    for (const lang of ['en', 'es'] as const) {
+      setLang(lang);
+      for (const type of types) {
+        for (const state of states) {
+          const label = nodeTypeLabel(type);
+          const stateText = t(`map.${state}`);
+          expect(t('map.nodeLabel', { label, state: stateText }), `${lang} ${type} ${state}`).toBe(`${label}: ${stateText}`);
+        }
+      }
+    }
+  });
+});
