@@ -97,6 +97,15 @@ for (const scheme of ['light', 'dark'] as const) {
         await page.locator('#screen-map [data-action="abandon"]').click();
         await checkScreen(page, `map with abandon confirm (${lang})`, size.width);
 
+        // Battle screen with the abandon button (and its confirmation).
+        await page.locator('#screen-map button.map-node:not([disabled])').first().click();
+        await expect(page.locator('#screen-battle')).toBeVisible();
+        await expect(page.locator('#choices button:not([disabled])').first()).toBeVisible();
+        await expect(page.locator('#battle-footer [data-action="abandon"]')).toBeVisible();
+        await checkScreen(page, `battle (${lang})`, size.width);
+        await page.locator('#battle-footer [data-action="abandon"]').click();
+        await checkScreen(page, `battle with abandon confirm (${lang})`, size.width);
+
         // Event screens (crafted saves): focus on the initial choice of the new screen.
         // The second shrine has 0 souls and an evolved member: disabled evolve entries with their reason.
         const events = [

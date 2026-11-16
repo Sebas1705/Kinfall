@@ -69,6 +69,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     if (!run) return;
     const result = storage.save(run);
     if (result.ok) {
+      if (saveFailing) ui.hideSaveWarning();
       saveFailing = false;
     } else if (!saveFailing) {
       saveFailing = true;
@@ -145,6 +146,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     render();
     const phase = run.phase;
     if (phase.kind === 'battle') {
+      ui.renderBattleFooter(() => controller.abandon());
       log.show(false);
       router.show('battle', undefined, { focus: false });
       // Rebuilt from the saved state: a fresh log, telegraph and intent as the state says.
@@ -218,7 +220,10 @@ export function createRunController(deps: RunControllerDeps): RunController {
     refreshText() {
       const screen = router.current();
       if (screen === 'title') renderTitle(true);
-      else if (screen === 'battle') battle.refreshText();
+      else if (screen === 'battle') {
+        battle.refreshText();
+        ui.renderBattleFooter(() => controller.abandon());
+      }
       else if (run) {
         const section = document.querySelector(`[data-screen="${screen}"]`);
         const hadFocus = section?.contains(document.activeElement) ?? false;

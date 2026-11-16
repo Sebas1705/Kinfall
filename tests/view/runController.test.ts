@@ -68,7 +68,7 @@ function setup(opts: { st?: ReturnType<typeof fakeStorage>; crafted?: RunState }
       <div id="save-warning" role="status"><div class="save-warning" hidden><p></p><button type="button">x</button></div></div>
       <section data-screen="title"></section>
       <section data-screen="map"></section>
-      <section data-screen="battle"><h2>Battle</h2></section>
+      <section data-screen="battle"><h2>Battle</h2><div id="battle-footer" hidden></div></section>
       <section data-screen="event"></section>
       <section data-screen="end"></section>
       <section id="run-log-panel" hidden><div role="log" aria-live="polite"></div></section>
@@ -82,6 +82,7 @@ function setup(opts: { st?: ReturnType<typeof fakeStorage>; crafted?: RunState }
     map: screen('map'),
     event: screen('event'),
     end: screen('end'),
+    battleFooter: document.getElementById('battle-footer')!,
     warning: document.getElementById('save-warning')!,
     log: document.getElementById('run-log-panel')!,
     seed: document.getElementById('seed')!,
@@ -285,6 +286,84 @@ describe('run controller: battles', () => {
   });
 });
 
+describe('run controller: abandon from the battle screen', () => {
+  const footer = () => document.getElementById('battle-footer')!;
+  const abandonBtn = () => footer().querySelector<HTMLButtonElement>('[data-action="abandon"]');
+  const yesBtn = () => footer().querySelector<HTMLButtonElement>('[data-action="abandon-yes"]')!;
+
+  it('shows a labelled Abandon run button on the battle screen only in a run, in both languages', () => {
+    const { controller, router } = setup();
+    controller.start('seed-ab1', 'cindermite');
+    expect(footer().hidden).toBe(true);
+    controller.pickNode(controller.getRun()!.maps[0]!.layers[0]![0]!.id);
+    expect(router.current()).toBe('battle');
+    expect(footer().hidden).toBe(false);
+    expect(abandonBtn()!.textContent).toBe('Abandon run');
+    setLang('es');
+    controller.refreshText();
+    expect(abandonBtn()!.textContent).toBe('Abandonar partida');
+  });
+
+  it('is absent when no run host is wired (the demo battle page)', () => {
+    document.body.innerHTML = '<div id="battle-footer" hidden></div>';
+    const ui = createRunUi({
+      title: document.createElement('div'),
+      map: document.createElement('div'),
+      event: document.createElement('div'),
+      end: document.createElement('div'),
+      warning: document.createElement('div'),
+      log: document.createElement('div'),
+    });
+    ui.renderBattleFooter(() => {});
+    expect(document.getElementById('battle-footer')!.childElementCount).toBe(0);
+    expect(document.getElementById('battle-footer')!.hidden).toBe(true);
+  });
+
+  it('asks first, then clears the save and shows the title with a fresh seed', () => {
+    const { controller, router, st, screen } = setup();
+    controller.start('seed-ab2', 'cindermite');
+    controller.pickNode(controller.getRun()!.maps[0]!.layers[0]![0]!.id);
+    abandonBtn()!.click();
+    expect(router.current()).toBe('battle'); // only the confirmation so far
+    expect(st.data.has(KEY)).toBe(true);
+    expect(document.activeElement).toBe(footer().querySelector('[data-action="abandon-no"]'));
+    yesBtn().click();
+    expect(st.data.has(KEY)).toBe(false);
+    expect(controller.getRun()).toBeNull();
+    expect(router.current()).toBe('title');
+    expect(titleSeed(screen)).toBe('FRESH001');
+    expect(screen('title').querySelector<HTMLButtonElement>('[data-action="continue"]')!.disabled).toBe(true);
+  });
+
+  it('Keep playing restores the button and focus; the battle is untouched', () => {
+    const { controller, router, st } = setup();
+    controller.start('seed-ab3', 'cindermite');
+    controller.pickNode(controller.getRun()!.maps[0]!.layers[0]![0]!.id);
+    const saved = st.data.get(KEY);
+    abandonBtn()!.click();
+    footer().querySelector<HTMLButtonElement>('[data-action="abandon-no"]')!.click();
+    expect(abandonBtn()).not.toBeNull();
+    expect(document.activeElement).toBe(abandonBtn());
+    expect(router.current()).toBe('battle');
+    expect(st.data.get(KEY)).toBe(saved);
+  });
+
+  it('is ignored while a battle turn is still playing', async () => {
+    const { controller, router, st, battle } = setup();
+    controller.start('seed-ab4', 'cindermite');
+    controller.pickNode(controller.getRun()!.maps[0]!.layers[0]![0]!.id);
+    abandonBtn()!.click();
+    battle().pick(MOVE0);
+    expect(battle().isPending()).toBe(true);
+    yesBtn().click();
+    expect(controller.getRun()).not.toBeNull();
+    expect(router.current()).toBe('battle');
+    expect(st.data.has(KEY)).toBe(true);
+    await flush();
+    expect(battle().isPending()).toBe(false);
+  });
+});
+
 describe('run controller: event screens', () => {
   it('picking an event choice applies it, saves, logs the lines and shows the map', () => {
     const crafted = startRun('seed-ev', 'cindermite', CONTENT);
@@ -379,6 +458,21 @@ describe('run controller: resume and saves', () => {
     await flush();
     expect(st.data.get(KEY)).toBe(serializeRun(controller.getRun()!));
     expect(st.sets).toBe(3);
+  });
+
+  it('the save warning hides after a later successful save and shows again on a new failure streak', async () => {
+    const { controller, st, battle } = setup();
+    st.failing = true;
+    controller.start('seed-w', 'cindermite');
+    expect(warningBox().hidden).toBe(false);
+    expect(warningBox().querySelectorAll('p').length).toBe(1);
+    st.failing = false;
+    controller.pickNode(controller.getRun()!.maps[0]!.layers[0]![0]!.id);
+    expect(warningBox().hidden).toBe(true); // a successful save ends the streak
+    st.failing = true;
+    battle().pick(MOVE0);
+    await flush();
+    expect(warningBox().hidden).toBe(false); // a new streak warns again
   });
 
   it('abandon asks first, clears the save, resets the banner and prefills a fresh seed', () => {

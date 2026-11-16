@@ -3,7 +3,7 @@
 import { t } from '../platform/i18n';
 import type { StringKey } from '../platform/i18n';
 import type { RunAction } from '../sim/run/types';
-import { el } from './screens/dom';
+import { confirmInline, el } from './screens/dom';
 import { renderEnd } from './screens/end';
 import type { EndModel } from './screens/end';
 import { renderEvent } from './screens/event';
@@ -21,6 +21,8 @@ export interface RunUi {
   renderMap(model: MapModel, onPick: (nodeId: string) => void, onAbandon: () => void): void;
   renderEvent(model: EventModel, onPick: (action: RunAction) => void): void;
   renderEnd(model: EndModel, onNewRun: () => void): void;
+  /** The battle screen's secondary "Abandon run" control (two-step confirm); run mode only. */
+  renderBattleFooter(onAbandon: () => void): void;
   showSaveWarning(error: string): void;
   /** Deleting the save failed (abandon or discard). */
   showClearWarning(error: string): void;
@@ -39,6 +41,8 @@ export interface RunUiHosts {
   map: HTMLElement;
   event: HTMLElement;
   end: HTMLElement;
+  /** Footer of the battle screen; stays empty (and hidden) in the demo battle page. */
+  battleFooter?: HTMLElement;
   /** `role="status"` region holding a `.save-warning` box with a `<p>` and a dismiss `<button>`. */
   warning: HTMLElement;
   /** Run log panel holding a `[role="log"]` region. */
@@ -74,6 +78,23 @@ export function createRunUi(hosts: RunUiHosts): RunUi {
     renderMap: (model, onPick, onAbandon) => renderMap(hosts.map, model, onPick, onAbandon),
     renderEvent: (model, onPick) => renderEvent(hosts.event, model, onPick),
     renderEnd: (model, onNewRun) => renderEnd(hosts.end, model, onNewRun),
+    renderBattleFooter(onAbandon) {
+      const footer = hosts.battleFooter;
+      if (!footer) return;
+      const abandon = el('button', { type: 'button', class: 'secondary', 'data-action': 'abandon' }, t('map.abandon'));
+      abandon.addEventListener('click', () =>
+        confirmInline(abandon, {
+          question: t('map.abandonConfirm'),
+          yes: t('map.abandonYes'),
+          no: t('map.abandonNo'),
+          yesAction: 'abandon-yes',
+          noAction: 'abandon-no',
+          onYes: onAbandon,
+        }),
+      );
+      footer.replaceChildren(abandon);
+      footer.hidden = false;
+    },
     showSaveWarning: (error) => warn('save.failed', error),
     showClearWarning: (error) => warn('save.clearFailed', error),
     hideSaveWarning() {

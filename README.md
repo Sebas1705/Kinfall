@@ -24,8 +24,8 @@ Play with the keyboard (Tab or arrows, Enter to confirm) or by clicking or tappi
 
 - **Saves live in this browser.** The run is saved automatically after every action (every battle turn included) in `localStorage` under the key `webgames.run.v1`, and **Continue run** on the title screen resumes it. Clearing the site data deletes the save. If the browser blocks storage, the run stays playable and a warning says it is not being saved. A damaged save is reported and can be discarded.
 - **Single battle.** `?mode=battle` (for example `/?mode=battle&seed=NAME`) opens the phase-1 demo battle on its own, without a run.
-- **Balance.** With the current numbers a win is very unlikely: the bots win 0 of 900 runs (300 seeds x 3 starters) and rarely leave zone 1. Balance is phase 3 work.
-- **Known issue.** The battle engine has no turn limit yet, so two creatures that keep healing can stall a battle. Reloading resumes the same battle; **New run** on the title screen starts over.
+- **Balance.** With the current numbers the game is effectively unwinnable: the bots win 0 of 900 runs (300 seeds x 3 starters) and rarely leave zone 0, and even a search with perfect information wins only about 1 run in 15. Balance is phase 3 work.
+- **Known issue.** The battle engine still has no turn limit, so a boss that heals (the zone-1 Thorn Sovereign with mending_moss) can make a fight endless. Reloading resumes the same battle; the battle screen has an **Abandon run** button, and **New run** on the title screen starts over.
 
 ## End-to-end tests
 

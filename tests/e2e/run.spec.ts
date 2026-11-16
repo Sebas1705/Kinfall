@@ -164,6 +164,43 @@ test.describe('run flow', () => {
     expect(seed).toMatch(/^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{8}$/);
   });
 
+  test('abandon from the battle screen: keyboard confirm, save cleared, title with a fresh seed', async ({ page }) => {
+    await startRunWithKeyboard(page, SEED);
+    await tabTo(page, page.locator('#screen-map button.map-node:not([disabled])').first());
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#screen-battle')).toBeVisible();
+    expect(await readSave(page)).not.toBeNull();
+
+    // Battle keys never reach the footer's button; Tab and Enter do.
+    const abandon = page.locator('#battle-footer [data-action="abandon"]');
+    await expect(abandon).toBeVisible();
+    await tabTo(page, abandon);
+    await page.keyboard.press('Enter');
+    const no = page.locator('#battle-footer [data-action="abandon-no"]');
+    await expect(no).toBeFocused();
+    // Escape cancels the confirmation without moving focus into the battle menu.
+    await page.keyboard.press('Escape');
+    await expect(abandon).toBeFocused();
+    await expect(page.locator('#screen-battle')).toBeVisible();
+    expect(await readSave(page)).not.toBeNull();
+
+    await page.keyboard.press('Enter');
+    await tabTo(page, page.locator('#battle-footer [data-action="abandon-yes"]'));
+    await page.keyboard.press('Enter');
+
+    await expect(page.locator('#screen-title')).toBeVisible();
+    expect(await readSave(page)).toBeNull();
+    await expect(page.locator('#screen-title [data-action="continue"]')).toBeDisabled();
+    expect(await page.locator('#title-seed').inputValue()).not.toBe(SEED);
+  });
+
+  test('the demo battle page has no abandon button', async ({ page }) => {
+    await page.goto('/?mode=battle');
+    await expect(page.locator('#choices button').first()).toBeVisible();
+    await expect(page.locator('#battle-footer')).toBeHidden();
+    await expect(page.locator('[data-action="abandon"]')).toHaveCount(0);
+  });
+
   const EXPECT = {
     en: {
       recruit: 'A creature wants to join',

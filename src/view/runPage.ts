@@ -20,6 +20,7 @@ export function startRunPage(): void {
     map: byId('screen-map'),
     event: byId('screen-event'),
     end: byId('screen-end'),
+    battleFooter: byId('battle-footer'),
     warning: byId('save-warning'),
     log: byId('run-log-panel'),
     seed: byId('seed'),
@@ -42,6 +43,9 @@ export function startRunPage(): void {
   const dom = createBattleDom(CONTENT, (onAction) => {
     bindScreenInput(battleSection, router, 'battle', onAction);
   });
+  // The footer's keys belong to the button and its confirmation: the battle input layer (a window
+  // listener) must not see them, so Escape or arrows there never move the battle selection.
+  byId('battle-footer').addEventListener('keydown', (e) => e.stopPropagation());
   const view = lazyBattleView(
     () => import('./battleView').then((m) => m.createBattleView(byId('scene'))),
     (err) => {

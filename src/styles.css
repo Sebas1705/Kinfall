@@ -147,7 +147,7 @@ body {
   display: grid;
   gap: 0.75rem;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'stage' 'log' 'menu' 'dpad';
+  grid-template-areas: 'stage' 'log' 'menu' 'dpad' 'footer';
 }
 
 .stage {
@@ -434,7 +434,8 @@ button {
     grid-template-areas:
       'stage stage'
       'log menu'
-      'dpad dpad';
+      'dpad dpad'
+      'footer footer';
   }
 
   .log {
@@ -790,6 +791,14 @@ button {
 .map-node--current .map-node-state {
   color: var(--text);
   font-weight: 600;
+}
+
+.battle-footer {
+  grid-area: footer;
+}
+
+.battle-footer[hidden] {
+  display: none;
 }
 
 .map-footer {
