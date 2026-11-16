@@ -1,4 +1,4 @@
-// Regenerates tests/golden/run.golden.json. Owner-run: npm run golden:runs
+// Regenerates packages/core/tests/golden/run.golden.json. Owner-run: npm run golden:runs
 // The golden test never rewrites that file; review the diff before committing it.
 // Seeds are the fixed list golden-0 .. golden-499, tried with every starter, so the output is deterministic.
 import { writeFileSync } from 'node:fs';

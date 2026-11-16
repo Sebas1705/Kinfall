@@ -1,4 +1,4 @@
-// Regenerates tests/golden/battle.golden.json. Owner-run: npm run golden:update
+// Regenerates packages/core/tests/golden/battle.golden.json. Owner-run: npm run golden:update
 // The golden test never rewrites that file; review the diff before committing it.
 import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

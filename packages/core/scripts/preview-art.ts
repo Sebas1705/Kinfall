@@ -1,4 +1,4 @@
-// Writes art-preview.html (git-ignored): every species sprite and element icon as a scaled-up
+// Writes packages/core/art-preview.html (git-ignored): every species sprite and element icon as a scaled-up
 // pixel grid on a dark and a light background. Owner-run: npm run art:preview
 // With --ascii it also prints one character per palette index for each species.
 import { writeFileSync } from 'node:fs';

@@ -24,7 +24,7 @@ Levers to try (tune with the bots and the perfect-information search as the yard
 
 ## 2. Engine turn cap
 
-Add a constant, not stored in state (for example `MAX_TURNS = 60`). Reaching it ends the battle with winner `'enemy'`, like the mutual-wipe rule. One exit check in `applyAction`, plus a turn bound in `validateState`. Phase-1 goldens are unaffected because every golden battle is far below 60 turns. Then remove the bot's `HEAL_UNTIL_TURN` workaround (`src/sim/run/bot.ts`). Until then the battle screen's Abandon run button is the only way out of an endless fight.
+Add a constant, not stored in state (for example `MAX_TURNS = 60`). Reaching it ends the battle with winner `'enemy'`, like the mutual-wipe rule. One exit check in `applyAction`, plus a turn bound in `validateState`. Phase-1 goldens are unaffected because every golden battle is far below 60 turns. Then remove the bot's `HEAL_UNTIL_TURN` workaround (`packages/core/src/sim/run/bot.ts`). Until then the battle screen's Abandon run button is the only way out of an endless fight.
 
 ## 3. Saves
 
@@ -37,11 +37,11 @@ Add a constant, not stored in state (for example `MAX_TURNS = 60`). Reaching it 
 
 Tests that pin content numbers and will need edits:
 
-- `tests/content/run-content.test.ts`
-- `tests/sim/run/encounters.test.ts`
-- `tests/content/content.test.ts`
+- `packages/core/tests/content/run-content.test.ts`
+- `packages/core/tests/sim/run/encounters.test.ts`
+- `packages/core/tests/content/content.test.ts`
 - some score, events and run tests
-- both golden JSON files
+- both golden JSON files (`packages/core/tests/golden/`)
 
 The e2e full-run spec (60 s timeout, 400-action bound) may need adjusting for longer runs.
 

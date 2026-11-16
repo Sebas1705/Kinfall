@@ -2,18 +2,31 @@
 
 `webgames` is a placeholder name for a TypeScript browser-game project: a deterministic game engine plus a creature roguelike built on top of it. The name is a placeholder and may change.
 
+## Layout
+
+The repository is an npm workspaces monorepo:
+
+| Path | Package | Contents |
+|---|---|---|
+| `packages/core` | `@webgames/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@webgames/core/sim/run/run`. |
+| `apps/web` | `@webgames/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@webgames/core/...`. |
+
+All commands below run from the repository root.
+
 ## Development
 
 ```sh
 npm install
-npm run dev        # start the Vite dev server (open the printed URL to play)
-npm test           # unit tests (Vitest, tests/**/*.test.ts)
-npm run typecheck  # strict TypeScript check
-npm run build      # production build into dist/
-npm run size       # gzipped initial JS+CSS of dist/ must be <= 2,000,000 bytes
-npm run test:e2e   # end-to-end, determinism and accessibility specs (Playwright)
+npm run dev        # start the Vite dev server for apps/web (open the printed URL to play)
+npm test           # unit tests of every workspace (Vitest projects: core and web)
+npm run typecheck  # strict TypeScript check of the root config and every workspace
+npm run build      # production build into apps/web/dist/
+npm run size       # gzipped initial JS+CSS of apps/web/dist/ must be <= 2,000,000 bytes
+npm run test:e2e   # end-to-end, determinism and accessibility specs (Playwright, apps/web/tests/e2e)
 npm run bots       # bot statistics over many runs (npm run bots -- 300: 300 seeds x 3 starters)
-npm run golden:runs # regenerate tests/golden/run.golden.json (review the diff before committing it)
+npm run golden:update # regenerate packages/core/tests/golden/battle.golden.json (review the diff before committing it)
+npm run golden:runs   # regenerate packages/core/tests/golden/run.golden.json (review the diff before committing it)
+npm run art:preview   # write packages/core/art-preview.html with every sprite (git-ignored)
 ```
 
 ## Playing
@@ -29,9 +42,9 @@ Play with the keyboard (Tab or arrows, Enter to confirm) or by clicking or tappi
 
 ## End-to-end tests
 
-`npm run test:e2e` starts the dev server on port 5199 and runs the specs in `tests/e2e`:
+`npm run test:e2e` starts the dev server on port 5199 and runs the specs in `apps/web/tests/e2e`:
 
-- `determinism.spec.ts`: the battle and run golden replays (`tests/golden/*.golden.json`) run inside the page and are compared with the stored hashes, results and scores.
+- `determinism.spec.ts`: the battle and run golden replays (`packages/core/tests/golden/*.golden.json`) run inside the page (loading the core modules from the dev server) and are compared with the stored hashes, results and scores.
 - `battle.spec.ts`: the `?mode=battle` flows (keyboard, click, reduced motion, hidden tab).
 - `run.spec.ts`: a whole run by keyboard; a reload in the middle of a battle (Continue resumes the same battle and the run ends exactly as without the reload); a corrupted save; blocked storage; abandoning a run; crafted saves for the recruit, shrine, cache, mystery and won screens in English and Spanish.
 - `a11y.spec.ts` and `run-a11y.spec.ts`: axe (WCAG 2.2 AA and best practice) on the battle, title, map, event and end screens in light/dark, en/es, 320 and 1000 px at text size 150%. They also check horizontal overflow, 44x44 px targets at 320 px, node types named in text and focus after each screen change.
