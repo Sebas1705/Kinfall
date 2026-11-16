@@ -1,6 +1,7 @@
 import { CONTENT } from '@webgames/core/content';
 import { simulateRun } from '@webgames/core/sim/run/bot';
 import { hashRun } from '@webgames/core/sim/run/codec';
+import type { RunState } from '@webgames/core/sim/run/types';
 import { runScore } from '@webgames/core/sim/run/score';
 
 export const DEFAULT_SEED = 'golden-0';
@@ -16,10 +17,15 @@ export interface HelloResult {
 
 /** Plays a whole run with the core bot (first starter) and summarises it: the cross-platform check. */
 export function runHello(seed: string): HelloResult {
+  return runHelloWithState(seed).summary;
+}
+
+/** Same as `runHello`, also returning the final run state (what the save button stores). */
+export function runHelloWithState(seed: string): { summary: HelloResult; run: RunState } {
   const starterId = CONTENT.starters[0];
   if (!starterId) throw new Error('content has no starters');
   const { run, actions } = simulateRun(seed, starterId, CONTENT);
-  return {
+  const summary: HelloResult = {
     seed,
     starterId,
     hash: hashRun(run),
@@ -27,4 +33,5 @@ export function runHello(seed: string): HelloResult {
     score: runScore(run, CONTENT),
     steps: actions.length,
   };
+  return { summary, run };
 }

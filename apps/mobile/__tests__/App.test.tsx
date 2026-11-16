@@ -18,7 +18,7 @@ describe('hello core screen', () => {
   it('shows the core run hash for the default seed golden-0', async () => {
     const user = userEvent.setup();
     await render(<App />);
-    expect(screen.getByLabelText('Seed').props.value).toBe('golden-0');
+    expect((await screen.findByLabelText('Seed')).props.value).toBe('golden-0');
 
     await user.press(screen.getByRole('button', { name: 'Run' }));
 
@@ -37,7 +37,7 @@ describe('hello core screen', () => {
   it('runs the seed typed in the field', async () => {
     const user = userEvent.setup();
     await render(<App />);
-    const input = screen.getByLabelText('Seed');
+    const input = await screen.findByLabelText('Seed');
     await user.clear(input);
     await user.type(input, 'golden-1');
     await user.press(screen.getByRole('button', { name: 'Run' }));
