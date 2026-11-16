@@ -40,7 +40,7 @@ async function expectResultWord(page: Page): Promise<void> {
 
 test.describe('battle flow', () => {
   test('keyboard only: reaches a result, then New battle clears the log', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     const turns = await playToResult(page, 'keyboard');
     expect(turns).toBeLessThan(MAX_TURNS);
     await expectResultWord(page);
@@ -54,11 +54,11 @@ test.describe('battle flow', () => {
   });
 
   test('keyboard and clicking give the same final log for the same seed', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await playToResult(page, 'keyboard');
     const viaKeyboard = await logText(page);
 
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await playToResult(page, 'click');
     const viaClicks = await logText(page);
 
@@ -68,7 +68,7 @@ test.describe('battle flow', () => {
 
   test('reduced motion: every turn settles with no pending animation, and is not slower', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await expect(page.locator('#reduce-motion')).toBeChecked();
     await expect(firstEnabled(page)).toBeVisible();
     await firstEnabled(page).focus();
@@ -89,7 +89,7 @@ test.describe('battle flow', () => {
     const reduced = await logText(page);
 
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await playToResult(page, 'keyboard');
     expect(await logText(page)).toBe(reduced);
   });
@@ -98,7 +98,7 @@ test.describe('battle flow', () => {
     // Time (inside the page) from the click to the moment the turn's log entry exists.
     const firstTurnMs = async (reduce: boolean): Promise<number> => {
       await page.emulateMedia({ reducedMotion: reduce ? 'reduce' : 'no-preference' });
-      await page.goto(`/?seed=${SEED}`);
+      await page.goto(`/?mode=battle&seed=${SEED}`);
       await expect(firstEnabled(page)).toBeVisible();
       await expect(page.locator('#reduce-motion')).toBeChecked({ checked: reduce });
       return page.evaluate(
@@ -131,7 +131,7 @@ test.describe('battle flow', () => {
   // from its very first script, and a page whose animation frames never fire (a frozen tab). What they do NOT
   // simulate: real browser throttling or backgrounding; timers still run at full speed.
   test('a tab that is hidden from the start plays the whole battle to the same result', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await playToResult(page, 'keyboard');
     const foreground = await logText(page);
     const word = await page.locator('#result-title').innerText();
@@ -140,7 +140,7 @@ test.describe('battle flow', () => {
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
     });
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await expect(firstEnabled(page)).toBeVisible();
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await playToResult(page, 'keyboard');
@@ -150,7 +150,7 @@ test.describe('battle flow', () => {
 
   test('a tab whose animation frames never fire still plays to the same result', async ({ page }) => {
     test.setTimeout(240_000);
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await playToResult(page, 'keyboard');
     const foreground = await logText(page);
     const word = await page.locator('#result-title').innerText();
@@ -158,19 +158,19 @@ test.describe('battle flow', () => {
     await page.addInitScript(() => {
       window.requestAnimationFrame = () => 0;
     });
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await playToResult(page, 'keyboard');
     expect(await logText(page)).toBe(foreground);
     await expect(page.locator('#result-title')).toHaveText(word);
   });
 
   test('hiding the tab in the middle of a battle gives the same result as the foreground run', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await playToResult(page, 'keyboard');
     const foreground = await logText(page);
     const word = await page.locator('#result-title').innerText();
 
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await expect(firstEnabled(page)).toBeVisible();
     await firstEnabled(page).focus();
     await page.keyboard.press('Enter');
@@ -187,7 +187,7 @@ test.describe('battle flow', () => {
   });
 
   test('holding Enter on a focused choice plays exactly one turn', async ({ page }) => {
-    await page.goto(`/?seed=${SEED}`);
+    await page.goto(`/?mode=battle&seed=${SEED}`);
     await expect(firstEnabled(page)).toBeVisible();
     await firstEnabled(page).focus();
     for (let n = 0; n < 8; n++) {

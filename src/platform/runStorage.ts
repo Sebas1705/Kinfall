@@ -19,6 +19,12 @@ export type LoadResult =
 
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
+export interface RunStorage {
+  save(run: RunState): SaveResult;
+  load(): LoadResult;
+  clear(): void;
+}
+
 function describe(err: unknown): string {
   const message = err instanceof Error ? err.message : 'unknown error';
   return message.length > MAX_ERROR ? `${message.slice(0, MAX_ERROR - 3)}...` : message;
@@ -38,7 +44,7 @@ export function defaultStorage(): StorageLike | null {
  * text that is present but fails validation is `corrupt` and is left in place so the UI can
  * offer to discard it.
  */
-export function createRunStorage(storage: StorageLike | null, content: Content) {
+export function createRunStorage(storage: StorageLike | null, content: Content): RunStorage {
   return {
     save(run: RunState): SaveResult {
       if (!storage) return { ok: false, error: 'Storage is not available.' };

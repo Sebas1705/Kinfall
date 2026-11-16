@@ -13,6 +13,7 @@ import type { BattleEvent, BattleState, Combatant, Side } from '../sim/state';
 import { createAnimator } from './animator';
 import type { PlayContext } from './animator';
 import { intentText } from './menu';
+import { paintGrid } from './pixelCanvas';
 
 export interface BattleView {
   render(state: BattleState): void;
@@ -53,28 +54,10 @@ function statusGrid(id: StatusId): PixelGrid {
   return { width: 5, height: 5, pixels, palette: ['#00000000', color] };
 }
 
-function parseColor(hex: string): [number, number, number, number] {
-  const n = (i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
-  return [n(0), n(1), n(2), hex.length >= 9 ? n(3) : 255];
-}
-
 /** Canvas texture of a pixel grid with nearest-neighbour sampling; `silhouette` paints every pixel white. */
 function gridTexture(grid: PixelGrid, silhouette = false): Texture {
   const canvas = document.createElement('canvas');
-  canvas.width = grid.width;
-  canvas.height = grid.height;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    const img = ctx.createImageData(grid.width, grid.height);
-    const colors = grid.palette.map(parseColor);
-    for (let i = 0; i < grid.pixels.length; i++) {
-      const idx = grid.pixels[i] ?? 0;
-      if (idx === 0) continue;
-      const c = silhouette ? ([255, 255, 255, 255] as const) : (colors[idx] ?? [0, 0, 0, 0]);
-      img.data.set(c, i * 4);
-    }
-    ctx.putImageData(img, 0, 0);
-  }
+  paintGrid(canvas, grid, silhouette);
   return new Texture({ source: new CanvasSource({ resource: canvas, scaleMode: 'nearest' }) });
 }
 

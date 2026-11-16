@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
 async function openBattle(page: Page, lang: 'en' | 'es', textSize: number): Promise<void> {
-  await page.goto('/?seed=a11y');
+  await page.goto('/?mode=battle&seed=a11y');
   // Wait for the page script to wire the settings before using them.
   await expect(page.locator('#choices button').first()).toBeVisible();
   await page.selectOption('#lang', lang);

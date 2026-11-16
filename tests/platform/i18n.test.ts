@@ -179,6 +179,7 @@ describe('run strings', () => {
     'title.newRun',
     'title.continue',
     'title.discard',
+    'title.discardCancel',
     'map.abandon',
     'map.abandonYes',
     'map.abandonNo',

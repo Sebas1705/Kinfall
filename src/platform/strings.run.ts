@@ -13,6 +13,7 @@ export const runEn = {
   'title.continue': 'Continue run',
   'title.discard': 'Discard saved run',
   'title.discardConfirm': 'Discard your saved run? This cannot be undone.',
+  'title.discardCancel': 'Cancel',
   'title.seed': 'Seed',
   'title.seedHint': 'The same seed and the same choices give the same run.',
   'title.starter': 'Choose your starter',
@@ -20,6 +21,7 @@ export const runEn = {
   'title.starterHint.thorn': 'A sturdy creature that outlasts its foes.',
   'title.starterHint.tide': 'A nimble creature with plenty of focus.',
   'title.savesNote': 'Saves live in this browser; clearing site data deletes them.',
+  'title.savesUnavailable': 'This browser is not saving data right now, so this run will not be saved.',
   'title.corrupt': 'Your saved run is damaged and cannot be loaded: {reason}',
 
   'zone.0': 'Ashen Marsh',
@@ -118,6 +120,7 @@ export const runEs: Record<keyof typeof runEn, string> = {
   'title.continue': 'Continuar partida',
   'title.discard': 'Descartar partida guardada',
   'title.discardConfirm': '¿Descartar tu partida guardada? No se puede deshacer.',
+  'title.discardCancel': 'Cancelar',
   'title.seed': 'Semilla',
   'title.seedHint': 'La misma semilla y las mismas decisiones dan la misma partida.',
   'title.starter': 'Elige tu criatura inicial',
@@ -125,6 +128,7 @@ export const runEs: Record<keyof typeof runEn, string> = {
   'title.starterHint.thorn': 'Una criatura robusta que aguanta más que sus rivales.',
   'title.starterHint.tide': 'Una criatura ágil con mucha concentración.',
   'title.savesNote': 'Las partidas se guardan en este navegador; borrar los datos del sitio las elimina.',
+  'title.savesUnavailable': 'Este navegador no está guardando datos ahora mismo, así que esta partida no se guardará.',
   'title.corrupt': 'Tu partida guardada está dañada y no se puede cargar: {reason}',
 
   'zone.0': 'Marjal de Ceniza',
