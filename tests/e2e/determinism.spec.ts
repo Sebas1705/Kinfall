@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import golden from '../golden/battle.golden.json' with { type: 'json' };
+import runGolden from '../golden/run.golden.json' with { type: 'json' };
 
 // Spec section 11.2: the same golden replays must produce the stored hashes in every engine.
 test.describe('cross-engine determinism', () => {
@@ -29,6 +30,40 @@ test.describe('cross-engine determinism', () => {
       expect(typeof result.finalHash === 'string' && result.finalHash.length === 16).toBe(true);
       expect(result.finalHash).toBe(entry.finalHash);
       expect(result.winner).toBe(entry.winner);
+    });
+  }
+
+  test('run golden file is non-empty', () => {
+    expect(runGolden.length).toBeGreaterThanOrEqual(4);
+    for (const entry of runGolden) {
+      const name = `${entry.seed}/${entry.starterId}`;
+      expect(entry.finalHash.length, name).toBe(16);
+      expect(entry.seed.length, name).toBeGreaterThan(0);
+      expect(['won', 'lost'], name).toContain(entry.result);
+      expect(Number.isInteger(entry.score), name).toBe(true);
+      expect(Array.isArray(entry.actions) && entry.actions.length > 0, name).toBe(true);
+    }
+  });
+
+  for (const entry of runGolden) {
+    test(`run golden replay ${entry.seed}/${entry.starterId}`, async ({ page }) => {
+      await page.goto('/');
+      const result = await page.evaluate(async (e) => {
+        // Variable specifiers keep TypeScript from resolving these browser-side dev-server paths.
+        const paths = ['/src/sim/run/bot.ts', '/src/sim/run/codec.ts', '/src/sim/run/score.ts', '/src/content/index.ts'];
+        const [{ replayRun }, { hashRun }, { runScore }, { CONTENT }] = await Promise.all(paths.map((p) => import(p)));
+        const { run, rejected } = replayRun(e.seed, e.starterId, e.actions, CONTENT);
+        return {
+          finalHash: hashRun(run) as string,
+          result: run.phase.kind === 'ended' ? (run.phase.result as string) : null,
+          score: runScore(run, CONTENT) as number,
+          rejected: rejected as number,
+        };
+      }, entry);
+      expect(result.rejected).toBe(0);
+      expect(result.finalHash).toBe(entry.finalHash);
+      expect(result.result).toBe(entry.result);
+      expect(result.score).toBe(entry.score);
     });
   }
 });
