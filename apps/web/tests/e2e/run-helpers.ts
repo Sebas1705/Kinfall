@@ -1,7 +1,18 @@
 // Shared helpers for the run e2e specs. Tests drive the UI like a player (no test hook in the app);
 // crafted saves are built inside the page from the real sim modules served by the dev server.
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+
+/**
+ * Dev-server URL of packages/core/src. The core package lives outside the web app's Vite root, so
+ * the dev server serves its files under /@fs/<absolute path> (the same URLs the app itself loads).
+ */
+export const CORE_SRC = `/@fs/${resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'packages', 'core', 'src')
+  .split('\\')
+  .join('/')
+  .replace(/^\//, '')}`;
 
 export const SAVE_KEY = 'webgames.run.v1';
 /** Upper bound on player actions in one run played by the test policy. */
@@ -147,9 +158,9 @@ export interface CraftOptions {
 export async function writeCraftedSave(page: Page, kind: CraftKind, options: CraftOptions = {}): Promise<void> {
   const { seed = 'crafted-1', souls = 9, evolvedFirst = false } = options;
   const error = await page.evaluate(
-    async ({ kind, seed, key, souls, evolvedFirst }) => {
+    async ({ kind, seed, key, souls, evolvedFirst, core }) => {
       // Variable specifiers keep TypeScript from resolving these browser-side dev-server paths.
-      const paths = ['/src/content/index.ts', '/src/sim/run/run.ts', '/src/sim/run/encounters.ts', '/src/sim/run/codec.ts'];
+      const paths = ['content/index.ts', 'sim/run/run.ts', 'sim/run/encounters.ts', 'sim/run/codec.ts'].map((p) => `${core}/${p}`);
       const [{ CONTENT }, runMod, { buildEncounter }, codec] = await Promise.all(paths.map((p) => import(p)));
       const { startRun, applyRunAction, maxHpOf } = runMod;
       const run = startRun(seed, CONTENT.starters[0], CONTENT);
@@ -199,7 +210,7 @@ export async function writeCraftedSave(page: Page, kind: CraftKind, options: Cra
       localStorage.setItem(key, text);
       return null;
     },
-    { kind, seed, key: SAVE_KEY, souls, evolvedFirst },
+    { kind, seed, key: SAVE_KEY, souls, evolvedFirst, core: CORE_SRC },
   );
   expect(error).toBeNull();
 }

@@ -1,17 +1,7 @@
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import golden from '../../../../packages/core/tests/golden/battle.golden.json' with { type: 'json' };
 import runGolden from '../../../../packages/core/tests/golden/run.golden.json' with { type: 'json' };
-
-/**
- * Dev-server URL of packages/core/src. The core package lives outside the web app's Vite root, so
- * the dev server serves its files under /@fs/<absolute path> (the same URLs the app itself loads).
- */
-const CORE_SRC = `/@fs/${resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'packages', 'core', 'src')
-  .split('\\')
-  .join('/')
-  .replace(/^\//, '')}`;
+import { CORE_SRC } from './run-helpers';
 
 // Spec section 11.2: the same golden replays must produce the stored hashes in every engine.
 test.describe('cross-engine determinism', () => {
