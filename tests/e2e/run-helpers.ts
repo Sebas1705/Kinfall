@@ -1,13 +1,7 @@
 // Shared helpers for the run e2e specs. Tests drive the UI like a player (no test hook in the app);
 // crafted saves are built inside the page from the real sim modules served by the dev server.
-import { expect as baseExpect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-
-/**
- * Assertions with more patience than the 5 s default: on a cold dev server with every worker busy,
- * the first page load or a dynamic import can take longer. What is asserted does not change.
- */
-export const expect = baseExpect.configure({ timeout: 15_000 });
 
 export const SAVE_KEY = 'webgames.run.v1';
 /** Upper bound on player actions in one run played by the test policy. */
@@ -141,18 +135,31 @@ export async function setTextSize(page: Page, size: number): Promise<void> {
  * Builds a valid saved run of the given kind inside the page with the real sim modules, checks
  * that the codec accepts it and writes it to the save slot. The party is the three starters (full)
  * at half HP, with 9 souls, so recruit offers Replace entries and the shrine can heal and evolve.
+ * `souls` overrides the souls; `evolvedFirst` replaces the first member by its evolved form (which
+ * cannot evolve again).
  */
-export async function writeCraftedSave(page: Page, kind: CraftKind, seed = 'crafted-1'): Promise<void> {
+export interface CraftOptions {
+  seed?: string;
+  souls?: number;
+  evolvedFirst?: boolean;
+}
+
+export async function writeCraftedSave(page: Page, kind: CraftKind, options: CraftOptions = {}): Promise<void> {
+  const { seed = 'crafted-1', souls = 9, evolvedFirst = false } = options;
   const error = await page.evaluate(
-    async ({ kind, seed, key }) => {
+    async ({ kind, seed, key, souls, evolvedFirst }) => {
       // Variable specifiers keep TypeScript from resolving these browser-side dev-server paths.
       const paths = ['/src/content/index.ts', '/src/sim/run/run.ts', '/src/sim/run/encounters.ts', '/src/sim/run/codec.ts'];
       const [{ CONTENT }, runMod, { buildEncounter }, codec] = await Promise.all(paths.map((p) => import(p)));
       const { startRun, applyRunAction, maxHpOf } = runMod;
       const run = startRun(seed, CONTENT.starters[0], CONTENT);
-      run.souls = 9;
+      run.souls = souls;
       // Hurt members, so resting and the cache heal (and log) something.
       run.party = CONTENT.starters.map((id: string) => ({ speciesId: id, hp: Math.max(1, Math.floor(maxHpOf(id, CONTENT) / 2)) }));
+      if (evolvedFirst) {
+        const first = CONTENT.species.find((s: { id: string }) => s.id === CONTENT.starters[0]);
+        run.party[0] = { speciesId: first.evolvesTo, hp: Math.max(1, Math.floor(maxHpOf(first.evolvesTo, CONTENT) / 2)) };
+      }
       let out = null;
       if (kind === 'won') {
         const last = run.maps[2];
@@ -192,7 +199,7 @@ export async function writeCraftedSave(page: Page, kind: CraftKind, seed = 'craf
       localStorage.setItem(key, text);
       return null;
     },
-    { kind, seed, key: SAVE_KEY },
+    { kind, seed, key: SAVE_KEY, souls, evolvedFirst },
   );
   expect(error).toBeNull();
 }

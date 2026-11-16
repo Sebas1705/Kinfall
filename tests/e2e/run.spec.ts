@@ -1,10 +1,9 @@
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import {
   MAX_ACTIONS,
   SAVE_KEY,
   continueSavedRun,
-  expect,
   playWithKeyboard,
   readSave,
   setLanguage,
@@ -65,16 +64,22 @@ test.describe('run flow', () => {
     await page.evaluate((key) => localStorage.removeItem(key), SAVE_KEY);
     await startRunWithKeyboard(page, SEED);
     let before: { summary: string; choices: string[] } | null = null;
-    // Stop right after the first battle turn that leaves the battle running.
+    // Stop right after the first battle turn that leaves the battle running. Entering a battle node
+    // also lands on the battle screen, but with no turn played yet: a played turn has a log entry.
     await playWithKeyboard(page, {
       after: async ({ screen }) => {
         if (screen !== 'battle') return false;
+        if ((await page.locator('#log .log-turn').count()) < 1) return false;
         if ((await page.locator('#choices button:not([disabled])').count()) === 0) return false;
         before = await battleView(page);
         return true;
       },
     });
     expect(before, 'the run never had a battle turn that left the battle running').not.toBeNull();
+    // The save being resumed holds a battle with turns played, not the fresh encounter battle.
+    const saved = JSON.parse((await readSave(page)) ?? 'null') as { run: { phase: { kind: string; battle?: { turn: number } } } };
+    expect(saved.run.phase.kind).toBe('battle');
+    expect(saved.run.phase.battle?.turn).toBeGreaterThan(1);
 
     await continueSavedRun(page);
     await expect(page.locator('#screen-battle')).toBeVisible();
@@ -216,6 +221,39 @@ test.describe('run flow', () => {
       expect(end.title).toContain(EXPECT[lang].won);
       expect(end.score).toBeGreaterThan(0);
       await expect(page.locator('#screen-end [data-screen-heading]')).toBeFocused();
+    });
+
+    test(`crafted shrine without souls (${lang}): evolve entries are disabled and say why`, async ({ page }) => {
+      await page.goto('/?seed=e2e-crafted');
+      await expect(page.locator('#screen-title')).toBeVisible();
+      await setLanguage(page, lang);
+      const evolveLabel = lang === 'en' ? /^Evolve / : /^Evolucionar a /;
+      const noSouls = lang === 'en' ? 'Not enough souls' : 'Faltan almas';
+
+      // 0 souls, and the first member already evolved: it has no evolve entry at all.
+      await writeCraftedSave(page, 'shrine', { souls: 0, evolvedFirst: true });
+      await continueSavedRun(page);
+      const section = page.locator('#screen-event');
+      await expect(section.locator('[data-screen-heading]')).toHaveText(EXPECT[lang].shrine);
+      const evolve = section.locator('button[data-choice]').filter({ has: page.locator('.choice-label', { hasText: evolveLabel }) });
+      await expect(evolve).toHaveCount(2);
+      for (const entry of await evolve.all()) {
+        await expect(entry).toBeDisabled();
+        await expect(entry.locator('.choice-detail')).toContainText(noSouls);
+      }
+      // Rest and Leave stay available, and focus is on Rest.
+      await expect(section.locator('button[data-choice]:not([disabled])')).toHaveCount(2);
+      await expect(section.locator('button[data-initial]')).toBeFocused();
+      await expect(section.locator('button[data-initial]')).toHaveText(/Rest|Descansar/);
+
+      // With 9 souls the same entries (plus the unevolved first member's) are enabled.
+      await writeCraftedSave(page, 'shrine');
+      await continueSavedRun(page);
+      await expect(evolve).toHaveCount(3);
+      for (const entry of await evolve.all()) {
+        await expect(entry).toBeEnabled();
+        await expect(entry.locator('.choice-detail')).not.toContainText(noSouls);
+      }
     });
   }
 });

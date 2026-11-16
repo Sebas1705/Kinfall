@@ -15,6 +15,10 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: ci,
   retries: ci ? 1 : 0,
+  // Locally, fewer workers keep the cold dev server from being swamped (CI keeps Playwright's default).
+  ...(ci ? {} : { workers: 4 }),
+  // Page loads and dynamic imports on a cold dev server can take longer than the 5 s default.
+  expect: { timeout: 15_000 },
   reporter: ci ? [['list'], ['html', { open: 'never' }]] : 'list',
   timeout: 60_000,
   use: {

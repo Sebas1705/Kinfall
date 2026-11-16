@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { continueSavedRun, expect, setLanguage, setTextSize, startRunWithKeyboard, writeCraftedSave } from './run-helpers';
+import { continueSavedRun, setLanguage, setTextSize, startRunWithKeyboard, writeCraftedSave } from './run-helpers';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
@@ -98,12 +98,20 @@ for (const scheme of ['light', 'dark'] as const) {
         await checkScreen(page, `map with abandon confirm (${lang})`, size.width);
 
         // Event screens (crafted saves): focus on the initial choice of the new screen.
-        for (const kind of ['recruit', 'shrine'] as const) {
-          await writeCraftedSave(page, kind);
+        // The second shrine has 0 souls and an evolved member: disabled evolve entries with their reason.
+        const events = [
+          { kind: 'recruit', options: {} },
+          { kind: 'shrine', options: {} },
+          { kind: 'shrine', options: { souls: 0, evolvedFirst: true } },
+        ] as const;
+        for (const { kind, options } of events) {
+          const where = `${kind}${'souls' in options ? ' without souls' : ''} (${lang})`;
+          await writeCraftedSave(page, kind, options);
           await continueSavedRun(page);
           await expect(page.locator('#screen-event')).toBeVisible();
           await expect(page.locator('#screen-event button[data-initial]')).toBeFocused();
-          await checkScreen(page, `${kind} (${lang})`, size.width);
+          if ('souls' in options) await expect(page.locator('#screen-event button[data-choice][disabled]')).toHaveCount(2);
+          await checkScreen(page, where, size.width);
         }
 
         // Won end screen: focus on the result heading.
