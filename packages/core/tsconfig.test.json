@@ -1,0 +1,5 @@
+{
+  // Tests and Node scripts: Node types and the DOM (jsdom tests) are allowed here, not in src.
+  "extends": "../../tsconfig.base.json",
+  "include": ["src", "tests", "scripts", "vitest.config.ts"]
+}

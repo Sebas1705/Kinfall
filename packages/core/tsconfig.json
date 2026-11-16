@@ -1,4 +1,10 @@
 {
+  // Core source only: plain ES2022 with no DOM and no Node types, so platform globals such as
+  // document, window, localStorage, navigator or console fail to compile. Tests: tsconfig.test.json.
   "extends": "../../tsconfig.base.json",
-  "include": ["src", "tests", "scripts"]
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["src"]
 }
