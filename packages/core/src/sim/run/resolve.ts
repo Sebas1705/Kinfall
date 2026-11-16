@@ -1,5 +1,6 @@
 import type { Content } from '../../content';
 import { battleOutcome } from '../battle';
+import { clone } from '../clone';
 import type { BattleState } from '../state';
 import { findNode } from './map';
 import { maxHpOf } from './party';
@@ -20,7 +21,7 @@ export function resolveBattle(
   battle: BattleState,
   content: Content,
 ): { run: RunState; events: RunEvent[] } {
-  const next = structuredClone(run);
+  const next = clone(run);
   const outcome = battleOutcome(battle);
   const defeat = outcome.winner === 'enemy';
   const events: RunEvent[] = [];

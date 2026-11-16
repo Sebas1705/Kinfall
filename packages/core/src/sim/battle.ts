@@ -2,6 +2,7 @@ import { effectiveness } from '../content';
 import type { Content, StatusId } from '../content';
 import { lookup } from '../content/lookup';
 import { chooseEnemyMove } from './ai';
+import { clone } from './clone';
 import { createRng, restoreRng } from './rng';
 import type { Rng } from './rng';
 import type { Action, BattleEvent, BattleState, Combatant, Side, TeamSpec } from './state';
@@ -209,9 +210,9 @@ export function applyAction(
   content: Content,
 ): { state: BattleState; events: BattleEvent[] } {
   const reason = rejection(state, action, content);
-  if (reason !== null) return { state: structuredClone(state), events: [{ type: 'rejected', reason }] };
+  if (reason !== null) return { state: clone(state), events: [{ type: 'rejected', reason }] };
 
-  const s = structuredClone(state);
+  const s = clone(state);
 
   // Replacing a fainted active creature is free: no turn, no enemy action, no rng draw.
   if (action.type === 'swap' && activeOf(s, 'player').fainted) {

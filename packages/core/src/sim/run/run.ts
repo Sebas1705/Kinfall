@@ -1,5 +1,6 @@
 import type { Content } from '../../content';
 import { applyAction, createBattle, legalActions } from '../battle';
+import { clone } from '../clone';
 import { createRng } from '../rng';
 import type { Action } from '../state';
 import { buildEncounter } from './encounters';
@@ -127,7 +128,7 @@ function battleStep(run: RunState, action: unknown, content: Content): RunStep {
  * the state unchanged.
  */
 export function applyRunAction(run: RunState, action: RunAction, content: Content): RunStep {
-  const next = structuredClone(run);
+  const next = clone(run);
   if (next.phase.kind === 'ended') return reject(next, 'ended');
 
   const raw: unknown = action;

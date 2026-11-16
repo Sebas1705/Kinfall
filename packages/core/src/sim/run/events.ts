@@ -1,5 +1,6 @@
 import type { Content } from '../../content';
 import { lookup } from '../../content/lookup';
+import { clone } from '../clone';
 import { restoreRng } from '../rng';
 import { maxHpOf } from './party';
 import type { RunAction, RunEvent, RunPhase, RunState, RunStep } from './types';
@@ -49,7 +50,7 @@ function healAll(run: RunState, content: Content, percent: number): RunEvent[] {
 export function applyRecruit(run: RunState, action: Variant<'recruit'>, _content: Content): RunStep {
   const offer = run.phase;
   if (offer.kind !== 'recruit' || typeof action.take !== 'boolean') return reject(run);
-  const next = structuredClone(run);
+  const next = clone(run);
   next.phase = { kind: 'map' };
   if (!action.take) return { run: next, events: [{ type: 'declined', speciesId: offer.speciesId }] };
 
@@ -67,7 +68,7 @@ export function applyRecruit(run: RunState, action: Variant<'recruit'>, _content
 export function applyShrine(run: RunState, action: Variant<'shrine'>, content: Content): RunStep {
   if (run.phase.kind !== 'shrine') return reject(run);
   if (action.choice !== 'rest' && action.choice !== 'leave') return reject(run);
-  const next = structuredClone(run);
+  const next = clone(run);
   const events = action.choice === 'rest' ? healAll(next, content, 50) : [];
   clearNode(next);
   return { run: next, events };
@@ -84,7 +85,7 @@ export function applyEvolve(run: RunState, action: Variant<'evolve'>, content: C
   if (run.phase.kind !== 'shrine' || !isIndex(action.memberIndex, run.party.length)) return reject(run);
   const evo = evolutionOf(run.party[action.memberIndex]!.speciesId, content);
   if (!evo || run.souls < evo.cost) return reject(run);
-  const next = structuredClone(run);
+  const next = clone(run);
   const member = next.party[action.memberIndex]!;
   const from = member.speciesId;
   const oldMax = maxHpOf(from, content);
@@ -98,7 +99,7 @@ export function applyEvolve(run: RunState, action: Variant<'evolve'>, content: C
 
 export function applyCache(run: RunState, _action: Variant<'cache'>, content: Content): RunStep {
   if (run.phase.kind !== 'cache') return reject(run);
-  const next = structuredClone(run);
+  const next = clone(run);
   next.souls += 2;
   const events: RunEvent[] = [{ type: 'soul', amount: 2, reason: 'cache' }, ...healAll(next, content, 25)];
   clearNode(next);
@@ -121,7 +122,7 @@ function hurtFirst(run: RunState, content: Content): RunEvent[] {
 export function applyMystery(run: RunState, action: Variant<'mystery'>, content: Content): RunStep {
   if (run.phase.kind !== 'mystery') return reject(run);
   if (action.choice !== 'open' && action.choice !== 'leave') return reject(run);
-  const next = structuredClone(run);
+  const next = clone(run);
   const events: RunEvent[] = [];
   if (action.choice === 'open') {
     // The only action that advances `run.rng`.
