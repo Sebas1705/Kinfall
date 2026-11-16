@@ -6,55 +6,105 @@ import { STRINGS, type Lang, type StringKey } from './strings';
 export type { Lang, StringKey } from './strings';
 export { STRINGS } from './strings';
 
-const STORAGE_KEY = 'webgames.lang';
+/** Storage key of the saved language choice. */
+export const LANG_STORAGE_KEY = 'webgames.lang';
 
-export function detectLang(): Lang {
+/** Synchronous key-value storage for the language choice; failures are swallowed by the caller. */
+export interface LangStorage {
+  get(key: string): string | null;
+  set(key: string, value: string): void;
+}
+
+/** Platform adapters; every one is optional and none is required to translate. */
+export interface I18nOptions {
+  /** Where the choice is saved; a valid saved value wins over `detect`. */
+  storage?: LangStorage;
+  /** The platform's preferred language (browser or device); English when absent or throwing. */
+  detect?: () => Lang;
+  /** Called after `setLang` changes the language (not on a no-op set), e.g. to update `<html lang>`. */
+  onChange?: (lang: Lang) => void;
+}
+
+export interface I18n {
+  getLang(): Lang;
+  /** Saves the choice (storage failures are swallowed) and calls `onChange` when the language changed. */
+  setLang(lang: Lang): void;
+  t(key: StringKey, params?: Record<string, string | number>): string;
+}
+
+export function isLang(value: unknown): value is Lang {
+  return value === 'en' || value === 'es';
+}
+
+function startLang({ storage, detect }: I18nOptions): Lang {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'en' || saved === 'es') return saved;
+    const saved = storage?.get(LANG_STORAGE_KEY) ?? null;
+    if (isLang(saved)) return saved;
   } catch {
-    // storage unavailable: fall through to the browser language
+    // storage unavailable: fall through to the platform language
   }
   try {
-    if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('es')) return 'es';
+    const detected = detect?.();
+    if (isLang(detected)) return detected;
   } catch {
-    // ignore
+    // detection failed: fall back to English
   }
   return 'en';
 }
 
-let current: Lang = detectLang();
-
-export function getLang(): Lang {
-  return current;
-}
-
-export function setLang(lang: Lang): void {
-  current = lang;
-  try {
-    localStorage.setItem(STORAGE_KEY, lang);
-  } catch {
-    // storage unavailable or full: the choice just won't persist
-  }
-  try {
-    document.documentElement.lang = lang;
-  } catch {
-    // no document (tests, workers)
-  }
-}
-
-export function t(key: StringKey, params?: Record<string, string | number>): string {
-  const template = STRINGS[current][key];
+function translate(lang: Lang, key: StringKey, params?: Record<string, string | number>): string {
+  const template = STRINGS[lang][key];
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (whole, name: string) => (name in params ? String(params[name]) : whole));
 }
 
+/** A language state bound to platform adapters. Never touches globals itself. */
+export function createI18n(options: I18nOptions = {}): I18n {
+  let current = startLang(options);
+  return {
+    getLang: () => current,
+    setLang(lang: Lang): void {
+      const changed = lang !== current;
+      current = lang;
+      try {
+        options.storage?.set(LANG_STORAGE_KEY, lang);
+      } catch {
+        // storage unavailable or full: the choice just won't persist
+      }
+      if (changed) options.onChange?.(lang);
+    },
+    t: (key, params) => translate(current, key, params),
+  };
+}
+
+// The shared instance every helper below reads. English and adapter-free until the app calls
+// configureI18n at startup, before rendering any text.
+let active: I18n = createI18n();
+
+/** Replaces the shared instance with one bound to `options` and returns it. */
+export function configureI18n(options: I18nOptions): I18n {
+  active = createI18n(options);
+  return active;
+}
+
+export function getLang(): Lang {
+  return active.getLang();
+}
+
+export function setLang(lang: Lang): void {
+  active.setLang(lang);
+}
+
+export function t(key: StringKey, params?: Record<string, string | number>): string {
+  return active.t(key, params);
+}
+
 export function moveName(move: MoveDef): string {
-  return move.names[current];
+  return move.names[active.getLang()];
 }
 
 export function speciesName(s: SpeciesDef): string {
-  return s.names[current];
+  return s.names[active.getLang()];
 }
 
 export interface EventContext {

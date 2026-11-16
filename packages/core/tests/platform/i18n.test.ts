@@ -1,10 +1,12 @@
-// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { STRINGS, type StringKey } from '../../src/platform/strings';
 import {
-  detectLang,
+  configureI18n,
+  createI18n,
   eventLine,
   getLang,
+  isLang,
+  LANG_STORAGE_KEY,
   moveName,
   nodeTypeLabel,
   runEventLine,
@@ -21,9 +23,33 @@ const keys = Object.keys(STRINGS.en) as StringKey[];
 
 afterEach(() => {
   vi.restoreAllMocks();
+  configureI18n({});
   setLang('en');
-  localStorage.clear();
 });
+
+/** In-memory language storage that records writes. */
+function memoryStorage(initial: Record<string, string> = {}) {
+  const data = new Map(Object.entries(initial));
+  const writes: [string, string][] = [];
+  return {
+    data,
+    writes,
+    get: (key: string) => data.get(key) ?? null,
+    set: (key: string, value: string) => {
+      writes.push([key, value]);
+      data.set(key, value);
+    },
+  };
+}
+
+const throwingStorage = {
+  get: (): string | null => {
+    throw new Error('denied');
+  },
+  set: (): void => {
+    throw new Error('denied');
+  },
+};
 
 describe('strings', () => {
   it('has identical key sets', () => {
@@ -58,26 +84,87 @@ describe('t', () => {
 
 describe('language', () => {
   it('detects es and falls back to en', () => {
-    vi.spyOn(navigator, 'language', 'get').mockReturnValue('es-ES');
-    expect(detectLang()).toBe('es');
-    vi.spyOn(navigator, 'language', 'get').mockReturnValue('fr');
-    expect(detectLang()).toBe('en');
+    expect(createI18n({ detect: () => 'es' }).getLang()).toBe('es');
+    expect(createI18n({ detect: () => 'en' }).getLang()).toBe('en');
+  });
+  it('is English without adapters, or when detection throws or returns junk', () => {
+    expect(createI18n().getLang()).toBe('en');
+    expect(
+      createI18n({
+        detect: () => {
+          throw new Error('no platform');
+        },
+      }).getLang(),
+    ).toBe('en');
+    expect(createI18n({ detect: () => 'fr' as never }).getLang()).toBe('en');
   });
   it('prefers the saved choice', () => {
-    vi.spyOn(navigator, 'language', 'get').mockReturnValue('es-ES');
-    localStorage.setItem('webgames.lang', 'en');
-    expect(detectLang()).toBe('en');
+    const storage = memoryStorage({ [LANG_STORAGE_KEY]: 'en' });
+    expect(createI18n({ storage, detect: () => 'es' }).getLang()).toBe('en');
+    storage.data.set(LANG_STORAGE_KEY, 'es');
+    expect(createI18n({ storage, detect: () => 'en' }).getLang()).toBe('es');
   });
-  it('setLang persists, sets html lang, and survives storage throwing', () => {
-    setLang('es');
+  it.each(['fr', 'ES', '', ' es', 'null'])('ignores an invalid saved value (%j)', (saved) => {
+    const storage = memoryStorage({ [LANG_STORAGE_KEY]: saved });
+    expect(createI18n({ storage, detect: () => 'es' }).getLang()).toBe('es');
+  });
+  it('uses the webgames.lang key', () => {
+    expect(LANG_STORAGE_KEY).toBe('webgames.lang');
+  });
+  it('setLang persists, notifies, and survives storage throwing', () => {
+    const storage = memoryStorage();
+    const changes: string[] = [];
+    const i18n = createI18n({ storage, onChange: (l) => changes.push(l) });
+    i18n.setLang('es');
+    expect(i18n.getLang()).toBe('es');
+    expect(storage.data.get(LANG_STORAGE_KEY)).toBe('es');
+    expect(changes).toEqual(['es']);
+    const blocked = createI18n({ storage: throwingStorage, detect: () => 'es', onChange: (l) => changes.push(l) });
+    expect(blocked.getLang()).toBe('es');
+    expect(() => blocked.setLang('en')).not.toThrow();
+    expect(blocked.getLang()).toBe('en');
+    expect(changes).toEqual(['es', 'en']);
+  });
+  it('calls onChange only when the language changes, but still saves a no-op set', () => {
+    const storage = memoryStorage();
+    const onChange = vi.fn();
+    const i18n = createI18n({ storage, detect: () => 'es', onChange });
+    i18n.setLang('es');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(storage.writes).toEqual([[LANG_STORAGE_KEY, 'es']]);
+    i18n.setLang('en');
+    i18n.setLang('en');
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('en');
+  });
+  it('never reads the saved value again after start', () => {
+    const storage = memoryStorage({ [LANG_STORAGE_KEY]: 'es' });
+    const i18n = createI18n({ storage });
+    storage.data.set(LANG_STORAGE_KEY, 'en');
+    expect(i18n.getLang()).toBe('es');
+  });
+  it('instances are independent and translate in their own language', () => {
+    const a = createI18n({ detect: () => 'es' });
+    const b = createI18n();
+    expect(a.t('menu.fight')).toBe(STRINGS.es['menu.fight']);
+    expect(b.t('menu.fight')).toBe(STRINGS.en['menu.fight']);
+    expect(a.t('battle.seed', { seed: 'x' })).toBe(STRINGS.es['battle.seed'].replace('{seed}', 'x'));
+  });
+  it('configureI18n rebinds the shared helpers', () => {
+    const storage = memoryStorage({ [LANG_STORAGE_KEY]: 'es' });
+    const onChange = vi.fn();
+    const i18n = configureI18n({ storage, onChange });
     expect(getLang()).toBe('es');
-    expect(document.documentElement.lang).toBe('es');
-    expect(localStorage.getItem('webgames.lang')).toBe('es');
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('denied');
-    });
-    expect(() => setLang('en')).not.toThrow();
-    expect(getLang()).toBe('en');
+    expect(t('menu.fight')).toBe(STRINGS.es['menu.fight']);
+    setLang('en');
+    expect(i18n.getLang()).toBe('en');
+    expect(storage.data.get(LANG_STORAGE_KEY)).toBe('en');
+    expect(onChange).toHaveBeenCalledWith('en');
+  });
+  it('isLang accepts only the supported languages', () => {
+    expect(isLang('en')).toBe(true);
+    expect(isLang('es')).toBe(true);
+    for (const v of ['EN', 'fr', '', null, undefined, 1]) expect(isLang(v)).toBe(false);
   });
   it('names follow the current language', () => {
     const m = CONTENT.moves[0]!;

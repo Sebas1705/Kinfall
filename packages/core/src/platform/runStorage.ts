@@ -5,6 +5,7 @@ import type { RunState } from '../sim/run/types';
 const KEY = 'webgames.run.v1';
 const MAX_ERROR = 200;
 
+/** Synchronous key-value storage (the browser's localStorage fits); the app passes it in. */
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -29,15 +30,6 @@ export interface RunStorage {
 function describe(err: unknown): string {
   const message = err instanceof Error ? err.message : 'unknown error';
   return message.length > MAX_ERROR ? `${message.slice(0, MAX_ERROR - 3)}...` : message;
-}
-
-/** The browser's localStorage, or null when it is missing or blocked (accessing it can throw). */
-export function defaultStorage(): StorageLike | null {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /**

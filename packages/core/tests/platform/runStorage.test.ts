@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONTENT } from '../../src/content';
-import { createRunStorage, defaultStorage, type StorageLike } from '../../src/platform/runStorage';
+import { createRunStorage, type StorageLike } from '../../src/platform/runStorage';
 import { createRng } from '../../src/sim/rng';
 import { serializeRun } from '../../src/sim/run/codec';
 import { applyRunAction, legalRunActions, startRun } from '../../src/sim/run/run';
@@ -144,11 +144,5 @@ describe('createRunStorage', () => {
     expect(serializeRun(run).length).toBeLessThanOrEqual(200_000);
     expect(s.save(run).ok).toBe(true);
     expect(s.load().kind).toBe('ok');
-  });
-});
-
-describe('defaultStorage', () => {
-  it('is null where localStorage does not exist (node)', () => {
-    expect(defaultStorage()).toBeNull();
   });
 });
