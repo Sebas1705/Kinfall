@@ -1,0 +1,19 @@
+{
+  "name": "@webgames/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    "./content": "./src/content/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "golden:update": "node scripts/run-ts.mjs scripts/update-golden.ts",
+    "golden:runs": "node scripts/run-ts.mjs scripts/update-run-golden.ts",
+    "bots": "node scripts/run-ts.mjs scripts/run-bots.ts",
+    "art:preview": "node scripts/run-ts.mjs scripts/preview-art.ts"
+  }
+}

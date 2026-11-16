@@ -4,20 +4,21 @@
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "npm run dev -w @webgames/web --",
+    "build": "npm run build -w @webgames/web",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "size": "node scripts/check-size.mjs",
-    "typecheck": "tsc --noEmit",
-    "golden:update": "node scripts/run-ts.mjs scripts/update-golden.ts",
-    "golden:runs": "node scripts/run-ts.mjs scripts/update-run-golden.ts",
-    "bots": "node scripts/run-ts.mjs scripts/run-bots.ts",
-    "art:preview": "node scripts/run-ts.mjs scripts/preview-art.ts"
-  },
-  "dependencies": {
-    "pixi.js": "^8.23.0"
+    "test:e2e": "npm run test:e2e -w @webgames/web --",
+    "size": "npm run size -w @webgames/web",
+    "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces",
+    "golden:update": "node packages/core/scripts/run-ts.mjs scripts/update-golden.ts",
+    "golden:runs": "node packages/core/scripts/run-ts.mjs scripts/update-run-golden.ts",
+    "bots": "node packages/core/scripts/run-ts.mjs scripts/run-bots.ts",
+    "art:preview": "node packages/core/scripts/run-ts.mjs scripts/preview-art.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
