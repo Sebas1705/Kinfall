@@ -11,6 +11,12 @@ The repository is an npm workspaces monorepo:
 | `packages/core` | `@webgames/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@webgames/core/sim/run/run`. |
 | `apps/web` | `@webgames/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@webgames/core/...`. |
 
+Core is platform-neutral so it can also run under React Native (Hermes):
+
+- Its source has no DOM and no Node globals. `packages/core/tsconfig.json` compiles `src` with `lib: ["ES2022"]` and no `types`, so `document`, `localStorage`, `navigator` or `console` fail `tsc`; `packages/core/tsconfig.test.json` covers tests and scripts (Node types and jsdom allowed). `packages/core/tests/platform-neutral.test.ts` also scans `src` for platform globals, including `globalThis`/`self` aliases that `tsc` would accept.
+- State is copied with `clone()` (`src/sim/clone.ts`, plain data only) instead of `structuredClone`, which Hermes may lack.
+- Platform services are injected by the app. i18n: `configureI18n({ storage, detect, onChange })` binds the shared `t()`/`getLang()`/`setLang()` (English and adapter-free until then); the web app calls `installWebI18n()` from `apps/web/src/platform/webI18n.ts` at startup (localStorage key `webgames.lang`, `navigator.language`, `<html lang>`). Run saves: `createRunStorage(storage, content)` takes a `StorageLike`; the web app passes `defaultStorage()` from `apps/web/src/platform/webStorage.ts` (localStorage, or null when blocked).
+
 All commands below run from the repository root.
 
 ## Development
@@ -19,7 +25,7 @@ All commands below run from the repository root.
 npm install
 npm run dev        # start the Vite dev server for apps/web (open the printed URL to play)
 npm test           # unit tests of every workspace (Vitest projects: core and web)
-npm run typecheck  # strict TypeScript check of the root config and every workspace
+npm run typecheck  # strict TypeScript check of the root config and every workspace (core src without DOM, core tests, web)
 npm run build      # production build into apps/web/dist/
 npm run size       # gzipped initial JS+CSS of apps/web/dist/ must be <= 2,000,000 bytes
 npm run test:e2e   # end-to-end, determinism and accessibility specs (Playwright, apps/web/tests/e2e)
