@@ -10,6 +10,7 @@ The repository is an npm workspaces monorepo:
 |---|---|---|
 | `packages/core` | `@webgames/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@webgames/core/sim/run/run`. |
 | `apps/web` | `@webgames/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@webgames/core/...`. |
+| `apps/mobile` | `@webgames/mobile` | The React Native app (Expo, TypeScript), at the scaffold stage: a "hello core" screen that plays a bot run from a seed with `@webgames/core` and shows its hash. Jest tests (`jest-expo`) live in `__tests__`. See [Mobile app](#mobile-app). |
 
 Core is platform-neutral so it can also run under React Native (Hermes):
 
@@ -24,8 +25,9 @@ All commands below run from the repository root.
 ```sh
 npm install
 npm run dev        # start the Vite dev server for apps/web (open the printed URL to play)
-npm test           # unit tests of every workspace (Vitest projects: core and web)
-npm run typecheck  # strict TypeScript check of the root config and every workspace (core src without DOM, core tests, web)
+npm test           # unit tests of core and web (Vitest projects)
+npm run test:mobile # unit tests of apps/mobile (Jest with jest-expo, runs on Node)
+npm run typecheck  # strict TypeScript check of the root config and every workspace (core src without DOM, core tests, mobile, web)
 npm run build      # production build into apps/web/dist/
 npm run size       # gzipped initial JS+CSS of apps/web/dist/ must be <= 2,000,000 bytes
 npm run test:e2e   # end-to-end, determinism and accessibility specs (Playwright, apps/web/tests/e2e)
@@ -45,6 +47,26 @@ Play with the keyboard (Tab or arrows, Enter to confirm) or by clicking or tappi
 - **Single battle.** `?mode=battle` (for example `/?mode=battle&seed=NAME`) opens the phase-1 demo battle on its own, without a run.
 - **Balance.** With the current numbers the game is effectively unwinnable: the bots win 0 of 900 runs (300 seeds x 3 starters) and rarely leave zone 0, and even a search with perfect information wins only about 1 run in 15. Balance is phase 3 work.
 - **Known issue.** The battle engine still has no turn limit, so a boss that heals (the zone-1 Thorn Sovereign with mending_moss) can make a fight endless. Reloading resumes the same battle; the battle screen has an **Abandon run** button, and **New run** on the title screen starts over.
+
+## Mobile app
+
+`apps/mobile` is an Expo (managed) app on Expo SDK 58 (React Native 0.88.1, React 19.3.0; the three are pinned to exact versions so device determinism checks are reproducible). It has no native folders: it runs in Expo Go, and `apps/mobile/android` and `apps/mobile/ios` are git-ignored in case a prebuild is ever made locally. App name `Webgames`, slug `webgames` and package id `app.webgames.placeholder` are placeholders.
+
+Today it is one "hello core" screen: type a seed (default `golden-0`), press **Run**, and it plays a whole run with the core bot and the first starter, then shows the starter, `hashRun` of the final state, the result, the score and the number of steps. For the same seed the hash must equal the one Node computes (for example `golden-0` gives `280338e8c541b53c`, the same as `run.golden.json`).
+
+To run it on an Android emulator (paths are this machine's, adjust them):
+
+```sh
+export JAVA_HOME="$HOME/.jdks/jdk-21.0.12.1+1"
+export ANDROID_HOME="$HOME/Android/sdk"   # the SDK that has emulator/ and platform-tools/
+export PATH="$ANDROID_HOME/platform-tools:$PATH"
+"$ANDROID_HOME/emulator/emulator" -avd <your_avd> &   # an API 34+ AVD
+cd apps/mobile && npx expo start --android
+```
+
+The Expo CLI downloads and installs the matching Expo Go on the emulator the first time, then opens the app. No account, EAS or signing is needed. To use a phone, install Expo Go and scan the QR code that `npx expo start` prints (same network).
+
+Metro uses Expo's default config (`apps/mobile/metro.config.js`): since SDK 52 it detects the npm workspace and watches the repository root, and package `exports` are enabled by default, so `@webgames/core/<path>` resolves to `packages/core/src/<path>.ts` without aliases. `apps/mobile/tsconfig.json` extends `expo/tsconfig.base` with `strict` and `noUncheckedIndexedAccess` and type-checks the core modules the app imports.
 
 ## End-to-end tests
 
