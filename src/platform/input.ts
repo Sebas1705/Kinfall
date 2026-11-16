@@ -70,6 +70,11 @@ export interface InputOptions {
   /** Calls `cb` every frame; returns a function that stops the loop. */
   poll?: (cb: () => void) => () => void;
   getGamepads?: () => ReadonlyArray<PadLike | null>;
+  /**
+   * While this returns false the layer is inert: keys keep their browser default (scrolling,
+   * Backspace...) and nothing is emitted. Default: always active.
+   */
+  active?: () => boolean;
 }
 
 /** The same action arriving from two sources inside this window counts once. */
@@ -101,6 +106,7 @@ export function createInput(
     options.getGamepads ??
     (() => (typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : []));
   const win = target.ownerDocument.defaultView ?? window;
+  const active = options.active ?? (() => true);
 
   const lastEmit = new Map<GameAction, number>();
   const held = new Set<string>();
@@ -115,6 +121,8 @@ export function createInput(
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
+    // Inactive: return before preventDefault so the page keeps its own keys.
+    if (!active()) return;
     const el = e.target as Element | null;
     if (el && typeof el.closest === 'function') {
       // A focused log region must stay keyboard-scrollable (WCAG 2.1.1).
@@ -148,7 +156,7 @@ export function createInput(
   };
   const onClick = (e: Event) => {
     const el = (e.target as Element | null)?.closest?.('button[data-action]');
-    if (!el || !target.contains(el)) return;
+    if (!el || !target.contains(el) || !active()) return;
     const action = el.getAttribute('data-action');
     if (action && ACTIONS.has(action)) emit(action as GameAction);
   };
@@ -156,7 +164,8 @@ export function createInput(
   const onFrame = () => {
     const pad = getGamepads().find((p): p is PadLike => p != null);
     const next = pad ? pad.buttons.map((b) => b.pressed) : [];
-    for (let i = 0; i < next.length; i++) {
+    const on = active();
+    for (let i = 0; on && i < next.length; i++) {
       if (next[i] && !prevPad[i]) {
         const only: boolean[] = [];
         only[i] = true;

@@ -33,6 +33,11 @@ export interface EventModel {
   party: PartyRow[];
   souls: number;
   choices: EventChoice[];
+  /**
+   * Choice that gets focus on arrival: the first enabled one, except that a full-party recruit
+   * focuses "Let it go" so a stray Enter never replaces a party member.
+   */
+  focusIndex: number;
 }
 
 const same = (a: RunAction, b: RunAction) => JSON.stringify(a) === JSON.stringify(b);
@@ -101,7 +106,11 @@ export function buildEventModel(run: RunState, content: Content): EventModel | n
   }
   for (const action of legal) if (isExit(action)) choices.push(entry(action));
 
-  const base = { kind: phase.kind, party: run.party.map(row), souls: run.souls, choices };
+  const destructive = choices.some((c) => c.action.type === 'recruit' && c.action.replaceIndex !== undefined);
+  const focusIndex = destructive
+    ? choices.findIndex((c) => c.action.type === 'recruit' && !c.action.take)
+    : Math.max(0, choices.findIndex((c) => !c.disabled));
+  const base = { kind: phase.kind, party: run.party.map(row), souls: run.souls, choices, focusIndex };
   if (phase.kind === 'recruit') {
     const sp = lk.species(phase.speciesId);
     return {
@@ -138,10 +147,10 @@ function offerCard(model: EventModel, content: Content): HTMLElement | null {
   );
 }
 
-function choiceButton(choice: EventChoice, index: number, onPick: (a: RunAction) => void): HTMLElement {
+function choiceButton(choice: EventChoice, index: number, initial: boolean, onPick: (a: RunAction) => void): HTMLElement {
   const b = el(
     'button',
-    { type: 'button', class: 'choice', 'data-choice': String(index), disabled: choice.disabled },
+    { type: 'button', class: 'choice', 'data-choice': String(index), 'data-initial': initial, disabled: choice.disabled },
     el('span', { class: 'choice-label' }, choice.label),
     choice.detail ? el('span', { class: 'choice-detail' }, choice.detail) : null,
   );
@@ -165,7 +174,7 @@ export function renderEvent(
     el(
       'div',
       { class: 'event-choices choice-list', role: 'group', 'aria-labelledby': 'event-title' },
-      ...model.choices.map((c, i) => choiceButton(c, i, onPick)),
+      ...model.choices.map((c, i) => choiceButton(c, i, i === model.focusIndex && !c.disabled, onPick)),
     ),
     partyPanel(model.party, model.souls, 'event'),
   ];

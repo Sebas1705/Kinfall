@@ -49,8 +49,8 @@ export interface RunController {
   refreshText(): void;
 }
 
-/** Event choices first, then the heading when none is enabled (the router falls back to the section). */
-const FIRST_CHOICE = 'button[data-choice]:not(:disabled)';
+/** The event model's initial choice (never a destructive one); the router falls back to the section. */
+const FIRST_CHOICE = 'button[data-initial]:not(:disabled)';
 
 export function createRunController(deps: RunControllerDeps): RunController {
   const { content, storage, router, ui } = deps;

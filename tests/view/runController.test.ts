@@ -301,6 +301,20 @@ describe('run controller: event screens', () => {
     expect(document.getElementById('run-log-panel')!.hidden).toBe(false);
   });
 
+  it('a full-party recruit opens with focus on "Let it go", not on a Replace entry', () => {
+    const crafted = startRun('seed-full', 'cindermite', CONTENT);
+    crafted.party = [
+      { speciesId: 'cindermite', hp: 5 },
+      { speciesId: 'skirrow', hp: 6 },
+      { speciesId: 'tidewisp', hp: 7 },
+    ];
+    crafted.phase = { kind: 'recruit', speciesId: 'dusklurk', hp: 9 };
+    const { controller, router } = setup({ crafted });
+    controller.resume();
+    expect(router.current()).toBe('event');
+    expect((document.activeElement as HTMLElement).textContent).toBe('Let it go');
+  });
+
   it('resume into a shrine shows the event screen; Spanish refresh re-renders it', () => {
     const crafted = startRun('seed-sh', 'cindermite', CONTENT);
     crafted.phase = { kind: 'shrine', nodeId: crafted.maps[0]!.layers[0]![0]!.id };

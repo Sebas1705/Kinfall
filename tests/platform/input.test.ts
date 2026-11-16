@@ -366,3 +366,39 @@ describe('createInput', () => {
     vi.restoreAllMocks();
   });
 });
+
+describe('createInput: active option', () => {
+  it('while inactive, keys keep their default and nothing is emitted; active again, they are handled', () => {
+    document.body.innerHTML = '<div id="t"><button data-action="confirm">OK</button></div>';
+    const target = document.getElementById('t')!;
+    let on = false;
+    const actions: GameAction[] = [];
+    let pads = [{ buttons: Array.from({ length: 16 }, () => ({ pressed: false })) }];
+    let frame = () => {};
+    const i = createInput(target, (a) => actions.push(a), {
+      now: () => 0,
+      poll: (cb) => {
+        frame = cb;
+        return () => {};
+      },
+      getGamepads: () => pads,
+      active: () => on,
+    });
+    const press = (code: string) => {
+      const e = new KeyboardEvent('keydown', { code, cancelable: true });
+      window.dispatchEvent(e);
+      window.dispatchEvent(new KeyboardEvent('keyup', { code }));
+      return e;
+    };
+    for (const code of ['ArrowDown', 'ArrowUp', 'Space', 'Backspace', 'Escape']) expect(press(code).defaultPrevented).toBe(false);
+    target.querySelector('button')!.click();
+    pads = [{ buttons: Array.from({ length: 16 }, (_, k) => ({ pressed: k === 0 })) }];
+    frame();
+    expect(actions).toEqual([]);
+
+    on = true;
+    expect(press('ArrowDown').defaultPrevented).toBe(true);
+    expect(actions).toEqual(['down']);
+    i.dispose();
+  });
+});

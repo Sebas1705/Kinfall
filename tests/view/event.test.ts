@@ -233,3 +233,30 @@ describe('buildEndModel / renderEnd', () => {
     expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('initial focus', () => {
+  const full = (r: RunState) => {
+    r.party = [
+      { speciesId: 'cindermite', hp: 5 },
+      { speciesId: 'skirrow', hp: 6 },
+      { speciesId: 'tidewisp', hp: 7 },
+    ];
+  };
+
+  it('a full-party recruit focuses "Let it go", never a Replace entry', () => {
+    const m = buildEventModel(runIn({ kind: 'recruit', speciesId: 'dusklurk', hp: 9 }, full), CONTENT)!;
+    expect(m.choices[m.focusIndex]!.action).toEqual({ type: 'recruit', take: false });
+    const host = document.createElement('section');
+    renderEvent(host, m, () => {});
+    const initial = host.querySelectorAll('[data-initial]');
+    expect(initial.length).toBe(1);
+    expect(initial[0]!.textContent).toBe('Let it go');
+  });
+
+  it('otherwise the first enabled choice', () => {
+    const free = buildEventModel(runIn({ kind: 'recruit', speciesId: 'skirrow', hp: 7 }), CONTENT)!;
+    expect(free.focusIndex).toBe(0);
+    const shrine = buildEventModel(runIn({ kind: 'shrine', nodeId: 'x' }), CONTENT)!;
+    expect(shrine.choices[shrine.focusIndex]!.label).toBe('Rest');
+  });
+});

@@ -1,7 +1,6 @@
 // Default page: the run flow (title, map, battle, events and the end screen).
 import { CONTENT } from '../content';
 import { getLang, setLang } from '../platform/i18n';
-import { createInput } from '../platform/input';
 import { createRunStorage, defaultStorage } from '../platform/runStorage';
 import { createBattleDom } from './battleDom';
 import { createBattleController } from './controller';
@@ -9,6 +8,7 @@ import { lazyBattleView } from './lazyView';
 import { createRouter } from './router';
 import { createRunController } from './runController';
 import { createRunUi } from './runUi';
+import { bindScreenInput } from './screenInput';
 import { initialSeed, randomSeed } from './screens/title';
 import { applyI18nAttributes, byId, wireTextSize } from './settings';
 
@@ -37,12 +37,10 @@ export function startRunPage(): void {
   motionQuery?.addEventListener?.('change', (e) => applyMotion(e.matches));
 
   // Battle screen: keys and the on-screen pad act only while it is the visible screen, so Escape or
-  // Enter on the map, an event or the title never reaches the battle.
+  // Enter on the map, an event or the title never reaches the battle, and arrows still scroll there.
   const battleSection = byId<HTMLElement>('screen-battle');
   const dom = createBattleDom(CONTENT, (onAction) => {
-    createInput(battleSection, (a) => {
-      if (router.current() === 'battle') onAction(a);
-    });
+    bindScreenInput(battleSection, router, 'battle', onAction);
   });
   const view = lazyBattleView(
     () => import('./battleView').then((m) => m.createBattleView(byId('scene'))),
