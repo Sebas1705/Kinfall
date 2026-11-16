@@ -1,9 +1,9 @@
 // Title screen: continue a saved run, or start a new one from a seed and a starter.
 // The random seed uses crypto.getRandomValues here, in the UI layer only; the sim never sees entropy.
-import type { Content } from '../../content';
-import { lookup } from '../../content/lookup';
-import { speciesName, t } from '../../platform/i18n';
-import type { LoadResult } from '../../platform/runStorage';
+import type { Content } from '@webgames/core/content';
+import { lookup } from '@webgames/core/content/lookup';
+import { speciesName, t } from '@webgames/core/platform/i18n';
+import type { LoadResult } from '@webgames/core/platform/runStorage';
 import { creatureCanvas } from './art';
 import { confirmInline, el } from './dom';
 

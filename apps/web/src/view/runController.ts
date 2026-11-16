@@ -1,19 +1,19 @@
 // Run flow between screens: title -> map -> battle or event -> ... -> end. Every applied run action
 // (battle turns included) is autosaved; a failed save warns once per failure streak and never
 // blocks play. Battle turns go through the battle controller, which calls back into the run.
-import type { Content } from '../content';
-import type { RunStorage } from '../platform/runStorage';
-import { applyRunAction, startRun } from '../sim/run/run';
-import type { RunAction, RunEvent, RunState } from '../sim/run/types';
-import type { Side } from '../sim/state';
+import type { Content } from '@webgames/core/content';
+import type { RunStorage } from '@webgames/core/platform/runStorage';
+import { applyRunAction, startRun } from '@webgames/core/sim/run/run';
+import type { RunAction, RunEvent, RunState } from '@webgames/core/sim/run/types';
+import type { Side } from '@webgames/core/sim/state';
 import type { BattleController, ControllerDeps } from './controller';
 import type { Router } from './router';
 import { createRunLog } from './runLog';
 import { battleTurn } from './runTurn';
 import type { RunUi } from './runUi';
-import { buildEndModel } from './screens/end';
-import { buildEventModel } from './screens/event';
-import { buildMapModel } from './screens/map';
+import { buildEndModel } from '@webgames/core/models/end';
+import { buildEventModel } from '@webgames/core/models/event';
+import { buildMapModel } from '@webgames/core/models/map';
 import { randomSeed } from './screens/title';
 
 export interface BattleHooks {

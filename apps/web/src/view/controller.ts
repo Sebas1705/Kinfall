@@ -2,14 +2,14 @@
 // committed before any animation and is never changed by it. While a turn's play is pending, input
 // is ignored and nothing visible is rebuilt; the turn's settlement (normal end, rejection, throw or
 // the watchdog) always runs exactly once and unlocks input.
-import type { Content } from '../content';
+import type { Content } from '@webgames/core/content';
 import type { GameAction } from '../platform/input';
-import { applyAction as simApplyAction } from '../sim/battle';
-import type { Action, BattleEvent, BattleState, Side } from '../sim/state';
+import { applyAction as simApplyAction } from '@webgames/core/sim/battle';
+import type { Action, BattleEvent, BattleState, Side } from '@webgames/core/sim/state';
 import type { TimerApi } from './animator';
 import type { BattleView } from './battleView';
-import { buildMenu, logLines } from './menu';
-import type { MenuModel } from './menu';
+import { buildMenu, logLines } from '@webgames/core/models/menu';
+import type { MenuModel } from '@webgames/core/models/menu';
 
 /** The page's DOM, as the controller sees it. */
 export interface BattleUi {

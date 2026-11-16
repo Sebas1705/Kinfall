@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '../../src/content';
-import { setLang } from '../../src/platform/i18n';
-import { createRunStorage, type RunStorage, type StorageLike } from '../../src/platform/runStorage';
-import { serializeRun } from '../../src/sim/run/codec';
-import { applyRunAction, startRun } from '../../src/sim/run/run';
-import type { RunState } from '../../src/sim/run/types';
+import { CONTENT } from '@webgames/core/content';
+import { setLang } from '@webgames/core/platform/i18n';
+import { createRunStorage, type RunStorage, type StorageLike } from '@webgames/core/platform/runStorage';
+import { serializeRun } from '@webgames/core/sim/run/codec';
+import { applyRunAction, startRun } from '@webgames/core/sim/run/run';
+import type { RunState } from '@webgames/core/sim/run/types';
 import { createBattleController } from '../../src/view/controller';
 import type { BattleUi } from '../../src/view/controller';
 import { createRouter } from '../../src/view/router';

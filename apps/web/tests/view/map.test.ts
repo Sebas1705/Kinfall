@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '../../src/content';
-import { nodeTypeLabel, setLang } from '../../src/platform/i18n';
-import { maxHpOf, startRun } from '../../src/sim/run/run';
-import type { MapNode, RunState } from '../../src/sim/run/types';
-import { buildMapModel, renderMap } from '../../src/view/screens/map';
-import type { MapModel } from '../../src/view/screens/map';
+import { CONTENT } from '@webgames/core/content';
+import { nodeTypeLabel, setLang } from '@webgames/core/platform/i18n';
+import { maxHpOf, startRun } from '@webgames/core/sim/run/run';
+import type { MapNode, RunState } from '@webgames/core/sim/run/types';
+import { buildMapModel } from '@webgames/core/models/map';
+import { renderMap } from '../../src/view/screens/map';
+import type { MapModel } from '@webgames/core/models/map';
 
 afterEach(() => setLang('en'));
 

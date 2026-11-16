@@ -1,11 +1,11 @@
 // One battle turn of a run, as the battle controller needs it: routed through applyRunAction so the
 // run state machine stays the single source of truth, then split into what the battle screen plays
 // (battle state and events) and what the run log shows once the final turn has settled.
-import type { Content } from '../content';
-import { applyAction } from '../sim/battle';
-import { applyRunAction } from '../sim/run/run';
-import type { RunEvent, RunState } from '../sim/run/types';
-import type { Action, BattleEvent, BattleState } from '../sim/state';
+import type { Content } from '@webgames/core/content';
+import { applyAction } from '@webgames/core/sim/battle';
+import { applyRunAction } from '@webgames/core/sim/run/run';
+import type { RunEvent, RunState } from '@webgames/core/sim/run/types';
+import type { Action, BattleEvent, BattleState } from '@webgames/core/sim/state';
 
 export type BattleTurn =
   | { ok: false; reason: string }

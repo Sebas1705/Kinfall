@@ -1,6 +1,6 @@
 // Screen router: exactly one `[data-screen]` section is visible at a time. The others are
 // `hidden` and `inert`, so neither the keyboard nor assistive technology can reach them.
-import { t } from '../platform/i18n';
+import { t } from '@webgames/core/platform/i18n';
 
 export type ScreenId = 'title' | 'map' | 'battle' | 'event' | 'end';
 

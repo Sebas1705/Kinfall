@@ -1,6 +1,17 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import golden from '../golden/battle.golden.json' with { type: 'json' };
-import runGolden from '../golden/run.golden.json' with { type: 'json' };
+import golden from '../../../../packages/core/tests/golden/battle.golden.json' with { type: 'json' };
+import runGolden from '../../../../packages/core/tests/golden/run.golden.json' with { type: 'json' };
+
+/**
+ * Dev-server URL of packages/core/src. The core package lives outside the web app's Vite root, so
+ * the dev server serves its files under /@fs/<absolute path> (the same URLs the app itself loads).
+ */
+const CORE_SRC = `/@fs/${resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'packages', 'core', 'src')
+  .split('\\')
+  .join('/')
+  .replace(/^\//, '')}`;
 
 // Spec section 11.2: the same golden replays must produce the stored hashes in every engine.
 test.describe('cross-engine determinism', () => {
@@ -17,16 +28,16 @@ test.describe('cross-engine determinism', () => {
   for (const entry of golden) {
     test(`golden replay ${entry.name}`, async ({ page }) => {
       await page.goto('/');
-      const result = await page.evaluate(async (e) => {
+      const result = await page.evaluate(async ({ e, core }) => {
         // Variable specifiers keep TypeScript from resolving these browser-side dev-server paths.
-        const goldenPath = '/src/sim/golden.ts';
-        const contentPath = '/src/content/index.ts';
+        const goldenPath = `${core}/sim/golden.ts`;
+        const contentPath = `${core}/content/index.ts`;
         const [{ replayBattle }, { CONTENT }] = await Promise.all([import(goldenPath), import(contentPath)]);
         return replayBattle(e.seed, e.player, e.enemy, e.actions, CONTENT, { telegraph: e.telegraph }) as {
           finalHash: string;
           winner: string | null;
         };
-      }, entry);
+      }, { e: entry, core: CORE_SRC });
       expect(typeof result.finalHash === 'string' && result.finalHash.length === 16).toBe(true);
       expect(result.finalHash).toBe(entry.finalHash);
       expect(result.winner).toBe(entry.winner);
@@ -48,9 +59,9 @@ test.describe('cross-engine determinism', () => {
   for (const entry of runGolden) {
     test(`run golden replay ${entry.seed}/${entry.starterId}`, async ({ page }) => {
       await page.goto('/');
-      const result = await page.evaluate(async (e) => {
+      const result = await page.evaluate(async ({ e, core }) => {
         // Variable specifiers keep TypeScript from resolving these browser-side dev-server paths.
-        const paths = ['/src/sim/run/bot.ts', '/src/sim/run/codec.ts', '/src/sim/run/score.ts', '/src/content/index.ts'];
+        const paths = ['sim/run/bot.ts', 'sim/run/codec.ts', 'sim/run/score.ts', 'content/index.ts'].map((p) => `${core}/${p}`);
         const [{ replayRun }, { hashRun }, { runScore }, { CONTENT }] = await Promise.all(paths.map((p) => import(p)));
         const { run, rejected } = replayRun(e.seed, e.starterId, e.actions, CONTENT);
         return {
@@ -59,7 +70,7 @@ test.describe('cross-engine determinism', () => {
           score: runScore(run, CONTENT) as number,
           rejected: rejected as number,
         };
-      }, entry);
+      }, { e: entry, core: CORE_SRC });
       expect(result.rejected).toBe(0);
       expect(result.finalHash).toBe(entry.finalHash);
       expect(result.result).toBe(entry.result);

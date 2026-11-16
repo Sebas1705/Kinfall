@@ -1,4 +1,4 @@
-import type { PixelGrid } from '../art/palette';
+import type { PixelGrid } from '@webgames/core/art/palette';
 
 /** `#rrggbb` or `#rrggbbaa` to RGBA bytes. */
 export function parseColor(hex: string): [number, number, number, number] {

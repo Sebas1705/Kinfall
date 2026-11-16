@@ -1,6 +1,6 @@
 // Page settings shared by the run page and the battle demo page: text size and static labels.
-import { t } from '../platform/i18n';
-import type { StringKey } from '../platform/i18n';
+import { t } from '@webgames/core/platform/i18n';
+import type { StringKey } from '@webgames/core/platform/i18n';
 
 const TEXT_SIZE_KEY = 'webgames.textSize';
 const TEXT_SIZES = { min: 80, max: 150, step: 10 };

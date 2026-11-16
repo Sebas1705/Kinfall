@@ -1,10 +1,10 @@
 // DOM facade of the battle screen (summary, log, prompt, intent, choices, result panel), shared by the
 // demo battle page and the run page. The turn controller drives it through the BattleUi interface.
-import type { Content } from '../content';
-import { lookup } from '../content/lookup';
-import { speciesName, t } from '../platform/i18n';
+import type { Content } from '@webgames/core/content';
+import { lookup } from '@webgames/core/content/lookup';
+import { speciesName, t } from '@webgames/core/platform/i18n';
 import type { GameAction } from '../platform/input';
-import type { BattleState, Side } from '../sim/state';
+import type { BattleState, Side } from '@webgames/core/sim/state';
 import type { BattleUi } from './controller';
 import { renderMenu } from './menu';
 import { byId } from './settings';

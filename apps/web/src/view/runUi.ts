@@ -1,15 +1,15 @@
 // DOM side of the run controller: renders the screens into their host sections, keeps the run log
 // and shows the non-blocking save warning. Kept apart from the controller so tests can swap either side.
-import { t } from '../platform/i18n';
-import type { StringKey } from '../platform/i18n';
-import type { RunAction } from '../sim/run/types';
+import { t } from '@webgames/core/platform/i18n';
+import type { StringKey } from '@webgames/core/platform/i18n';
+import type { RunAction } from '@webgames/core/sim/run/types';
 import { confirmInline, el } from './screens/dom';
 import { renderEnd } from './screens/end';
-import type { EndModel } from './screens/end';
+import type { EndModel } from '@webgames/core/models/end';
 import { renderEvent } from './screens/event';
-import type { EventModel } from './screens/event';
+import type { EventModel } from '@webgames/core/models/event';
 import { renderMap } from './screens/map';
-import type { MapModel } from './screens/map';
+import type { MapModel } from '@webgames/core/models/map';
 import { renderTitle } from './screens/title';
 import type { TitleProps } from './screens/title';
 

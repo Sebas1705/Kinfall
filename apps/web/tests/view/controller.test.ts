@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '../../src/content';
-import { setLang } from '../../src/platform/i18n';
-import { createBattle } from '../../src/sim/battle';
-import type { BattleEvent, BattleState } from '../../src/sim/state';
+import { CONTENT } from '@webgames/core/content';
+import { setLang } from '@webgames/core/platform/i18n';
+import { createBattle } from '@webgames/core/sim/battle';
+import type { BattleEvent, BattleState } from '@webgames/core/sim/state';
 import type { TimerApi } from '../../src/view/animator';
 import type { BattleView } from '../../src/view/battleView';
 import { createBattleController, watchdogMs } from '../../src/view/controller';

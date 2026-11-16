@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { setLang } from '../../src/platform/i18n';
+import { setLang } from '@webgames/core/platform/i18n';
 import { createRouter, isolateScreen } from '../../src/view/router';
 
 function setup(): HTMLElement {

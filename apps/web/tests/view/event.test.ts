@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '../../src/content';
-import { setLang } from '../../src/platform/i18n';
-import { legalRunActions, maxHpOf, startRun } from '../../src/sim/run/run';
-import { runScore } from '../../src/sim/run/score';
-import type { RunPhase, RunState } from '../../src/sim/run/types';
-import { buildEndModel, renderEnd } from '../../src/view/screens/end';
-import { buildEventModel, renderEvent } from '../../src/view/screens/event';
+import { CONTENT } from '@webgames/core/content';
+import { setLang } from '@webgames/core/platform/i18n';
+import { legalRunActions, maxHpOf, startRun } from '@webgames/core/sim/run/run';
+import { runScore } from '@webgames/core/sim/run/score';
+import type { RunPhase, RunState } from '@webgames/core/sim/run/types';
+import { buildEndModel } from '@webgames/core/models/end';
+import { renderEnd } from '../../src/view/screens/end';
+import { buildEventModel } from '@webgames/core/models/event';
+import { renderEvent } from '../../src/view/screens/event';
 
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);

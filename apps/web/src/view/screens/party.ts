@@ -1,12 +1,7 @@
 // Party and souls panel shared by the map and event screens.
-import { t } from '../../platform/i18n';
+import type { PartyRow } from '@webgames/core/models/party';
+import { t } from '@webgames/core/platform/i18n';
 import { el } from './dom';
-
-export interface PartyRow {
-  name: string;
-  hp: number;
-  maxHp: number;
-}
 
 /** `idPrefix` keeps ids unique: hidden screens keep their old DOM while another one is shown. */
 export function partyPanel(party: PartyRow[], souls: number, idPrefix: string): HTMLElement {

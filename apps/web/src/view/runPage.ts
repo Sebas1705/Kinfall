@@ -1,7 +1,7 @@
 // Default page: the run flow (title, map, battle, events and the end screen).
-import { CONTENT } from '../content';
-import { getLang, setLang } from '../platform/i18n';
-import { createRunStorage, defaultStorage } from '../platform/runStorage';
+import { CONTENT } from '@webgames/core/content';
+import { getLang, setLang } from '@webgames/core/platform/i18n';
+import { createRunStorage, defaultStorage } from '@webgames/core/platform/runStorage';
 import { createBattleDom } from './battleDom';
 import { createBattleController } from './controller';
 import { lazyBattleView } from './lazyView';

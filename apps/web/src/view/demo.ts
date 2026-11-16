@@ -1,6 +1,6 @@
-import type { Content } from '../content';
-import { createRng } from '../sim/rng';
-import type { TeamSpec } from '../sim/state';
+import type { Content } from '@webgames/core/content';
+import { createRng } from '@webgames/core/sim/rng';
+import type { TeamSpec } from '@webgames/core/sim/state';
 
 /**
  * Teams for the demo battle page, picked from the seed with the sim's PRNG (never Math.random):

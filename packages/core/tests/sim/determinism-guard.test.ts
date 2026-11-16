@@ -1,13 +1,14 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseAst } from 'vite';
 import { describe, expect, it } from 'vitest';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SCANNED_DIRS = ['src/sim', 'src/content', 'src/art'];
-/** Individual determinism-critical files outside those directories. */
-const SCANNED_FILES = ['src/view/demo.ts'];
+/** Repository root: paths below are relative to it. */
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+const SCANNED_DIRS = ['packages/core/src/sim', 'packages/core/src/content', 'packages/core/src/art', 'packages/core/src/models'];
+/** Individual determinism-critical files outside those directories (the web app's demo team picker). */
+const SCANNED_FILES = ['apps/web/src/view/demo.ts'];
 const MIN_FILES = 6;
 
 /** Math members that are exact on every engine (integer-valued results only). */
@@ -131,7 +132,10 @@ function listTs(dir: string): string[] {
 }
 
 describe('determinism guard', () => {
-  it('src/sim, src/content, src/art and src/view/demo.ts avoid non-deterministic APIs', () => {
+  it('core sim, content, art and models and the web demo.ts avoid non-deterministic APIs', () => {
+    // A moved or renamed path must fail here, never shrink the scan silently.
+    for (const p of [...SCANNED_DIRS, ...SCANNED_FILES]) expect(existsSync(join(ROOT, p)), p).toBe(true);
+    for (const d of SCANNED_DIRS) expect(listTs(join(ROOT, d)).length, d).toBeGreaterThan(0);
     const files = [
       ...SCANNED_DIRS.flatMap((d) => listTs(join(ROOT, d))),
       ...SCANNED_FILES.map((f) => join(ROOT, f)),

@@ -1,6 +1,6 @@
 // Creature portrait for the DOM screens: the same generated pixel art as the battle scene.
-import { generateCreature } from '../../art/creatureGen';
-import type { SpeciesDef } from '../../content';
+import { generateCreature } from '@webgames/core/art/creatureGen';
+import type { SpeciesDef } from '@webgames/core/content';
 import { paintGrid } from '../pixelCanvas';
 import { el } from './dom';
 

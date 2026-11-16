@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '../../src/content';
-import { setLang } from '../../src/platform/i18n';
-import { STRINGS } from '../../src/platform/strings';
-import { applyAction, createBattle, legalActions } from '../../src/sim/battle';
-import type { BattleEvent, BattleState } from '../../src/sim/state';
-import { buildMenu, logLines, renderMenu } from '../../src/view/menu';
+import { CONTENT } from '@webgames/core/content';
+import { setLang } from '@webgames/core/platform/i18n';
+import { STRINGS } from '@webgames/core/platform/strings';
+import { applyAction, createBattle, legalActions } from '@webgames/core/sim/battle';
+import type { BattleEvent, BattleState } from '@webgames/core/sim/state';
+import { buildMenu, logLines } from '@webgames/core/models/menu';
+import { renderMenu } from '../../src/view/menu';
 
 const PLAYER = { speciesIds: ['cindermite', 'tidewisp', 'skirrow'] };
 const ENEMY = { speciesIds: ['brambleback', 'dusklurk', 'emberveil'] };
