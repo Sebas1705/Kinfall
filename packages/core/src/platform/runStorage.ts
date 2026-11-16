@@ -2,8 +2,11 @@ import type { Content } from '../content';
 import { deserializeRun, serializeRun } from '../sim/run/codec';
 import type { RunState } from '../sim/run/types';
 
-const KEY = 'webgames.run.v1';
+/** The single storage slot of the current run (shared by the sync and async variants). */
+export const RUN_STORAGE_KEY = 'webgames.run.v1';
+const KEY = RUN_STORAGE_KEY;
 const MAX_ERROR = 200;
+export const STORAGE_UNAVAILABLE = 'Storage is not available.';
 
 /** Synchronous key-value storage (the browser's localStorage fits); the app passes it in. */
 export interface StorageLike {
@@ -27,9 +30,17 @@ export interface RunStorage {
   clear(): SaveResult;
 }
 
-function describe(err: unknown): string {
+/** Short, bounded text for a caught error. */
+export function describe(err: unknown): string {
   const message = err instanceof Error ? err.message : 'unknown error';
   return message.length > MAX_ERROR ? `${message.slice(0, MAX_ERROR - 3)}...` : message;
+}
+
+/** Text read from the slot to a result: validation failures are `corrupt` (the text is never deleted). */
+export function loadFromText(text: string | null, content: Content): LoadResult {
+  if (text === null) return { kind: 'none' };
+  const result = deserializeRun(text, content);
+  return result.ok ? { kind: 'ok', run: result.run } : { kind: 'corrupt', error: result.error };
 }
 
 /**
@@ -40,7 +51,7 @@ function describe(err: unknown): string {
 export function createRunStorage(storage: StorageLike | null, content: Content): RunStorage {
   return {
     save(run: RunState): SaveResult {
-      if (!storage) return { ok: false, error: 'Storage is not available.' };
+      if (!storage) return { ok: false, error: STORAGE_UNAVAILABLE };
       try {
         storage.setItem(KEY, serializeRun(run));
         return { ok: true };
@@ -49,16 +60,14 @@ export function createRunStorage(storage: StorageLike | null, content: Content):
       }
     },
     load(): LoadResult {
-      if (!storage) return { kind: 'unavailable', error: 'Storage is not available.' };
+      if (!storage) return { kind: 'unavailable', error: STORAGE_UNAVAILABLE };
       let text: string | null;
       try {
         text = storage.getItem(KEY);
       } catch (e) {
         return { kind: 'unavailable', error: describe(e) };
       }
-      if (text === null) return { kind: 'none' };
-      const result = deserializeRun(text, content);
-      return result.ok ? { kind: 'ok', run: result.run } : { kind: 'corrupt', error: result.error };
+      return loadFromText(text, content);
     },
     clear(): SaveResult {
       // Without storage nothing was saved, so there is nothing left behind.
