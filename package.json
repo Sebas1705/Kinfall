@@ -12,6 +12,7 @@
     "dev": "npm run dev -w @webgames/web --",
     "build": "npm run build -w @webgames/web",
     "test": "vitest run",
+    "test:mobile": "npm test -w @webgames/mobile",
     "test:e2e": "npm run test:e2e -w @webgames/web --",
     "size": "npm run size -w @webgames/web",
     "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces",
