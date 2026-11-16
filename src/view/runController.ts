@@ -1,42 +1,69 @@
-// Run flow between screens: title -> map -> (battle/event: Task 13) -> map ... Every applied run
-// action is autosaved; a failed save warns once per failure streak and never blocks play.
+// Run flow between screens: title -> map -> battle or event -> ... -> end. Every applied run action
+// (battle turns included) is autosaved; a failed save warns once per failure streak and never
+// blocks play. Battle turns go through the battle controller, which calls back into the run.
 import type { Content } from '../content';
-import { nodeTypeLabel, t } from '../platform/i18n';
 import type { RunStorage } from '../platform/runStorage';
-import { findNode } from '../sim/run/map';
 import { applyRunAction, startRun } from '../sim/run/run';
-import type { RunState } from '../sim/run/types';
+import type { RunAction, RunEvent, RunState } from '../sim/run/types';
+import type { Side } from '../sim/state';
+import type { BattleController, ControllerDeps } from './controller';
 import type { Router } from './router';
+import { createRunLog } from './runLog';
+import { battleTurn } from './runTurn';
 import type { RunUi } from './runUi';
+import { buildEndModel } from './screens/end';
+import { buildEventModel } from './screens/event';
 import { buildMapModel } from './screens/map';
+import { randomSeed } from './screens/title';
+
+export interface BattleHooks {
+  applyAction: NonNullable<ControllerDeps['applyAction']>;
+  onEnd: (winner: Side) => void;
+}
 
 export interface RunControllerDeps {
   content: Content;
   storage: RunStorage;
   router: Router;
   ui: RunUi;
-  /** Seed shown on the title screen (from the URL or a random code). */
+  /** Seed shown on the title screen at page load (from the URL or a random code). */
   newSeed: () => string;
+  /** Seed prefilled after a run is abandoned or finished (default: a random code; never the URL seed). */
+  freshSeed?: () => string;
+  /** Builds the battle controller once; the run supplies the turn function and the end hook. */
+  createBattle(hooks: BattleHooks): BattleController;
+  logger?: Pick<Console, 'warn' | 'error'>;
 }
 
 export interface RunController {
   showTitle(options?: { focus?: boolean }): void;
   start(seed: string, starterId: string): void;
   resume(): void;
+  /** Clears the save and returns to the title (after the inline confirmation, or "New run" at the end). */
   abandon(): void;
   pickNode(nodeId: string): void;
+  pickEvent(action: RunAction): void;
   getRun(): RunState | null;
-  /** Re-renders the visible screen after a language change, keeping typed input. */
+  getBattle(): BattleController;
+  /** Re-renders the visible screen after a language or text-size change, keeping typed input. */
   refreshText(): void;
 }
 
+/** Event choices first, then the heading when none is enabled (the router falls back to the section). */
+const FIRST_CHOICE = 'button[data-choice]:not(:disabled)';
+
 export function createRunController(deps: RunControllerDeps): RunController {
   const { content, storage, router, ui } = deps;
+  const logger = deps.logger ?? console;
+  const freshSeed = deps.freshSeed ?? randomSeed;
   let run: RunState | null = null;
   /** Node ids picked this session; the run state itself only remembers the last one. */
   let trail: string[] = [];
   let saveFailing = false;
   let titleSeed = deps.newSeed();
+  /** Run events of the battle's final turn, shown once its play has settled. */
+  let afterBattle: RunEvent[] = [];
+  const log = createRunLog(content, ui);
 
   const save = () => {
     if (!run) return;
@@ -49,6 +76,31 @@ export function createRunController(deps: RunControllerDeps): RunController {
     }
   };
 
+  /** Commits an applied step: new state, autosave. */
+  const commit = (next: RunState) => {
+    run = next;
+    save();
+  };
+
+  const battle = deps.createBattle({
+    applyAction: (prev, action) => {
+      const turn = battleTurn(run, prev, action, content);
+      if (!turn.ok) {
+        logger.warn('run rejected a battle action; keeping the current state', turn.reason);
+        return { state: prev, events: [] };
+      }
+      commit(turn.run);
+      afterBattle = turn.runEvents;
+      return { state: turn.battle, events: turn.battleEvents };
+    },
+    onEnd: () => {
+      const events = afterBattle;
+      afterBattle = [];
+      showPhase();
+      log.add(events);
+    },
+  });
+
   const renderTitle = (preserveInput: boolean) =>
     ui.renderTitle({
       content,
@@ -58,41 +110,57 @@ export function createRunController(deps: RunControllerDeps): RunController {
       onStart: (seed, starterId) => controller.start(seed, starterId),
       onContinue: () => controller.resume(),
       onDiscard: () => {
-        storage.clear();
+        clearSave();
         renderTitle(true);
         router.show('title');
       },
     });
 
-  const renderMap = () => {
-    if (!run) return;
-    ui.renderMap(buildMapModel(run, content, trail), (id) => controller.pickNode(id), () => controller.abandon());
+  const clearSave = () => {
+    saveFailing = false;
+    ui.hideSaveWarning();
+    const result = storage.clear();
+    if (!result.ok) ui.showClearWarning(result.error);
   };
 
-  /** Label of the screen a non-map phase would show (placeholder until Task 13). */
-  const phaseLabel = (r: RunState): string => {
-    const p = r.phase;
-    if (p.kind === 'recruit') return t('screen.event');
-    if (p.kind === 'ended') return t('screen.end');
-    if (p.kind === 'map') return t('screen.map');
-    const node = findNode(r.maps[r.zone], p.nodeId);
-    return node ? nodeTypeLabel(node.type) : t('screen.event');
+  /** Renders the screen of the current phase (no routing). */
+  const render = () => {
+    if (!run) return;
+    const kind = run.phase.kind;
+    if (kind === 'map') {
+      ui.renderMap(buildMapModel(run, content, trail), (id) => controller.pickNode(id), () => controller.abandon());
+    } else if (kind === 'ended') {
+      const model = buildEndModel(run, content);
+      if (model) ui.renderEnd(model, () => controller.abandon());
+    } else if (kind !== 'battle') {
+      const model = buildEventModel(run, content);
+      if (model) ui.renderEvent(model, (a) => controller.pickEvent(a));
+    }
   };
 
   /** Renders and shows the screen for the current phase. */
   const showPhase = (focus = true) => {
     if (!run) return;
-    if (run.phase.kind === 'map') {
-      renderMap();
-      router.show('map', undefined, { focus });
-    } else {
-      ui.renderPlaceholder(phaseLabel(run));
-      router.show('event', undefined, { focus });
+    ui.showSeed(run.seed);
+    render();
+    const phase = run.phase;
+    if (phase.kind === 'battle') {
+      log.show(false);
+      router.show('battle', undefined, { focus: false });
+      // Rebuilt from the saved state: a fresh log, telegraph and intent as the state says.
+      battle.startWith(phase.battle);
+      return;
     }
+    log.show(true);
+    if (phase.kind === 'map') router.show('map', undefined, { focus });
+    else if (phase.kind === 'ended') router.show('end', undefined, { focus });
+    else router.show('event', FIRST_CHOICE, { focus });
   };
 
   const controller: RunController = {
     showTitle(options) {
+      ui.showSeed(null);
+      log.show(false);
       renderTitle(false);
       router.show('title', undefined, options);
     },
@@ -100,6 +168,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       run = startRun(seed, starterId, content);
       trail = [];
       titleSeed = seed;
+      log.reset();
       save();
       showPhase();
     },
@@ -111,29 +180,54 @@ export function createRunController(deps: RunControllerDeps): RunController {
       }
       run = loaded.run;
       trail = [];
+      log.reset();
       showPhase();
     },
     abandon() {
+      if (battle.isPending()) return;
       run = null;
       trail = [];
-      storage.clear();
+      log.reset();
+      titleSeed = freshSeed();
+      clearSave();
       controller.showTitle();
     },
     pickNode(nodeId) {
       if (!run) return;
       const step = applyRunAction(run, { type: 'node', nodeId }, content);
       if (step.events.some((e) => e.type === 'rejected')) return;
-      run = step.run;
+      commit(step.run);
       trail.push(nodeId);
-      save();
+      log.add(step.events);
       showPhase();
     },
+    pickEvent(action) {
+      if (!run) return;
+      const step = applyRunAction(run, action, content);
+      if (step.events.some((e) => e.type === 'rejected')) {
+        logger.warn('run rejected an event choice; keeping the current state', action);
+        showPhase();
+        return;
+      }
+      commit(step.run);
+      showPhase();
+      log.add(step.events);
+    },
     getRun: () => run,
+    getBattle: () => battle,
     refreshText() {
       const screen = router.current();
       if (screen === 'title') renderTitle(true);
-      else if (run && screen === 'map') renderMap();
-      else if (run && screen === 'event') ui.renderPlaceholder(phaseLabel(run));
+      else if (screen === 'battle') battle.refreshText();
+      else if (run) {
+        const section = document.querySelector(`[data-screen="${screen}"]`);
+        const hadFocus = section?.contains(document.activeElement) ?? false;
+        render();
+        // The focused control was replaced: put focus back where a new visit would.
+        if (hadFocus && !section?.contains(document.activeElement)) router.show(screen, screen === 'event' ? FIRST_CHOICE : undefined);
+      }
+      if (run) ui.showSeed(run.seed);
+      log.refresh();
       router.refreshTitle();
     },
   };

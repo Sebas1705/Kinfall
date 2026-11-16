@@ -32,16 +32,23 @@ export interface ControllerDeps {
   view: BattleView | null;
   ui: BattleUi;
   timers: TimerApi;
-  /** Creates battle number `n` (1-based). */
-  newBattle(n: number): BattleState;
+  /** Creates battle number `n` (1-based); without it `start()` does nothing (the run uses `startWith`). */
+  newBattle?(n: number): BattleState;
   reducedMotion(): boolean;
   applyAction?: typeof simApplyAction;
   logger?: Pick<Console, 'warn' | 'error'>;
+  /**
+   * Run mode: called exactly once per battle, after the final turn's play has settled (never while
+   * a play is pending). When present the result panel is never shown; the caller moves on instead.
+   */
+  onEnd?: (winner: Side) => void;
 }
 
 export interface BattleController {
   /** Starts the next battle; ignored while a turn is pending. */
   start(): void;
+  /** Starts exactly `state` (a fresh log, no `newBattle` call); ignored while a turn is pending. */
+  startWith(state: BattleState): void;
   /** Plays the player's action; ignored while pending or after the end. */
   pick(action: Action): void;
   /** Handles an input-layer action. */
@@ -69,6 +76,7 @@ export function createBattleController(deps: ControllerDeps): BattleController {
   let pending = false;
   let dirty = false;
   let resultShown = false;
+  let endFired = false;
 
   const renderView = () => {
     if (!view || !state) return;
@@ -86,10 +94,11 @@ export function createBattleController(deps: ControllerDeps): BattleController {
     const over = state.winner !== null;
     ui.setBusy(false);
     ui.showChoices(state, buildMenu(state, content), pick, moveFocus && !over);
-    resultShown = over;
+    const panel = over && !deps.onEnd;
+    resultShown = panel;
     ui.showResult(
-      over ? { winner: state.winner!, lossNote: state.teams.player.some((c) => c.fainted) } : null,
-      moveFocus && over,
+      panel ? { winner: state.winner!, lossNote: state.teams.player.some((c) => c.fainted) } : null,
+      moveFocus && panel,
     );
   };
 
@@ -120,6 +129,10 @@ export function createBattleController(deps: ControllerDeps): BattleController {
       }
       renderView();
       rebuild(true);
+      if (state && state.winner !== null && deps.onEnd && !endFired) {
+        endFired = true;
+        deps.onEnd(state.winner);
+      }
     };
     watchdog = timers.setTimeout(() => {
       if (settled) return;
@@ -136,16 +149,25 @@ export function createBattleController(deps: ControllerDeps): BattleController {
     void playing.catch((err: unknown) => logger.error('battle animation failed', err)).then(settle);
   }
 
+  const begin = (next: BattleState) => {
+    state = next;
+    history = [];
+    dirty = false;
+    endFired = false;
+    ui.replaceLog([]);
+    renderView();
+    rebuild(true);
+  };
+
   const controller: BattleController = {
     start() {
-      if (pending) return;
+      if (pending || !deps.newBattle) return;
       battleNo += 1;
-      state = deps.newBattle(battleNo);
-      history = [];
-      dirty = false;
-      ui.replaceLog([]);
-      renderView();
-      rebuild(true);
+      begin(deps.newBattle(battleNo));
+    },
+    startWith(next) {
+      if (pending) return;
+      begin(next);
     },
     pick,
     onAction(a: GameAction) {

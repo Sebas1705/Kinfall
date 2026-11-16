@@ -227,6 +227,160 @@ describe('controller: a play that fails', () => {
   });
 });
 
+function setupWithEnd(
+  play: BattleView['play'],
+  opts: { timers?: TimerApi; reducedMotion?: boolean; view?: boolean } = {},
+) {
+  const { ui, clear } = fakeUi();
+  const view = fakeView(play);
+  const onEnd = vi.fn();
+  const newBattle = vi.fn(finalTurnBattle);
+  const controller = createBattleController({
+    content: CONTENT,
+    view: opts.view === false ? null : view,
+    ui,
+    timers: opts.timers ?? idleTimers,
+    newBattle,
+    reducedMotion: () => opts.reducedMotion ?? false,
+    logger: quiet,
+    onEnd,
+  });
+  return { ui, view, controller, clear, onEnd, newBattle };
+}
+
+describe('controller: onEnd (run mode)', () => {
+  it('fires exactly once, only after the final play settled, and never shows the result panel', async () => {
+    const d = deferred();
+    const { ui, controller, onEnd } = setupWithEnd(() => d.promise);
+    controller.startWith(finalTurnBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    expect(controller.getState()!.winner).toBe('player');
+    expect(controller.isPending()).toBe(true);
+    await flush();
+    expect(onEnd).not.toHaveBeenCalled();
+
+    d.resolve();
+    await flush();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(onEnd).toHaveBeenCalledWith('player');
+    expect(ui.showResult).not.toHaveBeenCalledWith(expect.objectContaining({ winner: 'player' }), expect.anything());
+    // The final turn's log lines were shown before onEnd.
+    expect(ui.appendLog.mock.invocationCallOrder[0]!).toBeLessThan(onEnd.mock.invocationCallOrder[0]!);
+
+    // Later refreshes, confirms and picks do not fire it again or start a battle.
+    controller.refreshText();
+    controller.onAction('confirm');
+    controller.pick({ type: 'move', moveIndex: 0 });
+    await flush();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(controller.getBattleNo()).toBe(0);
+  });
+
+  it('does not fire for a turn that does not end the battle', async () => {
+    const { controller, onEnd } = setupWithEnd(() => Promise.resolve());
+    controller.startWith(normalBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    await flush();
+    expect(controller.getState()!.winner).toBeNull();
+    expect(onEnd).not.toHaveBeenCalled();
+  });
+
+  it('fires once through the watchdog path, not again when the late play resolves', async () => {
+    vi.useFakeTimers();
+    const timers: TimerApi = {
+      setTimeout: (fn, ms) => setTimeout(fn, ms),
+      clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+    };
+    const late = deferred();
+    const { view, controller, onEnd } = setupWithEnd(() => late.promise, { timers });
+    controller.startWith(finalTurnBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    const events = view.play.mock.calls[0]![0] as BattleEvent[];
+    vi.advanceTimersByTime(watchdogMs(events.length) - 1);
+    await flush();
+    expect(onEnd).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    await flush();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    late.resolve();
+    await flush();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires once on the reduced-motion path, still after play settled', async () => {
+    const { view, controller, onEnd } = setupWithEnd(() => Promise.resolve(), { reducedMotion: true });
+    controller.startWith(finalTurnBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    expect(view.play.mock.calls[0]![1]).toEqual({ reducedMotion: true });
+    expect(onEnd).not.toHaveBeenCalled(); // never synchronously
+    await flush();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires once without a scene (no WebGL)', async () => {
+    const { controller, onEnd } = setupWithEnd(() => Promise.resolve(), { view: false });
+    controller.startWith(finalTurnBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    expect(onEnd).not.toHaveBeenCalled();
+    await flush();
+    expect(onEnd).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('controller: startWith', () => {
+  it('starts that exact state without calling newBattle, with an empty log', () => {
+    const { ui, view, controller, newBattle } = setupWithEnd(() => Promise.resolve());
+    const s = normalBattle();
+    controller.startWith(s);
+    expect(newBattle).not.toHaveBeenCalled();
+    expect(controller.getState()).toBe(s);
+    expect(ui.replaceLog).toHaveBeenLastCalledWith([]);
+    expect(view.render).toHaveBeenLastCalledWith(s);
+    expect(ui.showChoices).toHaveBeenLastCalledWith(s, expect.anything(), expect.any(Function), true);
+    expect(ui.showResult).toHaveBeenLastCalledWith(null, false);
+  });
+
+  it('is ignored while a turn is pending', async () => {
+    const d = deferred();
+    const { ui, controller, newBattle } = setupWithEnd(() => d.promise);
+    controller.startWith(normalBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    const during = controller.getState();
+    ui.replaceLog.mockClear();
+    controller.startWith(normalBattle());
+    expect(controller.getState()).toBe(during);
+    expect(ui.replaceLog).not.toHaveBeenCalled();
+    expect(newBattle).not.toHaveBeenCalled();
+    d.resolve();
+    await flush();
+  });
+
+  it('resets the history: a later language rebuild has only the new turns', async () => {
+    const { ui, controller } = setupWithEnd(() => Promise.resolve());
+    controller.startWith(normalBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    await flush();
+    controller.startWith(normalBattle());
+    controller.refreshText();
+    expect(ui.replaceLog).toHaveBeenLastCalledWith([]);
+    controller.pick({ type: 'move', moveIndex: 0 });
+    await flush();
+    controller.refreshText();
+    expect((ui.replaceLog.mock.lastCall![0] as string[][]).length).toBe(1);
+  });
+
+  it('a new battle after an ended one can fire onEnd again', async () => {
+    const { controller, onEnd } = setupWithEnd(() => Promise.resolve());
+    controller.startWith(finalTurnBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    await flush();
+    controller.startWith(finalTurnBattle());
+    controller.pick({ type: 'move', moveIndex: 0 });
+    await flush();
+    expect(onEnd).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('controller: input wiring', () => {
   it('binds input exactly once however many battles start', () => {
     const { ui } = fakeUi();

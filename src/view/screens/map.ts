@@ -7,6 +7,7 @@ import { findNode } from '../../sim/run/map';
 import { availableNodes, maxHpOf } from '../../sim/run/run';
 import type { NodeType, RunState, ZoneMap } from '../../sim/run/types';
 import { confirmInline, el } from './dom';
+import { partyPanel } from './party';
 
 export type NodeState = 'available' | 'cleared' | 'locked';
 
@@ -82,19 +83,6 @@ function stateText(node: MapModel['layers'][number]['nodes'][number]): string {
   return node.current ? `${base}, ${t('map.current')}` : base;
 }
 
-function statusPanel(model: MapModel): HTMLElement {
-  const members = model.party.map((p) =>
-    el('li', { class: 'run-member' }, t('map.partyMember', { species: p.name, hp: p.hp, max: p.maxHp })),
-  );
-  return el(
-    'section',
-    { class: 'run-status', 'aria-labelledby': 'run-party-title' },
-    el('h3', { class: 'panel-title', id: 'run-party-title' }, t('map.party')),
-    el('ul', { class: 'run-party' }, ...members),
-    el('p', { class: 'run-souls' }, el('span', {}, t('map.souls')), ': ', el('strong', { class: 'run-souls-value' }, String(model.souls))),
-  );
-}
-
 function nodeButton(node: MapModel['layers'][number]['nodes'][number], onPick: (id: string) => void): HTMLElement {
   const state = stateText(node);
   const button = el(
@@ -142,7 +130,7 @@ export function renderMap(
   );
   host.replaceChildren(
     el('h2', { class: 'screen-heading', 'data-screen-heading': true, tabindex: '-1' }, t('map.zone', { n: model.zoneNo, name: model.zoneName })),
-    statusPanel(model),
+    partyPanel(model.party, model.souls, 'map'),
     el('ol', { class: 'map-layers' }, ...layers),
     el('div', { class: 'map-footer' }, abandon),
   );

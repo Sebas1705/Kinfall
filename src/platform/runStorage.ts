@@ -22,7 +22,8 @@ export type SaveResult = { ok: true } | { ok: false; error: string };
 export interface RunStorage {
   save(run: RunState): SaveResult;
   load(): LoadResult;
-  clear(): void;
+  /** Deletes the slot; reports a failure (blocked storage) instead of throwing. */
+  clear(): SaveResult;
 }
 
 function describe(err: unknown): string {
@@ -67,12 +68,14 @@ export function createRunStorage(storage: StorageLike | null, content: Content):
       const result = deserializeRun(text, content);
       return result.ok ? { kind: 'ok', run: result.run } : { kind: 'corrupt', error: result.error };
     },
-    clear(): void {
-      if (!storage) return;
+    clear(): SaveResult {
+      // Without storage nothing was saved, so there is nothing left behind.
+      if (!storage) return { ok: true };
       try {
         storage.removeItem(KEY);
-      } catch {
-        // storage blocked: nothing to clear
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: describe(e) };
       }
     },
   };

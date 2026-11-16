@@ -119,6 +119,12 @@ describe('createRunStorage', () => {
       throw new Error('blocked');
     };
     expect(() => createRunStorage(st, CONTENT).clear()).not.toThrow();
+    expect(createRunStorage(st, CONTENT).clear()).toEqual({ ok: false, error: 'blocked' });
+  });
+
+  it('clear reports success, also when there is no storage at all', () => {
+    expect(createRunStorage(fakeStorage(), CONTENT).clear()).toEqual({ ok: true });
+    expect(createRunStorage(null, CONTENT).clear()).toEqual({ ok: true });
   });
 
   it('saving twice overwrites with the latest run', () => {

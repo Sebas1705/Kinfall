@@ -90,6 +90,7 @@ export const runEn = {
 
   'save.failed': 'Could not save your run: {reason}. You can keep playing.',
   'save.dismiss': 'Dismiss',
+  'save.clearFailed': 'Could not delete your saved run: {reason}.',
 
   'runlog.enter': 'You head to: {node}.',
   'runlog.soul.fallen': 'Souls +{amount}: a creature fell.',
@@ -197,6 +198,7 @@ export const runEs: Record<keyof typeof runEn, string> = {
 
   'save.failed': 'No se pudo guardar tu partida: {reason}. Puedes seguir jugando.',
   'save.dismiss': 'Cerrar',
+  'save.clearFailed': 'No se pudo borrar tu partida guardada: {reason}.',
 
   'runlog.enter': 'Avanzas hacia: {node}.',
   'runlog.soul.fallen': 'Almas +{amount}: ha caído una criatura.',

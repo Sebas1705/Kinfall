@@ -1,11 +1,10 @@
 // Title screen: continue a saved run, or start a new one from a seed and a starter.
 // The random seed uses crypto.getRandomValues here, in the UI layer only; the sim never sees entropy.
-import { generateCreature } from '../../art/creatureGen';
 import type { Content } from '../../content';
 import { lookup } from '../../content/lookup';
 import { speciesName, t } from '../../platform/i18n';
 import type { LoadResult } from '../../platform/runStorage';
-import { paintGrid } from '../pixelCanvas';
+import { creatureCanvas } from './art';
 import { confirmInline, el } from './dom';
 
 /** No 0/O, 1/I/L: easy to read aloud and to type back. */
@@ -49,8 +48,7 @@ export function initialSeed(search: string, random: () => string = randomSeed): 
 function starterCard(content: Content, id: string, checked: boolean): HTMLElement {
   const sp = lookup(content).species(id);
   const element = sp.elements[0];
-  const canvas = el('canvas', { class: 'starter-art', 'aria-hidden': 'true' });
-  paintGrid(canvas, generateCreature(sp));
+  const canvas = creatureCanvas(sp, 'starter-art');
   const input = el('input', { type: 'radio', name: 'starter', value: id, id: `starter-${id}`, checked });
   input.checked = checked;
   const hintKey = element === 'ember' || element === 'thorn' || element === 'tide' ? (`title.starterHint.${element}` as const) : null;
