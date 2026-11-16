@@ -1,0 +1,31 @@
+{
+  "name": "@webgames/mobile",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "test": "jest",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@webgames/core": "*",
+    "expo": "58.0.25",
+    "react": "19.3.0",
+    "react-native": "0.88.1"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.0.0",
+    "@react-native/jest-preset": "0.88.1",
+    "@testing-library/react-native": "^14.1.0",
+    "@types/react": "~19.3.0",
+    "jest": "^30.0.0",
+    "jest-expo": "~58.0.14",
+    "test-renderer": "^1.3.0"
+  },
+  "jest": {
+    "preset": "jest-expo"
+  }
+}

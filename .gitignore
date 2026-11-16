@@ -5,3 +5,7 @@ dist
 playwright-report
 test-results
 art-preview.html
+# Expo (apps/mobile): local state and native folders from a prebuild, never committed
+apps/mobile/.expo
+apps/mobile/android
+apps/mobile/ios

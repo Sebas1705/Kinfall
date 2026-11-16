@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Webgames",
+    "slug": "webgames",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "app.webgames.placeholder"
+    },
+    "ios": {
+      "bundleIdentifier": "app.webgames.placeholder"
+    }
+  }
+}
