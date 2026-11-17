@@ -6,6 +6,7 @@ import { getLang, setLang, speciesName, t, type Lang, type StringKey } from '@we
 const HID = { hidden: true };
 
 import App from '../../App';
+import { openDevTools } from '../../test-support/devTools';
 import Gallery from '../../src/screens/Gallery';
 
 const start: Lang = getLang();
@@ -34,9 +35,10 @@ describe('Gallery', () => {
   it('is reachable from the hello screen and goes back', async () => {
     const user = userEvent.setup();
     await render(<App />);
+    await openDevTools();
     await user.press(await screen.findByRole('button', { name: 'Gallery' }));
     expect(screen.getByTestId('gallery')).toBeTruthy();
     await user.press(screen.getByRole('button', { name: 'Back' }));
-    expect(await screen.findByLabelText('Seed')).toBeTruthy();
+    expect(await screen.findByTestId('run-button')).toBeTruthy();
   });
 });

@@ -9,6 +9,7 @@ import * as Localization from 'expo-localization';
 import { AccessibilityInfo, PixelRatio } from 'react-native';
 
 import App from '../App';
+import { openDevTools } from '../test-support/devTools';
 import HelloScreen from '../src/HelloScreen';
 
 const RUN_KEY = 'webgames.run.v1';
@@ -39,6 +40,7 @@ describe('hello screen adapters', () => {
   it('starts in the device language and persists a language toggle', async () => {
     const user = userEvent.setup();
     await render(<App />);
+    await openDevTools();
     expect(text(await screen.findByTestId('language-line'))).toBe('Language: en');
 
     await user.press(screen.getByTestId('lang-es'));
@@ -49,6 +51,7 @@ describe('hello screen adapters', () => {
   it('shows the saved language on the first frame after a restart', async () => {
     await AsyncStorage.setItem(LANG_KEY, 'es');
     await render(<App />);
+    await openDevTools();
     expect(text(await screen.findByTestId('language-line'))).toBe('Idioma: es');
     expect(screen.queryByText('Language: en')).toBeNull();
   });
@@ -58,13 +61,16 @@ describe('hello screen adapters', () => {
     jest.spyOn(AsyncStorage, 'getItem').mockImplementationOnce(() => new Promise((r) => (release = r)));
     await render(<App />);
     expect(screen.queryByTestId('language-line')).toBeNull();
+    expect(screen.queryByTestId('title-screen')).toBeNull();
     release('es');
+    await openDevTools();
     expect(text(await screen.findByTestId('language-line'))).toBe('Idioma: es');
   });
 
   it('saves the last run, then loads it back with the same hash', async () => {
     const user = userEvent.setup();
     await render(<App />);
+    await openDevTools();
     await screen.findByTestId('run-button');
     await user.press(screen.getByTestId('run-button'));
     await user.press(screen.getByTestId('save-button'));
@@ -78,6 +84,7 @@ describe('hello screen adapters', () => {
   it('loads none when nothing was saved', async () => {
     const user = userEvent.setup();
     await render(<App />);
+    await openDevTools();
     await user.press(await screen.findByTestId('load-button'));
     expect(text(await screen.findByTestId('load-status'))).toBe('Load: none');
   });
@@ -88,9 +95,20 @@ describe('hello screen adapters', () => {
     const damaged = good.replace('"zone":', '"zone":9');
     await AsyncStorage.setItem(RUN_KEY, damaged);
     await render(<App />);
+    await openDevTools();
     await user.press(await screen.findByTestId('load-button'));
     expect(text(await screen.findByTestId('load-status'))).toMatch(/^Load: corrupt\. Your saved run is damaged/);
     expect(await AsyncStorage.getItem(RUN_KEY)).toBe(damaged);
+  });
+
+  it('damages the saved run on request (QA aid for the corrupt-save notice)', async () => {
+    const user = userEvent.setup();
+    await render(<HelloScreen />);
+    await user.press(screen.getByTestId('damage-button'));
+    expect(text(await screen.findByTestId('damage-status'))).toBe('Damaged the saved run');
+    await user.press(screen.getByTestId('load-button'));
+    expect(text(await screen.findByTestId('load-status'))).toMatch(/^Load: corrupt\. /);
+    expect(await AsyncStorage.getItem(RUN_KEY)).toBe('{"version":1,"damaged":true}');
   });
 
   it('reports a failing storage as unavailable and a failed save with the core message', async () => {
@@ -122,6 +140,7 @@ describe('hello screen adapters', () => {
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
     jest.spyOn(PixelRatio, 'getFontScale').mockReturnValue(1.5);
     await render(<App />);
+    await openDevTools();
     await waitFor(() => expect(text(screen.getByTestId('a11y-line'))).toBe('Reduce motion: on / Font scale: 1.5'));
   });
 });

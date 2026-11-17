@@ -1,6 +1,7 @@
 import { CONTENT } from '@webgames/core/content';
 import { createAsyncRunStorage, type AsyncStorageLike } from '@webgames/core/platform/asyncRunStorage';
-import { getLang, setLang, t, type Lang } from '@webgames/core/platform/i18n';
+import { RUN_STORAGE_KEY } from '@webgames/core/platform/runStorage';
+import { setLang, t, type Lang } from '@webgames/core/platform/i18n';
 import { hashRun } from '@webgames/core/sim/run/codec';
 import type { RunState } from '@webgames/core/sim/run/types';
 import { useMemo, useState } from 'react';
@@ -8,6 +9,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { DEFAULT_SEED, runHelloWithState, type HelloResult } from './helloCore';
 import { useA11ySettings } from './platform/a11ySettings';
+import { useLang } from './platform/LangContext';
 import { defaultAsyncStorage } from './platform/asyncStorage';
 
 type Outcome = { ok: true; value: HelloResult; run: RunState } | { ok: false; error: string };
@@ -30,13 +32,11 @@ export default function HelloScreen({
 }) {
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const [status, setStatus] = useState<{ id: 'save' | 'load'; text: string } | null>(null);
+  const [status, setStatus] = useState<{ id: 'save' | 'load' | 'damage'; text: string } | null>(null);
   const a11y = useA11ySettings();
-  const runStorage = useMemo(
-    () => createAsyncRunStorage(storage === undefined ? defaultAsyncStorage() : storage, CONTENT),
-    [storage],
-  );
-  const lang = getLang();
+  const rawStorage = useMemo(() => (storage === undefined ? defaultAsyncStorage() : storage), [storage]);
+  const runStorage = useMemo(() => createAsyncRunStorage(rawStorage, CONTENT), [rawStorage]);
+  const lang = useLang();
 
   const onRun = () => {
     try {
@@ -54,6 +54,16 @@ export default function HelloScreen({
       id: 'save',
       text: result.ok ? `Saved: ${hashRun(outcome.run)}` : t('save.failed', { reason: result.error }), // dev screen
     });
+  };
+
+  /** QA aid: writes text that fails validation into the run slot, to try the title's corrupt-save notice. */
+  const onDamage = async () => {
+    try {
+      await rawStorage?.setItem(RUN_STORAGE_KEY, '{"version":1,"damaged":true}');
+      setStatus({ id: 'damage', text: 'Damaged the saved run' }); // dev screen
+    } catch (e) {
+      setStatus({ id: 'damage', text: `Damage failed: ${e instanceof Error ? e.message : String(e)}` }); // dev screen
+    }
   };
 
   const onLoad = async () => {
@@ -132,6 +142,9 @@ export default function HelloScreen({
             <Text style={styles.buttonText}>Load</Text>
           </Pressable>
         </View>
+        <Pressable style={styles.button} onPress={onDamage} accessibilityRole="button" testID="damage-button">
+          <Text style={styles.buttonText}>Damage saved run</Text>
+        </Pressable>
         {status && (
           <Text style={styles.line} selectable testID={`${status.id}-status`}>
             {status.text}

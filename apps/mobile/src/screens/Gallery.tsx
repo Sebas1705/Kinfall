@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CreatureSprite } from '../art/CreatureSprite';
 import { ElementIcon } from '../art/ElementIcon';
+import { useLang } from '../platform/LangContext';
 import { useTheme } from '../theme';
 
 const SCALES = [2, 3, 4] as const;
@@ -15,6 +16,7 @@ const SCALES = [2, 3, 4] as const;
  */
 export default function Gallery({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
+  useLang(); // names follow the language
   return (
     <ScrollView style={[styles.screen, { backgroundColor: theme.bg }]} testID="gallery">
       <View style={styles.body}>

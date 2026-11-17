@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-lib
 import { Linking } from 'react-native';
 
 import App from '../../App';
+import { openDevTools } from '../../test-support/devTools';
 import SelfTest from '../../src/screens/SelfTest';
 
 // Counts come straight from core's golden files (the ones the Node tests replay), read here
@@ -125,19 +126,20 @@ describe('Self test wiring in App', () => {
   it('is reachable from the hello screen, runs on press and goes back', async () => {
     const user = userEvent.setup();
     await render(<App />);
+    await openDevTools(user);
     await user.press(await screen.findByRole('button', { name: 'Self test' }));
     expect(screen.getByTestId('selftest')).toBeTruthy();
     expect(screen.queryByTestId('selftest-verdict')).toBeNull();
     await user.press(screen.getByRole('button', { name: 'Run self test' }));
     expect(textOf(await screen.findByTestId('selftest-verdict'))).toBe('PASS');
     await user.press(screen.getByRole('button', { name: 'Back' }));
-    expect(await screen.findByLabelText('Seed')).toBeTruthy();
+    expect(await screen.findByTestId('run-button')).toBeTruthy();
   });
 
   it('does not auto-run without the env flag or a selftest URL', async () => {
     expect(process.env.EXPO_PUBLIC_SELFTEST_AUTORUN).toBeUndefined();
     await render(<App />);
-    expect(await screen.findByLabelText('Seed')).toBeTruthy();
+    expect(await screen.findByTestId('title-screen')).toBeTruthy();
     // Give any stray async start a chance to show up.
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByTestId('selftest')).toBeNull();
@@ -161,7 +163,9 @@ describe('Self test wiring in App', () => {
     expect(textOf(await screen.findByTestId('selftest-verdict'))).toBe('PASS');
     expect(selftestLogs()).toHaveLength(2);
 
+    // Back from an auto-run lands on the title (the self test was opened over it).
     await user.press(screen.getByRole('button', { name: 'Back' }));
+    await openDevTools(user);
     await user.press(await screen.findByRole('button', { name: 'Self test' }));
     expect(screen.getByTestId('selftest')).toBeTruthy();
     await new Promise((r) => setTimeout(r, 50));

@@ -5,6 +5,7 @@ import { simulateRun } from '@webgames/core/sim/run/bot';
 import { hashRun } from '@webgames/core/sim/run/codec';
 
 import App from '../App';
+import { openDevTools } from '../test-support/devTools';
 
 // Computed straight from core, independently of the app's helper, so a resolution or wiring
 // regression (wrong module, wrong starter, wrong seed) shows up as a hash mismatch.
@@ -18,6 +19,7 @@ describe('hello core screen', () => {
   it('shows the core run hash for the default seed golden-0', async () => {
     const user = userEvent.setup();
     await render(<App />);
+    await openDevTools();
     expect((await screen.findByLabelText('Seed')).props.value).toBe('golden-0');
 
     await user.press(screen.getByRole('button', { name: 'Run' }));
@@ -37,6 +39,7 @@ describe('hello core screen', () => {
   it('runs the seed typed in the field', async () => {
     const user = userEvent.setup();
     await render(<App />);
+    await openDevTools();
     const input = await screen.findByLabelText('Seed');
     await user.clear(input);
     await user.type(input, 'golden-1');

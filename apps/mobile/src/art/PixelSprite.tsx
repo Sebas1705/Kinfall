@@ -30,7 +30,7 @@ function PixelSpriteImpl({ data, scale, flip, accessibilityLabel, testID }: Pixe
         ? { accessible: true, accessibilityRole: 'image' as const, accessibilityLabel }
         : { accessible: false, importantForAccessibility: 'no-hide-descendants' as const, accessibilityElementsHidden: true })}
     >
-      <Canvas style={{ width: px, height: px }} pointerEvents="none">
+      <Canvas style={{ width: px, height: px }} pointerEvents="none" androidWarmup>
         {data.rects.map((r, i) => (
           <Rect key={i} x={r.x * s} y={r.y * s} width={r.w * s} height={r.h * s} color={r.color} antiAlias={false} />
         ))}
