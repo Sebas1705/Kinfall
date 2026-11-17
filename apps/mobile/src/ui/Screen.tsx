@@ -18,6 +18,8 @@ import { useLayout } from './windowSize';
 const REVEAL_MARGIN = 16;
 /** Top padding of the scrolling content (dp); measured positions are relative to the body below it. */
 const PAD_TOP = 16;
+/** How long after a reveal a content size change still repeats it (ms). */
+const PENDING_MS = 1000;
 /** Largest share of the window height the pinned footer may take; it scrolls inside beyond that. */
 export const FOOTER_MAX_SHARE = 0.55;
 
@@ -73,21 +75,41 @@ function RevealScroll({ children, testID, scrollRef, contentPadding, maxWidth, s
     [scrollRef],
   );
 
+  /** The element of the last reveal: revealed again once the content size has caught up. */
+  const pending = useRef<unknown>(null);
+
   const reveal = useCallback<Reveal>(
     (target) => {
       const t = target as Measurable | null;
       const sv = scroll.current;
       if (!t || !sv || !body.current || typeof t.measureLayout !== 'function') return;
+      pending.current = { target, at: Date.now() };
       t.measureLayout(
         body.current,
         (_x, y, _w, h) => {
           const to = revealScrollY(y + contentPadding.top, h, offset.current, viewport.current);
-          if (to !== null) sv.scrollTo({ y: to, animated: false });
+          if (to !== null) {
+            sv.scrollTo({ y: to, animated: false });
+            offset.current = to;
+          }
         },
         () => {},
       );
     },
     [contentPadding.top],
+  );
+
+  // A panel that just appeared near the end can lay out before the scroll view knows the new
+  // content height, and a scroll past the old end is clamped: reveal it again on the size change.
+  const contentSizeChanged = useCallback(
+    (w: number, h: number) => {
+      const p = pending.current as { target: unknown; at: number } | null;
+      pending.current = null;
+      if (p && Date.now() - p.at < PENDING_MS) reveal(p.target);
+      pending.current = null;
+      onContentSizeChange?.(w, h);
+    },
+    [reveal, onContentSizeChange],
   );
 
   return (
@@ -109,7 +131,7 @@ function RevealScroll({ children, testID, scrollRef, contentPadding, maxWidth, s
           offset.current = e.nativeEvent.contentOffset.y;
         }}
         scrollEventThrottle={32}
-        onContentSizeChange={onContentSizeChange}
+        onContentSizeChange={contentSizeChanged}
         testID={testID}
       >
         <View ref={body} style={[styles.body, { maxWidth }]}>
