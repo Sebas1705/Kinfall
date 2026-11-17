@@ -282,6 +282,7 @@ describe('run strings', () => {
     'event.mystery.open',
     'event.mystery.leave',
     'end.newRun',
+    'end.toTitle',
     'save.dismiss',
   ];
   const labelKeys: StringKey[] = [
@@ -319,7 +320,7 @@ describe('run strings', () => {
   });
   it('has device wording of the save notes for the mobile app, without "browser"', () => {
     for (const lang of ['en', 'es'] as const) {
-      for (const k of ['title.savesNoteDevice', 'title.savesUnavailableDevice', 'run.placeholder'] as const) {
+      for (const k of ['title.savesNoteDevice', 'title.savesUnavailableDevice', 'end.toTitle'] as const) {
         expect(STRINGS[lang][k], `${lang}.${k}`).toBeTruthy();
         expect(STRINGS[lang][k], `${lang}.${k}`).not.toMatch(/browser|navegador/i);
       }

@@ -1,7 +1,7 @@
-// The Run route: one screen that draws the current run phase. The map (7a) and the battle (7b) are
-// built; event and end phases show a marked placeholder until 7c plugs their screens into
-// `PHASE_VIEWS`. Android back never leaves silently: it opens the abandon confirmation (and a second
-// back closes it), on the map and in battle alike.
+// The Run route: one screen that draws the current run phase: the map, a battle, an event
+// (recruit, shrine, cache, mystery) or the end of the run (`PHASE_VIEWS`). Android back never
+// leaves a run silently: it opens the abandon confirmation (and a second back closes it). On the
+// end screen the run is already over, so back goes straight to the title, like "Back to start".
 //
 // A battle's final turn moves the run on at once (it is applied and saved before its animation), so
 // the battle screen stays up until that turn has played; then the next phase shows, with the run log
@@ -9,10 +9,10 @@
 import { t } from '@webgames/core/platform/i18n';
 import type { RunState } from '@webgames/core/sim/run/types';
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { BackHandler, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
+import { BackHandler, StyleSheet, Text, type ScrollViewInstance } from 'react-native';
 
 import { useLang } from '../platform/LangContext';
-import { phaseHeading, type RunView } from '../run/session';
+import type { RunView } from '../run/session';
 import { useRunSession } from '../run/useRunSession';
 import { useTheme } from '../theme';
 import { ConfirmPanel } from '../ui/ConfirmPanel';
@@ -20,30 +20,23 @@ import { RunLogPanel } from '../ui/RunLogPanel';
 import { SaveBanner } from '../ui/SaveBanner';
 import { Screen } from '../ui/Screen';
 import { BattleView } from './BattleView';
+import { EndView } from './EndView';
+import { EventView } from './EventView';
 import { MapView } from './MapView';
 
 /** Props every phase view gets. */
 export interface PhaseViewProps {
   run: RunState;
+  /** The abandon confirmation is open (views then leave screen-reader focus alone). */
+  confirming: boolean;
+  /** Clears the save and leaves for the title (the end screen's "Back to start"). */
+  onToTitle: () => void;
 }
 
-/** A phase without its own screen yet: named after the node, with the run log; no back button (web T12). */
-export function PhasePlaceholder({ run }: PhaseViewProps) {
-  const theme = useTheme();
-  return (
-    <View style={[styles.placeholder, { borderColor: theme.border, backgroundColor: theme.surface }]} testID="phase-placeholder">
-      <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="placeholder-heading">
-        {phaseHeading(run)}
-      </Text>
-      <Text style={[styles.text, { color: theme.muted }]}>{t('run.placeholder')}</Text>
-    </View>
-  );
-}
-
-/** Screens of the event and end phases; 7c replaces these entries. */
+/** Screens of the event and end phases. Like the web, they have no abandon button (Android back still asks). */
 export const PHASE_VIEWS: Record<Exclude<RunView, 'map' | 'battle'>, ComponentType<PhaseViewProps>> = {
-  event: PhasePlaceholder,
-  end: PhasePlaceholder,
+  event: EventView,
+  end: EndView,
 };
 
 export interface RunScreenProps {
@@ -64,10 +57,22 @@ export function RunScreen({ onExit }: RunScreenProps) {
   else if (battleRun !== null && (!run || run.seed !== battleRun.seed)) setBattleRun(null);
   const onBattleEnd = useCallback(() => setBattleRun(null), []);
 
+  const inBattle = battleRun !== null;
+  const shownView: RunView | null = inBattle ? 'battle' : view;
+
   const confirmingRef = useRef(confirming);
   confirmingRef.current = confirming;
+  const viewRef = useRef(shownView);
+  viewRef.current = shownView;
 
   const askAbandon = useCallback(() => setConfirming(true), []);
+
+  /** Drops the run and its save, then leaves for the title. */
+  const onAbandon = useCallback(() => {
+    setConfirming(false);
+    void session.abandon();
+    onExit();
+  }, [session, onExit]);
 
   // The confirmation sits at the end of the screen, next to where the Abandon button was. While it
   // is open every content size change (it appearing, its text wrapping at large font scales)
@@ -79,21 +84,19 @@ export function RunScreen({ onExit }: RunScreenProps) {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (confirmingRef.current) setConfirming(false);
+      else if (viewRef.current === 'end') onAbandon();
       else askAbandon();
       return true; // handled: never pop the Run route silently
     });
     return () => sub.remove();
-  }, [askAbandon]);
+  }, [askAbandon, onAbandon]);
 
-  const onAbandon = () => {
-    setConfirming(false);
-    void session.abandon();
-    onExit();
-  };
+  // A new phase starts at the top of the screen (its heading), not where the last one was scrolled.
+  useEffect(() => {
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [shownView]);
 
-  if (!run || !view) return <Screen testID="run-screen-empty">{null}</Screen>;
-  const inBattle = battleRun !== null;
-  const shownView: RunView = inBattle ? 'battle' : view;
+  if (!run || !shownView) return <Screen testID="run-screen-empty">{null}</Screen>;
 
   let body: ReactNode;
   if (battleRun) {
@@ -102,7 +105,7 @@ export function RunScreen({ onExit }: RunScreenProps) {
     body = <MapView run={run} trail={snapshot.trail} onPick={(id) => session.pickNode(id)} onAbandon={askAbandon} confirming={confirming} />;
   } else if (shownView !== 'battle') {
     const Phase = PHASE_VIEWS[shownView];
-    body = <Phase run={run} />;
+    body = <Phase run={run} confirming={confirming} onToTitle={onAbandon} />;
   }
 
   return (
@@ -129,8 +132,5 @@ export function RunScreen({ onExit }: RunScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  placeholder: { borderWidth: 2, borderStyle: 'dashed', borderRadius: 10, padding: 16, gap: 8 },
-  heading: { fontSize: 24, fontWeight: '700' },
-  text: { fontSize: 16 },
   seed: { fontSize: 14 },
 });

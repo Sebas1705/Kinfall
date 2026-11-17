@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, render, screen, userEvent, waitFor, within } from '@testing-library/react-native';
 import { CONTENT } from '@webgames/core/content';
-import { nodeTypeLabel, setLang } from '@webgames/core/platform/i18n';
+import { nodeTypeLabel, setLang, t } from '@webgames/core/platform/i18n';
 import { serializeRun } from '@webgames/core/sim/run/codec';
 import { availableNodes, maxHpOf } from '@webgames/core/sim/run/run';
 import type { RunState } from '@webgames/core/sim/run/types';
@@ -141,7 +141,7 @@ describe('map screen', () => {
     expect(storage.data.get(RUN_KEY)).toBe(serializeRun(session.getSnapshot().run!));
   });
 
-  it('applies an event pick: saves, then shows the placeholder named after the node with a fresh log line', async () => {
+  it('applies an event pick: saves, then shows the event screen with a fresh log line', async () => {
     const user = userEvent.setup();
     const start = freshRun(SEED);
     const map = start.maps[0]!;
@@ -154,11 +154,12 @@ describe('map screen', () => {
     const session = await resumed({ ...start, at: at.id, stats: { ...start.stats, nodesCleared: 1 } }, storage);
     await renderRun(session);
     await user.press(screen.getByTestId(`node-${node.id}`));
-    expect(screen.getByTestId('phase-placeholder')).toBeTruthy();
-    expect(screen.getByTestId('placeholder-heading').props.children).toBe(nodeTypeLabel(node.type));
+    expect(screen.getByTestId('event-screen')).toBeTruthy();
+    expect(screen.getByTestId('event-heading').props.children).toBe(t(`event.${node.type as 'shrine' | 'cache' | 'mystery'}.title`));
     expect(screen.queryByTestId('map-screen')).toBeNull();
-    // No back button on the placeholder (matching the web).
+    // No back or abandon button on an event (matching the web); Android back still asks.
     expect(screen.queryByRole('button', { name: /back/i })).toBeNull();
+    expect(screen.queryByTestId('abandon')).toBeNull();
     const fresh = screen.getByTestId('run-log-fresh');
     expect(fresh.props.accessibilityLiveRegion).toBe('polite');
     expect(within(fresh).getByText(`You head to: ${nodeTypeLabel(node.type)}.`)).toBeTruthy();
@@ -266,8 +267,8 @@ describe('map screen', () => {
   });
 });
 
-describe('placeholder phases', () => {
-  it('a resumed non-map save shows the same placeholder, without the map', async () => {
+describe('event and end phases', () => {
+  it('a resumed recruit save opens the recruit screen itself, without the map', async () => {
     const storage = memoryStorage();
     const first = makeSession(storage);
     // A seed whose first battle is won in one turn of the first move: the run stands on a recruit.
@@ -281,18 +282,37 @@ describe('placeholder phases', () => {
     const session = makeSession(storage);
     expect(await session.resume()).toBe(true);
     await renderRun(session);
-    expect(screen.getByTestId('placeholder-heading').props.children).toBe(nodeTypeLabel(node.type));
-    expect(screen.getByText('Coming soon: this part of the run is not playable in the app yet.')).toBeTruthy();
+    expect(screen.getByTestId('run-event')).toBeTruthy();
+    expect(screen.getByTestId('event-heading').props.children).toBe('A creature wants to join');
     expect(screen.queryByTestId('map-screen')).toBeNull();
     // Nothing is fresh after a resume: the log is empty, so no panel.
     expect(screen.queryByTestId('run-log')).toBeNull();
   });
 
-  it('names an ended run "Run over"', async () => {
+  it('an ended run shows the end screen', async () => {
     const session = await resumed({ ...freshRun(SEED), phase: { kind: 'ended', result: 'lost' } });
     await renderRun(session);
-    expect(screen.getByTestId('placeholder-heading').props.children).toBe('Run over');
+    expect(screen.getByTestId('end-heading').props.children).toBe('Run lost');
     expect(session.getSnapshot().view).toBe('end');
+  });
+
+  it('a new phase starts scrolled to the top', async () => {
+    const scrollTo = jest.fn();
+    const { ScrollView } = jest.requireActual<typeof import('react-native')>('react-native');
+    jest.spyOn(ScrollView.prototype as unknown as { scrollTo: () => void }, 'scrollTo').mockImplementation(scrollTo);
+    const user = userEvent.setup();
+    const start = freshRun(SEED);
+    const map = start.maps[0]!;
+    const byId = new Map(map.layers.flat().map((n) => [n.id, n]));
+    const at = map.layers[0]!.find((n) => n.next.some((id) => byId.get(id)!.type === 'cache' || byId.get(id)!.type === 'shrine' || byId.get(id)!.type === 'mystery'));
+    if (!at) throw new Error('the seed has no event at step 2');
+    const node = byId.get(at.next.find((id) => ['cache', 'shrine', 'mystery'].includes(byId.get(id)!.type))!)!;
+    const session = await resumed({ ...start, at: at.id, stats: { ...start.stats, nodesCleared: 1 } });
+    await renderRun(session);
+    scrollTo.mockClear();
+    await user.press(screen.getByTestId(`node-${node.id}`));
+    expect(screen.getByTestId('event-screen')).toBeTruthy();
+    expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
   });
 });
 

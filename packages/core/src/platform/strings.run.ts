@@ -26,8 +26,8 @@ export const runEn = {
   // Mobile app wording of the two notes above (saves live on the device, not in a browser).
   'title.savesNoteDevice': 'Saves live on this device; clearing the app data or uninstalling it deletes them.',
   'title.savesUnavailableDevice': 'This device is not saving data right now, so this run will not be saved.',
-  // Mobile app: a run phase whose screen is not built yet.
-  'run.placeholder': 'Coming soon: this part of the run is not playable in the app yet.',
+  // Mobile app end screen: leave the finished run for the start screen.
+  'end.toTitle': 'Back to start',
   // Mobile app battle: a move's power, shown next to its element and focus cost.
   'battle.power': 'Power {power}',
 
@@ -140,7 +140,7 @@ export const runEs: Record<keyof typeof runEn, string> = {
   'title.corrupt': 'Tu partida guardada está dañada y no se puede cargar: {reason}',
   'title.savesNoteDevice': 'Las partidas se guardan en este dispositivo; borrar los datos de la app o desinstalarla las elimina.',
   'title.savesUnavailableDevice': 'Este dispositivo no está guardando datos ahora mismo, así que esta partida no se guardará.',
-  'run.placeholder': 'Próximamente: esta parte de la partida aún no se puede jugar en la app.',
+  'end.toTitle': 'Volver al inicio',
   'battle.power': 'Potencia {power}',
 
   'zone.0': 'Marjal de Ceniza',
