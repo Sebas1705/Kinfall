@@ -19,6 +19,7 @@ import { useLang } from '../platform/LangContext';
 import { useRunSession } from '../run/useRunSession';
 import { TOUCH, useTheme, type Theme } from '../theme';
 import { PartyPanel } from '../ui/PartyPanel';
+import { useLayout } from '../ui/windowSize';
 import type { PhaseViewProps } from './RunScreen';
 
 type PressableRef = ComponentRef<typeof Pressable>;
@@ -95,8 +96,9 @@ function ChoiceButton({ choice, index, onPress, theme, ref }: {
   );
 }
 
-export function EventView({ run, confirming }: PhaseViewProps) {
+export function EventView({ run, confirming, confirmPanel, log }: PhaseViewProps) {
   const theme = useTheme();
+  const { twoPane } = useLayout();
   useLang();
   const { session } = useRunSession();
   const model = buildEventModel(run, CONTENT);
@@ -119,8 +121,9 @@ export function EventView({ run, confirming }: PhaseViewProps) {
     if (session.act(action).ok) acted.current = run;
   };
 
-  return (
-    <View style={styles.event} testID="event-screen">
+  const party = <PartyPanel party={model.party} speciesIds={run.party.map((m) => m.speciesId)} souls={model.souls} />;
+  const main = (
+    <>
       <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="event-heading">
         {model.title}
       </Text>
@@ -145,13 +148,37 @@ export function EventView({ run, confirming }: PhaseViewProps) {
           />
         ))}
       </View>
-      <PartyPanel party={model.party} speciesIds={run.party.map((m) => m.speciesId)} souls={model.souls} />
+      {/* Android back opened it: it shows by the choices it would cut short. */}
+      {confirming ? (confirmPanel ?? null) : null}
+    </>
+  );
+
+  if (twoPane) {
+    return (
+      <View style={[styles.event, styles.panes]} testID="event-screen">
+        <View style={[styles.pane, styles.paneMain]}>{main}</View>
+        <View style={[styles.pane, styles.paneSide]} testID="event-side">
+          {party}
+          {log}
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.event} testID="event-screen">
+      {main}
+      {party}
+      {log}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   event: { gap: 16 },
+  panes: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
+  pane: { gap: 16, minWidth: 0 },
+  paneMain: { flex: 3 },
+  paneSide: { flex: 2 },
   heading: { fontSize: 24, fontWeight: '700' },
   desc: { fontSize: 16 },
   note: { fontSize: 16, fontWeight: '600', borderLeftWidth: 4, paddingLeft: 10 },

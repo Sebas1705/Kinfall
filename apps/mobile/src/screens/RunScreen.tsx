@@ -31,6 +31,10 @@ export interface PhaseViewProps {
   confirming: boolean;
   /** Clears the save and leaves for the title (the end screen's "Back to start"). */
   onToTitle: () => void;
+  /** The abandon confirmation while `confirming` (null otherwise); event views show it by their choices. */
+  confirmPanel?: ReactNode;
+  /** The run log panel, placed by the view (below the content, or in the side pane of two panes). */
+  log?: ReactNode;
 }
 
 /** Screens of the event and end phases. Like the web, they have no abandon button (Android back still asks). */
@@ -74,13 +78,6 @@ export function RunScreen({ onExit }: RunScreenProps) {
     onExit();
   }, [session, onExit]);
 
-  // The confirmation sits at the end of the screen, next to where the Abandon button was. While it
-  // is open every content size change (it appearing, its text wrapping at large font scales)
-  // scrolls it fully into view.
-  const onContentSizeChange = useCallback(() => {
-    if (confirmingRef.current) scroll.current?.scrollToEnd({ animated: false });
-  }, []);
-
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (confirmingRef.current) setConfirming(false);
@@ -98,35 +95,66 @@ export function RunScreen({ onExit }: RunScreenProps) {
 
   if (!run || !shownView) return <Screen testID="run-screen-empty">{null}</Screen>;
 
-  let body: ReactNode;
+  // The confirmation shows where its trigger was: in place of the Abandon button (map, battle), or
+  // by the choices of an event; it scrolls itself into view (ConfirmPanel).
+  const confirmPanel = confirming ? (
+    <ConfirmPanel
+      question={t('map.abandonConfirm')}
+      yes={t('map.abandonYes')}
+      no={t('map.abandonNo')}
+      onYes={onAbandon}
+      onNo={() => setConfirming(false)}
+      testID="abandon-confirm"
+    />
+  ) : null;
+  const seedLine = (
+    <Text style={[styles.seed, { color: theme.muted }]} testID="run-seed">
+      {t('battle.seed', { seed: run.seed })}
+    </Text>
+  );
+
+  // The battle draws its own screen (its layout may pin the choices at the bottom) and its own
+  // log; the run log comes back with the next phase.
   if (battleRun) {
-    body = <BattleView run={battleRun} onEnd={onBattleEnd} onAbandon={askAbandon} confirming={confirming} />;
-  } else if (shownView === 'map') {
-    body = <MapView run={run} trail={snapshot.trail} onPick={(id) => session.pickNode(id)} onAbandon={askAbandon} confirming={confirming} />;
+    return (
+      <BattleView
+        run={battleRun}
+        onEnd={onBattleEnd}
+        onAbandon={askAbandon}
+        confirming={confirming}
+        confirmPanel={confirmPanel}
+        header={<SaveBanner />}
+        trailer={seedLine}
+        scrollRef={scroll}
+        testID="run-battle"
+      />
+    );
+  }
+
+  const log = <RunLogPanel />;
+  let body: ReactNode;
+  if (shownView === 'map') {
+    body = (
+      <MapView
+        run={run}
+        trail={snapshot.trail}
+        onPick={(id) => session.pickNode(id)}
+        onAbandon={askAbandon}
+        confirming={confirming}
+        confirmPanel={confirmPanel}
+        log={log}
+      />
+    );
   } else if (shownView !== 'battle') {
     const Phase = PHASE_VIEWS[shownView];
-    body = <Phase run={run} confirming={confirming} onToTitle={onAbandon} />;
+    body = <Phase run={run} confirming={confirming} onToTitle={onAbandon} confirmPanel={confirmPanel} log={log} />;
   }
 
   return (
-    <Screen ref={scroll} testID={`run-${shownView}`} onContentSizeChange={onContentSizeChange}>
+    <Screen ref={scroll} testID={`run-${shownView}`}>
       <SaveBanner />
       {body}
-      {/* The battle has its own log; the run log comes back with the next phase. */}
-      {inBattle ? null : <RunLogPanel />}
-      {confirming ? (
-        <ConfirmPanel
-          question={t('map.abandonConfirm')}
-          yes={t('map.abandonYes')}
-          no={t('map.abandonNo')}
-          onYes={onAbandon}
-          onNo={() => setConfirming(false)}
-          testID="abandon-confirm"
-        />
-      ) : null}
-      <Text style={[styles.seed, { color: theme.muted }]} testID="run-seed">
-        {t('battle.seed', { seed: run.seed })}
-      </Text>
+      {seedLine}
     </Screen>
   );
 }

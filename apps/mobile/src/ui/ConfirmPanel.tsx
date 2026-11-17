@@ -1,7 +1,10 @@
+import { useRef, type ComponentRef } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { useAnnounce } from '../platform/announce';
 import { useTheme } from '../theme';
 import { Button } from './Button';
+import { useReveal } from './Screen';
 
 export interface ConfirmPanelProps {
   question: string;
@@ -15,14 +18,27 @@ export interface ConfirmPanelProps {
 
 /**
  * The second step of an inline two-step confirmation (no system Alert): the question, announced
- * when it appears, then the safe choice first and the destructive one second.
+ * when it appears, then the safe choice first and the destructive one second. Screens show it in
+ * place of the button that opened it, and it scrolls itself fully into view whenever it appears or
+ * changes size (text wrapping at large font scales), also when Android back opened it with that
+ * button scrolled away.
  */
 export function ConfirmPanel({ question, yes, no, onYes, onNo, testID }: ConfirmPanelProps) {
   const theme = useTheme();
+  const reveal = useReveal();
+  const panel = useRef<ComponentRef<typeof View>>(null);
+  // iOS has no live regions: the question is announced once when the panel opens.
+  const opened = useRef({});
+  useAnnounce(opened.current, question);
   // Side by side at default text size; stacked when large text would squeeze them.
   const basis = { flexBasis: 140 * Math.max(1, useWindowDimensions().fontScale) };
   return (
-    <View style={[styles.panel, { borderColor: theme.danger, backgroundColor: theme.surface }]} testID={testID}>
+    <View
+      ref={panel}
+      style={[styles.panel, { borderColor: theme.danger, backgroundColor: theme.surface }]}
+      onLayout={() => reveal(panel.current)}
+      testID={testID}
+    >
       <Text style={[styles.question, { color: theme.text }]} accessibilityRole="alert" accessibilityLiveRegion="assertive">
         {question}
       </Text>

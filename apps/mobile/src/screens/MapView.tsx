@@ -1,15 +1,18 @@
 // Map screen: the pure map model (buildMapModel, in @webgames/core) drawn with React Native.
 // Layers stack vertically, step 1 first and the boss last; nodes wrap in rows. Every node names its
-// type and state in text (never colour alone) and is a 48dp button.
+// type and state in text (never colour alone) and is a 48dp button. In two panes (tablets,
+// foldables, landscape) the party and the run log sit on the left and the map on the right.
 import { CONTENT } from '@webgames/core/content';
 import { buildMapModel, type MapModel } from '@webgames/core/models/map';
 import { t } from '@webgames/core/platform/i18n';
 import type { NodeType, RunState } from '@webgames/core/sim/run/types';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { TOUCH, useTheme, type Theme } from '../theme';
 import { Button } from '../ui/Button';
 import { PartyPanel } from '../ui/PartyPanel';
+import { useLayout } from '../ui/windowSize';
 
 /** Type glyphs (text presentation): the label text always accompanies them. Same as the web map. */
 export const GLYPH: Record<NodeType, string> = {
@@ -69,21 +72,28 @@ export interface MapViewProps {
   onAbandon: () => void;
   /** Hides the abandon button while its confirmation is open. */
   confirming: boolean;
+  /** The abandon confirmation, drawn where the Abandon button was while `confirming`. */
+  confirmPanel?: ReactNode;
+  /** The run log panel (after the map, or under the party in two panes). */
+  log?: ReactNode;
 }
 
-export function MapView({ run, trail, onPick, onAbandon, confirming }: MapViewProps) {
+export function MapView({ run, trail, onPick, onAbandon, confirming, confirmPanel, log }: MapViewProps) {
   const theme = useTheme();
+  const { twoPane } = useLayout();
   // Node width grows with the font scale, so large text gets one node per row instead of words
   // broken mid-way (two per row at the default size on a 360dp phone).
   const { fontScale } = useWindowDimensions();
   const basis = NODE_BASIS * Math.max(1, fontScale);
   const model = buildMapModel(run, CONTENT, trail);
-  return (
-    <View style={styles.map} testID="map-screen">
-      <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="map-heading">
-        {t('map.zone', { n: model.zoneNo, name: model.zoneName })}
-      </Text>
-      <PartyPanel party={model.party} speciesIds={run.party.map((m) => m.speciesId)} souls={model.souls} />
+  const heading = (
+    <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="map-heading">
+      {t('map.zone', { n: model.zoneNo, name: model.zoneName })}
+    </Text>
+  );
+  const party = <PartyPanel party={model.party} speciesIds={run.party.map((m) => m.speciesId)} souls={model.souls} />;
+  const abandon = confirming ? (confirmPanel ?? null) : <Button label={t('map.abandon')} onPress={onAbandon} testID="abandon" />;
+  const layers = (
       <View style={styles.layers}>
         {model.layers.map((layer) => (
           <View key={layer.layer} style={styles.layer} testID={`layer-${layer.layer}`}>
@@ -98,13 +108,41 @@ export function MapView({ run, trail, onPick, onAbandon, confirming }: MapViewPr
           </View>
         ))}
       </View>
-      {confirming ? null : <Button label={t('map.abandon')} onPress={onAbandon} testID="abandon" />}
+  );
+  if (twoPane) {
+    return (
+      <View style={styles.map} testID="map-screen">
+        {heading}
+        <View style={styles.panes} testID="map-two-pane">
+          <View style={[styles.pane, styles.paneSide]}>
+            {party}
+            {log}
+          </View>
+          <View style={[styles.pane, styles.paneMain]}>
+            {layers}
+            {abandon}
+          </View>
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.map} testID="map-screen">
+      {heading}
+      {party}
+      {layers}
+      {abandon}
+      {log}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   map: { gap: 16 },
+  panes: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
+  pane: { gap: 16, minWidth: 0 },
+  paneSide: { flex: 2 },
+  paneMain: { flex: 3 },
   heading: { fontSize: 24, fontWeight: '700' },
   layers: { gap: 12 },
   layer: { gap: 6 },

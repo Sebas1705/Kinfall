@@ -3,7 +3,7 @@
     "name": "Webgames",
     "slug": "webgames",
     "version": "0.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "scheme": "webgames",
     "android": {

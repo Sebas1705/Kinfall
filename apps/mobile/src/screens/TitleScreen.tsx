@@ -17,6 +17,7 @@ import { Button } from '../ui/Button';
 import { ConfirmPanel } from '../ui/ConfirmPanel';
 import { LangToggle } from '../ui/LangToggle';
 import { Screen } from '../ui/Screen';
+import { useLayout } from '../ui/windowSize';
 
 export interface TitleScreenProps {
   /** Called once a run is ready to show (new run started, or a save resumed). */
@@ -48,7 +49,7 @@ function StarterCard({ id, checked, onSelect, theme }: { id: string; checked: bo
         styles.card,
         {
           backgroundColor: theme.surface,
-          borderColor: checked ? theme.accent : pressed ? theme.focus : theme.border,
+          borderColor: checked ? theme.accent : pressed ? theme.focus : theme.outline,
           borderWidth: checked ? 3 : 2,
         },
       ]}
@@ -74,6 +75,7 @@ function StarterCard({ id, checked, onSelect, theme }: { id: string; checked: bo
 export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRandomSeed }: TitleScreenProps) {
   const { session, snapshot } = useRunSession();
   const theme = useTheme();
+  const { twoPane } = useLayout();
   useLang();
   const starters = CONTENT.starters;
   const [seed, setSeed] = useState(snapshot.titleSeed);
@@ -116,8 +118,8 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
     await session.discardSave();
   };
 
-  return (
-    <Screen testID="title-screen">
+  const intro = (
+    <>
       <View style={styles.topRow}>
         <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header">
           {t('screen.title')}
@@ -166,11 +168,17 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
           accessibilityLabelledBy="title-seed-label"
           accessibilityHint={t('title.seedHint')}
           testID="seed-input"
-          style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surface }]}
+          style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.surface }]}
         />
-        <Text style={[styles.hint, { color: theme.muted }]}>{t('title.seedHint')}</Text>
+        {/* Read once, as the field's hint; hidden here so screen readers do not repeat it. */}
+        <Text style={[styles.hint, { color: theme.muted }]} importantForAccessibility="no" accessibilityElementsHidden>
+          {t('title.seedHint')}
+        </Text>
       </View>
-
+    </>
+  );
+  const pickAndStart = (
+    <>
       <View style={styles.starters} accessibilityRole="radiogroup" accessibilityLabel={t('title.starter')} testID="starters">
         <Text style={[styles.label, { color: theme.text }]} accessibilityRole="header">
           {t('title.starter')}
@@ -181,7 +189,10 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
       </View>
 
       <Button label={t('title.newRun')} variant="primary" onPress={onNewRun} testID="new-run" />
-
+    </>
+  );
+  const notes = (
+    <>
       <Text style={[styles.hint, { color: theme.muted }]} testID="saves-note">
         {t('title.savesNoteDevice')}
       </Text>
@@ -191,11 +202,36 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
           <Text style={[styles.devText, { color: theme.accent }]}>Dev tools</Text>
         </Pressable>
       ) : null}
+    </>
+  );
+
+  // Two panes (tablets, foldables, landscape): continue and the seed on the left, the starters and
+  // "New run" on the right, so the start button is on the first screen even on a landscape phone.
+  if (twoPane) {
+    return (
+      <Screen testID="title-screen">
+        <View style={styles.panes} testID="title-two-pane">
+          <View style={styles.pane}>
+            {intro}
+            {notes}
+          </View>
+          <View style={styles.pane}>{pickAndStart}</View>
+        </View>
+      </Screen>
+    );
+  }
+  return (
+    <Screen testID="title-screen">
+      {intro}
+      {pickAndStart}
+      {notes}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  panes: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
+  pane: { flex: 1, gap: 16, minWidth: 0 },
   topRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   heading: { fontSize: 28, fontWeight: '700' },
   notice: { fontSize: 16, borderWidth: 1, borderRadius: 10, padding: 12 },
@@ -211,6 +247,6 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 18, fontWeight: '700' },
   elementRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   elementText: { fontSize: 15 },
-  devLink: { minHeight: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' },
+  devLink: { minHeight: TOUCH, minWidth: TOUCH, justifyContent: 'center', alignSelf: 'flex-start' },
   devText: { fontSize: 15, textDecorationLine: 'underline' },
 });

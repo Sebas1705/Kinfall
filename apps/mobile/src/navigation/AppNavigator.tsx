@@ -11,9 +11,10 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
-import { useColorScheme } from 'react-native';
+import { StatusBar, useColorScheme } from 'react-native';
 
 import HelloScreen from '../HelloScreen';
+import { useA11ySettings } from '../platform/a11ySettings';
 import { useRunSession } from '../run/useRunSession';
 import { RunScreen } from '../screens/RunScreen';
 import Gallery from '../screens/Gallery';
@@ -82,6 +83,8 @@ function SelfTestRoute({ navigation, route }: NativeStackScreenProps<RootStackPa
 export function AppNavigator({ devTools = __DEV__, onReady }: AppNavigatorProps) {
   const dark = useColorScheme() === 'dark';
   const palette = dark ? DARK : LIGHT;
+  // Screen changes slide in, except with the system's reduce motion / remove animations switch.
+  const { reduceMotion } = useA11ySettings();
   const navTheme: NavTheme = {
     ...(dark ? DarkTheme : DefaultTheme),
     colors: {
@@ -95,7 +98,12 @@ export function AppNavigator({ devTools = __DEV__, onReady }: AppNavigatorProps)
   };
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onReady}>
-      <Stack.Navigator initialRouteName="Title" screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }}>
+      {/* Edge to edge: the bars are transparent over the app, so their icons follow the theme. */}
+      <StatusBar barStyle={dark ? 'light-content' : 'dark-content'} />
+      <Stack.Navigator
+        initialRouteName="Title"
+        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg }, animation: reduceMotion ? 'none' : 'default' }}
+      >
         <Stack.Screen name="Title">{(props) => <TitleRoute {...props} devTools={devTools} />}</Stack.Screen>
         <Stack.Screen name="Run" component={RunRoute} options={{ gestureEnabled: false }} />
         <Stack.Screen name="Hello" component={HelloRoute} />
