@@ -20,6 +20,8 @@ const REVEAL_MARGIN = 16;
 const PAD_TOP = 16;
 /** How long after a reveal a content size change still repeats it (ms). */
 const PENDING_MS = 1000;
+/** Delay of the second reveal attempt (ms). */
+const REVEAL_RETRY_MS = 150;
 /** Largest share of the window height the pinned footer may take; it scrolls inside beyond that. */
 export const FOOTER_MAX_SHARE = 0.55;
 
@@ -78,25 +80,33 @@ function RevealScroll({ children, testID, scrollRef, contentPadding, maxWidth, s
   /** The element of the last reveal: revealed again once the content size has caught up. */
   const pending = useRef<unknown>(null);
 
-  const reveal = useCallback<Reveal>(
-    (target) => {
+  const revealNow = useCallback(
+    (target: unknown) => {
       const t = target as Measurable | null;
       const sv = scroll.current;
       if (!t || !sv || !body.current || typeof t.measureLayout !== 'function') return;
-      pending.current = { target, at: Date.now() };
       t.measureLayout(
         body.current,
         (_x, y, _w, h) => {
+          // The offset is only learnt from scroll events: a scroll past the end is clamped, so
+          // assuming it landed would hide that the element is still cut.
           const to = revealScrollY(y + contentPadding.top, h, offset.current, viewport.current);
-          if (to !== null) {
-            sv.scrollTo({ y: to, animated: false });
-            offset.current = to;
-          }
+          if (to !== null) sv.scrollTo({ y: to, animated: false });
         },
         () => {},
       );
     },
     [contentPadding.top],
+  );
+
+  const reveal = useCallback<Reveal>(
+    (target) => {
+      pending.current = { target, at: Date.now() };
+      revealNow(target);
+      // Once more after the frame, whatever order the layout and content size events came in.
+      setTimeout(() => revealNow(target), REVEAL_RETRY_MS);
+    },
+    [revealNow],
   );
 
   // A panel that just appeared near the end can lay out before the scroll view knows the new
@@ -105,11 +115,10 @@ function RevealScroll({ children, testID, scrollRef, contentPadding, maxWidth, s
     (w: number, h: number) => {
       const p = pending.current as { target: unknown; at: number } | null;
       pending.current = null;
-      if (p && Date.now() - p.at < PENDING_MS) reveal(p.target);
-      pending.current = null;
+      if (p && Date.now() - p.at < PENDING_MS) revealNow(p.target);
       onContentSizeChange?.(w, h);
     },
-    [reveal, onContentSizeChange],
+    [revealNow, onContentSizeChange],
   );
 
   return (
