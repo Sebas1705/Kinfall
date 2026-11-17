@@ -28,6 +28,8 @@ export const runEn = {
   'title.savesUnavailableDevice': 'This device is not saving data right now, so this run will not be saved.',
   // Mobile app: a run phase whose screen is not built yet.
   'run.placeholder': 'Coming soon: this part of the run is not playable in the app yet.',
+  // Mobile app battle: a move's power, shown next to its element and focus cost.
+  'battle.power': 'Power {power}',
 
   'zone.0': 'Ashen Marsh',
   'zone.1': 'Thornwood Hollow',
@@ -139,6 +141,7 @@ export const runEs: Record<keyof typeof runEn, string> = {
   'title.savesNoteDevice': 'Las partidas se guardan en este dispositivo; borrar los datos de la app o desinstalarla las elimina.',
   'title.savesUnavailableDevice': 'Este dispositivo no está guardando datos ahora mismo, así que esta partida no se guardará.',
   'run.placeholder': 'Próximamente: esta parte de la partida aún no se puede jugar en la app.',
+  'battle.power': 'Potencia {power}',
 
   'zone.0': 'Marjal de Ceniza',
   'zone.1': 'Hondonada Espinosa',

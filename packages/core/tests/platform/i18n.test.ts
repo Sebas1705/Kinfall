@@ -329,6 +329,13 @@ describe('run strings', () => {
     // The web wording stays as it was.
     expect(STRINGS.en['title.savesNote']).toMatch(/browser/);
   });
+  it('names a move power for the mobile battle in both languages, kept on one line', () => {
+    setLang('en');
+    expect(t('battle.power', { power: 40 })).toBe('Power 40');
+    setLang('es');
+    expect(t('battle.power', { power: 40 })).toBe('Potencia 40');
+    setLang('en');
+  });
   it('has three distinct zone names per language', () => {
     for (const lang of ['en', 'es'] as const) {
       expect(new Set(([0, 1, 2] as const).map((n) => STRINGS[lang][`zone.${n}`])).size).toBe(3);
