@@ -294,6 +294,45 @@ describe('run session: abandon, discard and resume', () => {
   });
 });
 
+describe('run session: new run from the end screen', () => {
+  it('clears the save first, then starts a fresh seed with the last starter and saves it once', async () => {
+    const storage = memoryStorage();
+    const session = makeSession(storage);
+    session.start(SEED, 'brambleback');
+    await session.whenIdle();
+    storage.hold = true;
+    const seed = session.newRun();
+    expect(seed).toBe('FRESH2');
+    const snap = session.getSnapshot();
+    expect(snap.run!.seed).toBe('FRESH2');
+    expect(snap.run!.party.map((m) => m.speciesId)).toEqual(['brambleback']);
+    expect(snap.view).toBe('map');
+    expect(snap.titleSeed).toBe('FRESH2');
+    expect(snap.trail).toEqual([]);
+    expect(snap.log).toEqual([]);
+    storage.hold = false;
+    storage.release();
+    await session.whenIdle();
+    storage.release();
+    await session.whenIdle();
+    expect(storage.removes).toBe(1);
+    expect(storage.writes).toHaveLength(2);
+    expect(storage.data.get(RUN_KEY)).toBe(serializeRun(snap.run!));
+    expect(storage.maxInFlight).toBe(1);
+  });
+
+  it('takes an explicit starter, and the first starter when the session never started a run', () => {
+    const session = makeSession(memoryStorage());
+    session.newRun();
+    expect(session.getSnapshot().run!.party[0]!.speciesId).toBe(STARTER);
+    session.newRun('tidewisp');
+    expect(session.getSnapshot().run!.party[0]!.speciesId).toBe('tidewisp');
+    // The starter of that run is now the remembered one.
+    session.newRun();
+    expect(session.getSnapshot().run!.party[0]!.speciesId).toBe('tidewisp');
+  });
+});
+
 describe('phase routing', () => {
   it('maps every phase to the screen that draws it', () => {
     const battle = freshRun().phase; // only the kind matters below
@@ -309,7 +348,7 @@ describe('phase routing', () => {
     for (const [kind, view] of cases) expect(runViewOf({ ...battle, kind } as RunPhase)).toBe(view);
   });
 
-  it('names a placeholder after the node being played, in the current language', () => {
+  it('names a phase after the node being played, in the current language', () => {
     const session = makeSession(memoryStorage());
     session.start(SEED, STARTER);
     session.pickNode(firstNode(session.getSnapshot().run!));

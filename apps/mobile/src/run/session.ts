@@ -19,7 +19,7 @@ import type { RunAction, RunEvent, RunPhase, RunState, RunStep } from '@webgames
 /** Run events kept in the log; older ones are dropped (same as the web app). */
 export const RUN_LOG_MAX = 60;
 
-/** Which screen the Run route draws for a phase. 7b and 7c plug the battle, event and end screens in here. */
+/** Which screen the Run route draws for a phase (map, battle, the four events, or the end). */
 export type RunView = 'map' | 'battle' | 'event' | 'end';
 
 export function runViewOf(phase: RunPhase): RunView {
@@ -70,6 +70,12 @@ export interface RunSession {
   refreshSaved(): Promise<LoadResult>;
   /** Starts a run and saves it once. */
   start(seed: string, starterId: string): void;
+  /**
+   * The end screen's "New run": clears the save, then starts a run from a fresh seed with
+   * `starterId`, by default the starter of the last run started in this session (the first starter
+   * after a resume, since a save does not record it). Returns the new seed.
+   */
+  newRun(starterId?: string): string;
   /** Loads the save; true when a run was restored. Otherwise `saved` says why. */
   resume(): Promise<boolean>;
   /** Drops the run and deletes the save; the title gets a fresh seed. */
@@ -111,8 +117,8 @@ export function runLogLines(events: readonly RunEvent[], ctx: RunEventContext): 
 }
 
 /**
- * Heading of a phase without its own screen yet: the node being played (battle, shrine, cache,
- * mystery), the node just cleared (recruit) or the end of the run.
+ * Short name of a phase (the battle screen heading): the node being played (battle, shrine,
+ * cache, mystery), the node just cleared (recruit) or the end of the run.
  */
 export function phaseHeading(run: RunState): string {
   const phase = run.phase;
@@ -144,6 +150,8 @@ export function createRunSession(deps: RunSessionDeps): RunSession {
   /** Bumped on abandon/discard: results of writes enqueued before it no longer touch the warning. */
   let generation = 0;
   let queue: Promise<void> = Promise.resolve();
+  /** Starter of the last `start`, reused by `newRun`. */
+  let lastStarter: string | null = null;
 
   const set = (patch: Partial<RunSessionSnapshot>) => {
     snap = { ...snap, ...patch };
@@ -206,9 +214,19 @@ export function createRunSession(deps: RunSessionDeps): RunSession {
     },
     start(seed, starterId) {
       const run = startRun(seed, starterId, content);
+      lastStarter = starterId;
       resetWarning();
       set({ run, trail: [], log: [], logFresh: 0, titleSeed: seed, saveWarning: null });
       void enqueue({ kind: 'save', run });
+    },
+    newRun(starterId) {
+      const starter = starterId ?? lastStarter ?? content.starters[0];
+      if (starter === undefined) throw new Error('content has no starter');
+      const seed = deps.randomSeed();
+      resetWarning();
+      void enqueue({ kind: 'clear' });
+      session.start(seed, starter);
+      return seed;
     },
     async resume() {
       await session.whenIdle();
