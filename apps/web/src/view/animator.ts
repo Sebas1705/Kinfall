@@ -2,10 +2,9 @@
 // play: every animation settles (frame ticks, a timeout fallback, finishAll or cancel), an exception
 // inside a step is logged and never leaves a promise pending, and a newer play cancels an older one.
 
-export interface TimerApi {
-  setTimeout(fn: () => void, ms: number): unknown;
-  clearTimeout(handle: unknown): void;
-}
+import type { TimerApi } from '@webgames/core/models/battleController';
+
+export type { TimerApi };
 
 export interface PlayContext {
   /** False once a newer play started, the play was cancelled or the animator was disposed. */

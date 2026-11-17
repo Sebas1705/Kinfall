@@ -1,12 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '@webgames/core/content';
-import { setLang } from '@webgames/core/platform/i18n';
-import { createBattle } from '@webgames/core/sim/battle';
-import type { BattleEvent, BattleState } from '@webgames/core/sim/state';
-import type { TimerApi } from '../../src/view/animator';
-import type { BattleView } from '../../src/view/battleView';
-import { createBattleController, watchdogMs } from '../../src/view/controller';
-import type { BattleUi } from '../../src/view/controller';
+import { CONTENT } from '../../src/content';
+import { setLang } from '../../src/platform/i18n';
+import { createBattle } from '../../src/sim/battle';
+import type { BattleEvent, BattleState } from '../../src/sim/state';
+import type { BattleScene, BattleUi, TimerApi } from '../../src/models/battleController';
+import { createBattleController, watchdogMs } from '../../src/models/battleController';
 
 const flush = async () => {
   for (let i = 0; i < 5; i++) await Promise.resolve();
@@ -36,7 +34,7 @@ function fakeUi() {
   return { ui, clear };
 }
 
-function fakeView(play: BattleView['play']) {
+function fakeView(play: BattleScene['play']) {
   return { render: vi.fn(), play: vi.fn(play), destroy: vi.fn() };
 }
 
@@ -61,7 +59,7 @@ function finalTurnBattle(): BattleState {
   return s;
 }
 
-function setup(play: BattleView['play'], opts: { battle?: () => BattleState; timers?: TimerApi } = {}) {
+function setup(play: BattleScene['play'], opts: { battle?: () => BattleState; timers?: TimerApi } = {}) {
   const { ui, clear } = fakeUi();
   const view = fakeView(play);
   const controller = createBattleController({
@@ -228,7 +226,7 @@ describe('controller: a play that fails', () => {
 });
 
 function setupWithEnd(
-  play: BattleView['play'],
+  play: BattleScene['play'],
   opts: { timers?: TimerApi; reducedMotion?: boolean; view?: boolean } = {},
 ) {
   const { ui, clear } = fakeUi();

@@ -1,7 +1,10 @@
 // Input layer (presentation side): keyboard, gamepad and on-screen touch buttons
 // all funnel into one GameAction stream. Not part of the simulation.
 
-export type GameAction = 'up' | 'down' | 'left' | 'right' | 'confirm' | 'back' | 'swap';
+import type { GameAction } from '@webgames/core/models/battleController';
+
+// The action set is shared with the battle controller in core.
+export type { GameAction };
 
 export interface KeyLike {
   code: string;

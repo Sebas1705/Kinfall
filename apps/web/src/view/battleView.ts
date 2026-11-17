@@ -13,9 +13,10 @@ import type { BattleEvent, BattleState, Combatant, Side } from '@webgames/core/s
 import { createAnimator } from './animator';
 import type { PlayContext } from './animator';
 import { intentText } from '@webgames/core/models/menu';
+import type { BattleScene } from '@webgames/core/models/battleController';
 import { paintGrid } from './pixelCanvas';
 
-export interface BattleView {
+export interface BattleView extends BattleScene {
   render(state: BattleState): void;
   play(events: BattleEvent[], opts: { reducedMotion: boolean }): Promise<void>;
   destroy(): void;
