@@ -174,6 +174,21 @@ describe('end screen', () => {
     expect(screen.getByTestId('end-score').props.accessibilityLabel).toMatch(/^Puntuación: \d+$/);
   });
 
+  it('keeps each stat value on the right of its row when a long label wraps (200% text, Spanish)', async () => {
+    const flat = (style: unknown) =>
+      Object.assign({}, ...[style].flat(3).filter(Boolean)) as { flexWrap?: string; flexDirection?: string; flex?: number; textAlign?: string };
+    setLang('es');
+    const { session } = await resumedEnd('won');
+    await renderRun(session);
+    const row = screen.getByTestId('end-stat-2');
+    expect(row.props.accessibilityLabel).toBe('Rivales de élite vencidos: 2');
+    expect(flat(row.props.style)).toMatchObject({ flexDirection: 'row' });
+    expect(flat(row.props.style).flexWrap).toBeUndefined();
+    const [label, value] = within(row).getAllByText(/./);
+    expect(flat(label!.props.style).flex).toBe(1);
+    expect(flat(value!.props.style).textAlign).toBe('right');
+  });
+
   it('a resumed end save opens on the end screen itself', async () => {
     const { session } = await resumedEnd('lost');
     expect(session.getSnapshot().view).toBe('end');

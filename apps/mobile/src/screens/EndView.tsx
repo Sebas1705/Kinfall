@@ -77,11 +77,12 @@ const styles = StyleSheet.create({
   end: { gap: 16 },
   heading: { fontSize: 28, fontWeight: '700' },
   note: { fontSize: 16 },
-  score: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, padding: 12, borderWidth: 1, borderRadius: 10 },
-  scoreLabel: { fontSize: 18, fontWeight: '700' },
+  score: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderRadius: 10 },
+  scoreLabel: { fontSize: 18, fontWeight: '700', flex: 1 },
   scoreValue: { fontSize: 28, fontWeight: '700' },
   stats: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
-  stat: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
-  statLabel: { fontSize: 16, flexShrink: 1 },
-  statValue: { fontSize: 16, fontWeight: '700' },
+  // The label wraps inside its own column at large text; the value stays on the right of its row.
+  stat: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  statLabel: { fontSize: 16, flex: 1 },
+  statValue: { fontSize: 16, fontWeight: '700', textAlign: 'right' },
 });
