@@ -2,6 +2,7 @@ import { CONTENT } from '@webgames/core/content';
 import { t } from '@webgames/core/platform/i18n';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useAnnounce } from '../platform/announce';
 import { useLang } from '../platform/LangContext';
 import { runLogContext, runLogLines } from '../run/session';
 import { useRunSession } from '../run/useRunSession';
@@ -21,10 +22,12 @@ export function RunLogPanel() {
   useLang();
   // The session keeps only events that have a line, so lines and events line up one to one.
   const lines = runLogLines(snapshot.log, runLogContext(CONTENT, snapshot.run));
-  if (lines.length === 0) return null;
   const fresh = Math.min(snapshot.logFresh, lines.length);
   const older = lines.slice(0, lines.length - fresh).slice(-Math.max(0, RUN_LOG_VISIBLE - fresh));
   const latest = lines.slice(lines.length - fresh);
+  // iOS: the fresh lines once per action (the log array is new only when an action added lines).
+  useAnnounce(fresh > 0 ? snapshot.log : null, latest.join(' '));
+  if (lines.length === 0) return null;
   const lineStyle = [styles.line, { color: theme.text }];
   return (
     <View style={[styles.panel, { borderColor: theme.border, backgroundColor: theme.surface }]} testID="run-log">
