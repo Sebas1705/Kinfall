@@ -5,12 +5,10 @@ import { lookup } from '@webgames/core/content/lookup';
 import { speciesName, t } from '@webgames/core/platform/i18n';
 import type { LoadResult } from '@webgames/core/platform/runStorage';
 import { creatureCanvas } from './art';
+import { SEED_MAX, cleanSeed, seedFromRandom } from '@webgames/core/platform/seed';
 import { confirmInline, el } from './dom';
 
-/** No 0/O, 1/I/L: easy to read aloud and to type back. */
-export const SEED_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-export const SEED_MAX = 32;
-const SEED_LENGTH = 8;
+export { SEED_ALPHABET, SEED_MAX } from '@webgames/core/platform/seed';
 
 export interface TitleProps {
   content: Content;
@@ -25,19 +23,7 @@ export interface TitleProps {
 
 /** An 8-character code from SEED_ALPHABET, without modulo bias. */
 export function randomSeed(): string {
-  const n = SEED_ALPHABET.length;
-  const limit = 256 - (256 % n);
-  let out = '';
-  const bytes = new Uint8Array(16);
-  while (out.length < SEED_LENGTH) {
-    crypto.getRandomValues(bytes);
-    for (const b of bytes) if (b < limit && out.length < SEED_LENGTH) out += SEED_ALPHABET[b % n];
-  }
-  return out;
-}
-
-function cleanSeed(raw: string | null | undefined): string {
-  return (raw ?? '').trim().slice(0, SEED_MAX);
+  return seedFromRandom((bytes) => crypto.getRandomValues(bytes));
 }
 
 /** The `?seed=` value (trimmed, at most 32 characters) or, when missing or blank, a random code. */

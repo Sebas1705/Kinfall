@@ -317,6 +317,18 @@ describe('run strings', () => {
       for (const k of labelKeys) expect(STRINGS[lang][k].length, `${lang}.${k}`).toBeLessThanOrEqual(28);
     }
   });
+  it('has device wording of the save notes for the mobile app, without "browser"', () => {
+    for (const lang of ['en', 'es'] as const) {
+      for (const k of ['title.savesNoteDevice', 'title.savesUnavailableDevice', 'run.placeholder'] as const) {
+        expect(STRINGS[lang][k], `${lang}.${k}`).toBeTruthy();
+        expect(STRINGS[lang][k], `${lang}.${k}`).not.toMatch(/browser|navegador/i);
+      }
+    }
+    expect(STRINGS.en['title.savesNoteDevice']).toMatch(/this device/);
+    expect(STRINGS.es['title.savesNoteDevice']).toMatch(/este dispositivo/);
+    // The web wording stays as it was.
+    expect(STRINGS.en['title.savesNote']).toMatch(/browser/);
+  });
   it('has three distinct zone names per language', () => {
     for (const lang of ['en', 'es'] as const) {
       expect(new Set(([0, 1, 2] as const).map((n) => STRINGS[lang][`zone.${n}`])).size).toBe(3);
