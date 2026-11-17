@@ -2,11 +2,12 @@ import { CONTENT } from '@webgames/core/content';
 import { createAsyncRunStorage, type AsyncStorageLike } from '@webgames/core/platform/asyncRunStorage';
 import { RUN_STORAGE_KEY } from '@webgames/core/platform/runStorage';
 import { setLang, t, type Lang } from '@webgames/core/platform/i18n';
-import { hashRun } from '@webgames/core/sim/run/codec';
+import { hashRun, serializeRun } from '@webgames/core/sim/run/codec';
 import type { RunState } from '@webgames/core/sim/run/types';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { SAMPLE_KINDS, sampleRun, type SampleKind } from './dev/sampleRuns';
 import { DEFAULT_SEED, runHelloWithState, type HelloResult } from './helloCore';
 import { useA11ySettings } from './platform/a11ySettings';
 import { useLang } from './platform/LangContext';
@@ -32,7 +33,7 @@ export default function HelloScreen({
 }) {
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const [status, setStatus] = useState<{ id: 'save' | 'load' | 'damage'; text: string } | null>(null);
+  const [status, setStatus] = useState<{ id: 'save' | 'load' | 'damage' | 'sample'; text: string } | null>(null);
   const a11y = useA11ySettings();
   const rawStorage = useMemo(() => (storage === undefined ? defaultAsyncStorage() : storage), [storage]);
   const runStorage = useMemo(() => createAsyncRunStorage(rawStorage, CONTENT), [rawStorage]);
@@ -63,6 +64,16 @@ export default function HelloScreen({
       setStatus({ id: 'damage', text: 'Damaged the saved run' }); // dev screen
     } catch (e) {
       setStatus({ id: 'damage', text: `Damage failed: ${e instanceof Error ? e.message : String(e)}` }); // dev screen
+    }
+  };
+
+  /** QA aid: saves a run standing on an event or an end, to open those screens with Continue. */
+  const onSample = async (kind: SampleKind) => {
+    try {
+      await rawStorage?.setItem(RUN_STORAGE_KEY, serializeRun(sampleRun(kind, CONTENT)));
+      setStatus({ id: 'sample', text: `Saved sample run: ${kind}` }); // dev screen
+    } catch (e) {
+      setStatus({ id: 'sample', text: `Sample failed: ${e instanceof Error ? e.message : String(e)}` }); // dev screen
     }
   };
 
@@ -145,6 +156,20 @@ export default function HelloScreen({
         <Pressable style={styles.button} onPress={onDamage} accessibilityRole="button" testID="damage-button">
           <Text style={styles.buttonText}>Damage saved run</Text>
         </Pressable>
+        <Text style={styles.label}>Save sample run (then Continue on the title)</Text>
+        <View style={[styles.row, styles.wrap]}>
+          {SAMPLE_KINDS.map((kind) => (
+            <Pressable
+              key={kind}
+              style={[styles.button, styles.sampleButton]}
+              onPress={() => void onSample(kind)}
+              accessibilityRole="button"
+              testID={`sample-${kind}`}
+            >
+              <Text style={styles.buttonText}>{kind}</Text>
+            </Pressable>
+          ))}
+        </View>
         {status && (
           <Text style={styles.line} selectable testID={`${status.id}-status`}>
             {status.text}
@@ -205,6 +230,8 @@ const styles = StyleSheet.create({
   buttonOff: { backgroundColor: '#6b7280' },
   row: { flexDirection: 'row', gap: 12 },
   rowButton: { flex: 1 },
+  wrap: { flexWrap: 'wrap' },
+  sampleButton: { flexGrow: 1, flexBasis: 120, paddingHorizontal: 12 },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
   line: { fontSize: 16, color: '#111111', fontFamily: 'monospace' },
   error: { fontSize: 16, color: '#a40000' },

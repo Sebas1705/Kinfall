@@ -10,6 +10,7 @@ import { AccessibilityInfo, PixelRatio } from 'react-native';
 
 import App from '../App';
 import { openDevTools } from '../test-support/devTools';
+import { sampleRun } from '../src/dev/sampleRuns';
 import HelloScreen from '../src/HelloScreen';
 
 const RUN_KEY = 'webgames.run.v1';
@@ -99,6 +100,16 @@ describe('hello screen adapters', () => {
     await user.press(await screen.findByTestId('load-button'));
     expect(text(await screen.findByTestId('load-status'))).toMatch(/^Load: corrupt\. Your saved run is damaged/);
     expect(await AsyncStorage.getItem(RUN_KEY)).toBe(damaged);
+  });
+
+  it('saves a sample run on request (QA aid for the event and end screens)', async () => {
+    const user = userEvent.setup();
+    await render(<HelloScreen />);
+    await user.press(screen.getByTestId('sample-recruitFull'));
+    expect(text(await screen.findByTestId('sample-status'))).toBe('Saved sample run: recruitFull');
+    await user.press(screen.getByTestId('load-button'));
+    expect(text(await screen.findByTestId('load-status'))).toMatch(/^Load: ok /);
+    expect(await AsyncStorage.getItem(RUN_KEY)).toBe(serializeRun(sampleRun('recruitFull', CONTENT)));
   });
 
   it('damages the saved run on request (QA aid for the corrupt-save notice)', async () => {
