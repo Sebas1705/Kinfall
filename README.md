@@ -10,7 +10,7 @@ The repository is an npm workspaces monorepo:
 |---|---|---|
 | `packages/core` | `@webgames/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@webgames/core/sim/run/run`. |
 | `apps/web` | `@webgames/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@webgames/core/...`. |
-| `apps/mobile` | `@webgames/mobile` | The React Native app (Expo, TypeScript), at the scaffold stage: a "hello core" screen that plays a bot run from a seed with `@webgames/core` and shows its hash. Jest tests (`jest-expo`) live in `__tests__`. See [Mobile app](#mobile-app). |
+| `apps/mobile` | `@webgames/mobile` | The React Native app (Expo, TypeScript), at the scaffold stage: a "hello core" screen that plays a bot run from a seed with `@webgames/core` and shows its hash, a sprite gallery and a device determinism self test. Jest tests (`jest-expo`) live in `__tests__`. See [Mobile app](#mobile-app). |
 
 Core is platform-neutral so it can also run under React Native (Hermes):
 
@@ -71,6 +71,41 @@ cd apps/mobile && npx expo start --android
 The Expo CLI downloads and installs the matching Expo Go on the emulator the first time, then opens the app. No account, EAS or signing is needed. To use a phone, install Expo Go and scan the QR code that `npx expo start` prints (same network).
 
 Metro uses Expo's default config (`apps/mobile/metro.config.js`): since SDK 52 it detects the npm workspace and watches the repository root, and package `exports` are enabled by default, so `@webgames/core/<path>` resolves to `packages/core/src/<path>.ts` without aliases. `apps/mobile/tsconfig.json` extends `expo/tsconfig.base` with `strict` and `noUncheckedIndexedAccess` and type-checks the core modules the app imports.
+
+### Device self test (determinism on Hermes)
+
+The core guarantee is that the same seed gives the same battle and run on every engine. Jest runs on Node, so only the device can prove it for Hermes. The dev **Self test** screen (button on the hello screen) replays every entry of both golden files, `packages/core/tests/golden/battle.golden.json` and `run.golden.json`, on the device JS engine. The screen imports those files directly (Metro bundles JSON from the watched repository root), so there is no copy that could drift.
+
+- The runner is core's pure `runGoldenSelfTest` (`packages/core/src/sim/selfTest.ts`, with `checkBattleGolden`, `checkRunGolden`, `combineSelfTest` and `selfTestSummary`). It makes the same calls and comparisons as the Node golden tests: battle final hash and winner; run final hash, result, score and tags, with no rejected actions. Each file must have a minimum number of entries (3 battles, 4 runs) and every entry needs non-empty actions. Malformed input gives `ok: false`, never an exception.
+- It runs only when you press **Run self test**. It yields to the UI between the two files so the spinner shows. The screen shows a large **PASS** or **FAIL**, the battle and run counts, the elapsed time, the first mismatch with its expected and actual values, one line per entry, a monospace summary, and the engine: `HermesInternal` presence and version, platform and OS version, React Native version, Expo SDK, device model (Android `Platform.constants`) and `typeof structuredClone`.
+- It also logs two lines that start with `[selftest]` (summary with elapsed time, then the engine). You can read them without the UI: `adb logcat -d -s ReactNativeJS | grep selftest`.
+- Auto-run is off by default. It turns on when the bundle is built with `EXPO_PUBLIC_SELFTEST_AUTORUN=1`, or when the app is opened with a URL that has a `selftest` path segment or a `?selftest=1` query, for example `exp://127.0.0.1:8081/--/selftest` in Expo Go or `webgames://selftest` in a build (`app.json` sets the scheme).
+
+Run it on the Android emulator (environment as above):
+
+```sh
+"$ANDROID_HOME/emulator/emulator" -avd <your_avd> -no-snapshot &
+adb wait-for-device
+cd apps/mobile && npx expo start --android    # then: Self test > Run self test
+# or without touching the UI: open the app on the self test, it runs on mount
+adb reverse tcp:8081 tcp:8081
+adb shell am start -a android.intent.action.VIEW -d "exp://127.0.0.1:8081/--/selftest" host.exp.exponent
+adb logcat -d -s ReactNativeJS | grep selftest
+# or bake auto-run into the bundle (also a good check of the minified production bundle)
+EXPO_PUBLIC_SELFTEST_AUTORUN=1 npx expo start --no-dev --minify
+```
+
+A pass looks like `[selftest] PASS battle 3/3 run 6/6 elapsed=39ms (battle 6ms, run 33ms)`. A failure looks like `FAIL battle 2/3 run 6/6 first=battle#1 {"expected":{...},"actual":{...}}`. A failure on a device is a determinism bug in core. Do not update the goldens to hide it.
+
+#### Verify on a real phone
+
+This is an owner step. It needs a physical device and cannot be done from CI.
+
+1. Install **Expo Go** from the Play Store (or the App Store). It must support SDK 58.
+2. Over Wi-Fi: put the phone and the computer on the same network, run `cd apps/mobile && npx expo start`, and scan the QR code (Android: from Expo Go; iOS: with the Camera app). If the network blocks it, try `npx expo start --tunnel`.
+3. Or over USB (Android): turn on Developer options and USB debugging, connect the phone, accept the debugging prompt, then run `adb devices` (the phone must be listed), `adb reverse tcp:8081 tcp:8081` and `npx expo start --android`.
+4. In the app, press **Self test**, then **Run self test**. Check for **PASS**, `Battle 3/3`, `Run 6/6` (or the current golden counts) and `HermesInternal: present`. Write down the Hermes version, the device model and the elapsed time.
+5. If the result is **FAIL**, keep the screen (screenshot) or the `[selftest]` lines from `adb logcat -d -s ReactNativeJS` and report the first mismatch.
 
 ## End-to-end tests
 
