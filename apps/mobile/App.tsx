@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import HelloScreen from './src/HelloScreen';
+import Gallery from './src/screens/Gallery';
 import { installMobileI18n } from './src/platform/mobileI18n';
 
 /**
@@ -10,6 +11,7 @@ import { installMobileI18n } from './src/platform/mobileI18n';
  */
 export default function App() {
   const [ready, setReady] = useState(false);
+  const [screen, setScreen] = useState<'hello' | 'gallery'>('hello'); // no navigation library until Task 7
   const [, setLangVersion] = useState(0);
 
   useEffect(() => {
@@ -23,5 +25,6 @@ export default function App() {
   }, []);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: '#ffffff' }} />;
-  return <HelloScreen />;
+  if (screen === 'gallery') return <Gallery onBack={() => setScreen('hello')} />;
+  return <HelloScreen onOpenGallery={() => setScreen('gallery')} />;
 }

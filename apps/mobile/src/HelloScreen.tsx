@@ -19,7 +19,13 @@ const LANGS: Lang[] = ['es', 'en'];
  * proves the platform adapters (language, run storage, accessibility settings).
  * Dev screen: its labels outside the core string tables are throwaway.
  */
-export default function HelloScreen({ storage }: { storage?: AsyncStorageLike | null }) {
+export default function HelloScreen({
+  storage,
+  onOpenGallery,
+}: {
+  storage?: AsyncStorageLike | null;
+  onOpenGallery?: () => void;
+}) {
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [status, setStatus] = useState<{ id: 'save' | 'load'; text: string } | null>(null);
@@ -139,6 +145,11 @@ export default function HelloScreen({ storage }: { storage?: AsyncStorageLike | 
             <Text style={styles.line}>Score: {outcome.value.score}</Text>
             <Text style={styles.line}>Steps: {outcome.value.steps}</Text>
           </View>
+        )}
+        {onOpenGallery && (
+          <Pressable style={styles.button} onPress={onOpenGallery} accessibilityRole="button" testID="gallery-button">
+            <Text style={styles.buttonText}>Gallery</Text>
+          </Pressable>
         )}
         {outcome?.ok === false && (
           <Text style={styles.error} accessibilityRole="alert" testID="error">
