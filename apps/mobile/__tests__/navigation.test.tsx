@@ -73,8 +73,10 @@ describe('app navigation', () => {
     await render(<AppShell session={makeSession(storage)} />);
     await waitFor(() => expect(screen.getByTestId('continue').props.accessibilityState).toMatchObject({ disabled: false }));
     await user.press(screen.getByTestId('continue'));
-    expect(await screen.findByTestId('phase-placeholder')).toBeTruthy();
-    expect(screen.getByTestId('placeholder-heading').props.children).toBe(nodeTypeLabel(node.type));
+    // The first node of this seed is a wild battle: the battle screen comes back.
+    expect(node.type).toBe('wild');
+    expect(await screen.findByTestId('battle-screen')).toBeTruthy();
+    expect(screen.getByTestId('battle-heading').props.children).toBe(nodeTypeLabel(node.type));
     expect(route()).toBe('Run');
   });
 
@@ -86,9 +88,9 @@ describe('app navigation', () => {
     const startedSeed = session.getSnapshot().run!.seed;
     expect(startedSeed).toBe('FRESH1');
     await user.press(await screen.findByTestId(`node-${firstNode(session.getSnapshot().run!)}`));
-    expect(screen.getByTestId('phase-placeholder')).toBeTruthy();
+    expect(screen.getByTestId('battle-screen')).toBeTruthy();
 
-    // The placeholder has no Abandon button: Android back opens the confirmation.
+    // In battle, Android back opens the abandon confirmation too.
     let handled = false;
     await act(async () => {
       handled = pressBack();

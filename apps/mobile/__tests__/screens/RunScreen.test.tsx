@@ -121,13 +121,38 @@ describe('map screen', () => {
     expect(screen.getByTestId('souls')).toHaveTextContent('Souls: 0');
   });
 
-  it('applies a pick: saves, then shows the placeholder named after the node with a fresh log line', async () => {
+  it('applies a battle pick: saves, then shows the battle named after the node, without the run log', async () => {
     const user = userEvent.setup();
     const storage = memoryStorage();
     const session = makeSession(storage);
     session.start(SEED, STARTER);
     await renderRun(session);
     const node = availableNodes(session.getSnapshot().run!)[0]!;
+    expect(node.type).toBe('wild');
+    await user.press(screen.getByTestId(`node-${node.id}`));
+    expect(screen.getByTestId('battle-screen')).toBeTruthy();
+    expect(screen.getByTestId('battle-heading').props.children).toBe(nodeTypeLabel(node.type));
+    expect(screen.queryByTestId('map-screen')).toBeNull();
+    // The battle has its own log; the run log line of the pick waits for the next phase.
+    expect(screen.queryByTestId('run-log')).toBeNull();
+    expect(session.getSnapshot().logFresh).toBe(1);
+    await session.whenIdle();
+    expect(storage.writes).toHaveLength(2);
+    expect(storage.data.get(RUN_KEY)).toBe(serializeRun(session.getSnapshot().run!));
+  });
+
+  it('applies an event pick: saves, then shows the placeholder named after the node with a fresh log line', async () => {
+    const user = userEvent.setup();
+    const start = freshRun(SEED);
+    const map = start.maps[0]!;
+    const byId = new Map(map.layers.flat().map((n) => [n.id, n]));
+    // A step-1 node with a non-battle successor: stand on it, then pick that successor.
+    const at = map.layers[0]!.find((n) => n.next.some((id) => !['wild', 'elite', 'boss'].includes(byId.get(id)!.type)))!;
+    expect(at).toBeTruthy();
+    const node = byId.get(at.next.find((id) => !['wild', 'elite', 'boss'].includes(byId.get(id)!.type))!)!;
+    const storage = memoryStorage();
+    const session = await resumed({ ...start, at: at.id, stats: { ...start.stats, nodesCleared: 1 } }, storage);
+    await renderRun(session);
     await user.press(screen.getByTestId(`node-${node.id}`));
     expect(screen.getByTestId('phase-placeholder')).toBeTruthy();
     expect(screen.getByTestId('placeholder-heading').props.children).toBe(nodeTypeLabel(node.type));
@@ -138,7 +163,7 @@ describe('map screen', () => {
     expect(fresh.props.accessibilityLiveRegion).toBe('polite');
     expect(within(fresh).getByText(`You head to: ${nodeTypeLabel(node.type)}.`)).toBeTruthy();
     await session.whenIdle();
-    expect(storage.writes).toHaveLength(2);
+    expect(storage.writes).toHaveLength(1);
     expect(storage.data.get(RUN_KEY)).toBe(serializeRun(session.getSnapshot().run!));
   });
 
@@ -207,7 +232,7 @@ describe('map screen', () => {
     await user.press(screen.getByTestId('save-warning-dismiss'));
     expect(screen.queryByTestId('save-warning')).toBeNull();
     await user.press(screen.getByTestId(`node-${firstNode(session.getSnapshot().run!)}`));
-    expect(screen.getByTestId('phase-placeholder')).toBeTruthy();
+    expect(screen.getByTestId('battle-screen')).toBeTruthy();
   });
 
   it('widens node buttons with the font scale (one per row at 200% on a phone, never broken words)', async () => {
@@ -245,9 +270,12 @@ describe('placeholder phases', () => {
   it('a resumed non-map save shows the same placeholder, without the map', async () => {
     const storage = memoryStorage();
     const first = makeSession(storage);
-    first.start(SEED, STARTER);
+    // A seed whose first battle is won in one turn of the first move: the run stands on a recruit.
+    first.start('FRESH1', STARTER);
     const node = availableNodes(first.getSnapshot().run!)[0]!;
     first.pickNode(node.id);
+    expect(first.act({ type: 'battle', action: { type: 'move', moveIndex: 0 } }).ok).toBe(true);
+    expect(first.getSnapshot().run!.phase.kind).toBe('recruit');
     await first.whenIdle();
 
     const session = makeSession(storage);

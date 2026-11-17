@@ -1,9 +1,14 @@
-// The Run route: one screen that draws the current run phase. The map is built (7a); battle, event
-// and end phases show a marked placeholder until 7b/7c plug their screens into `PHASE_VIEWS`.
-// Android back never leaves silently: it opens the abandon confirmation (and a second back closes it).
+// The Run route: one screen that draws the current run phase. The map (7a) and the battle (7b) are
+// built; event and end phases show a marked placeholder until 7c plugs their screens into
+// `PHASE_VIEWS`. Android back never leaves silently: it opens the abandon confirmation (and a second
+// back closes it), on the map and in battle alike.
+//
+// A battle's final turn moves the run on at once (it is applied and saved before its animation), so
+// the battle screen stays up until that turn has played; then the next phase shows, with the run log
+// lines of the battle's end (souls, losses) as its fresh lines.
 import { t } from '@webgames/core/platform/i18n';
 import type { RunState } from '@webgames/core/sim/run/types';
-import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { BackHandler, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 
 import { useLang } from '../platform/LangContext';
@@ -14,6 +19,7 @@ import { ConfirmPanel } from '../ui/ConfirmPanel';
 import { RunLogPanel } from '../ui/RunLogPanel';
 import { SaveBanner } from '../ui/SaveBanner';
 import { Screen } from '../ui/Screen';
+import { BattleView } from './BattleView';
 import { MapView } from './MapView';
 
 /** Props every phase view gets. */
@@ -34,9 +40,8 @@ export function PhasePlaceholder({ run }: PhaseViewProps) {
   );
 }
 
-/** Screens of the non-map phases; 7b (battle) and 7c (event, end) replace these entries. */
-export const PHASE_VIEWS: Record<Exclude<RunView, 'map'>, ComponentType<PhaseViewProps>> = {
-  battle: PhasePlaceholder,
+/** Screens of the event and end phases; 7c replaces these entries. */
+export const PHASE_VIEWS: Record<Exclude<RunView, 'map' | 'battle'>, ComponentType<PhaseViewProps>> = {
   event: PhasePlaceholder,
   end: PhasePlaceholder,
 };
@@ -53,6 +58,11 @@ export function RunScreen({ onExit }: RunScreenProps) {
   const [confirming, setConfirming] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
   const { run, view } = snapshot;
+  /** The run as the battle screen opened it; kept until the battle's last turn has played. */
+  const [battleRun, setBattleRun] = useState<RunState | null>(null);
+  if (view === 'battle' && run && battleRun === null) setBattleRun(run);
+  else if (battleRun !== null && (!run || run.seed !== battleRun.seed)) setBattleRun(null);
+  const onBattleEnd = useCallback(() => setBattleRun(null), []);
 
   const confirmingRef = useRef(confirming);
   confirmingRef.current = confirming;
@@ -82,17 +92,25 @@ export function RunScreen({ onExit }: RunScreenProps) {
   };
 
   if (!run || !view) return <Screen testID="run-screen-empty">{null}</Screen>;
-  const Phase = view === 'map' ? null : PHASE_VIEWS[view];
+  const inBattle = battleRun !== null;
+  const shownView: RunView = inBattle ? 'battle' : view;
+
+  let body: ReactNode;
+  if (battleRun) {
+    body = <BattleView run={battleRun} onEnd={onBattleEnd} onAbandon={askAbandon} confirming={confirming} />;
+  } else if (shownView === 'map') {
+    body = <MapView run={run} trail={snapshot.trail} onPick={(id) => session.pickNode(id)} onAbandon={askAbandon} confirming={confirming} />;
+  } else if (shownView !== 'battle') {
+    const Phase = PHASE_VIEWS[shownView];
+    body = <Phase run={run} />;
+  }
 
   return (
-    <Screen ref={scroll} testID={`run-${view}`} onContentSizeChange={onContentSizeChange}>
+    <Screen ref={scroll} testID={`run-${shownView}`} onContentSizeChange={onContentSizeChange}>
       <SaveBanner />
-      {Phase ? (
-        <Phase run={run} />
-      ) : (
-        <MapView run={run} trail={snapshot.trail} onPick={(id) => session.pickNode(id)} onAbandon={askAbandon} confirming={confirming} />
-      )}
-      <RunLogPanel />
+      {body}
+      {/* The battle has its own log; the run log comes back with the next phase. */}
+      {inBattle ? null : <RunLogPanel />}
       {confirming ? (
         <ConfirmPanel
           question={t('map.abandonConfirm')}
