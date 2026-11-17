@@ -32,7 +32,7 @@ export function LangToggle() {
               styles.option,
               {
                 backgroundColor: on ? theme.accent : theme.surface,
-                borderColor: pressed ? theme.focus : on ? theme.accent : theme.border,
+                borderColor: pressed ? theme.focus : on ? theme.accent : theme.outline,
               },
             ]}
           >

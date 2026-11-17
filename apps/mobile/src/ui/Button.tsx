@@ -32,7 +32,7 @@ export function Button({ label, onPress, variant = 'secondary', disabled = false
       testID={testID}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: bg, borderColor: pressed && !disabled ? theme.focus : filled && !disabled ? bg : theme.border },
+        { backgroundColor: bg, borderColor: pressed && !disabled ? theme.focus : filled && !disabled ? bg : disabled ? theme.border : theme.outline },
         pressed && !disabled && styles.pressed,
         style,
       ]}
