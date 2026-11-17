@@ -5,6 +5,7 @@
     "version": "0.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "scheme": "webgames",
     "android": {
       "package": "app.webgames.placeholder"
     },

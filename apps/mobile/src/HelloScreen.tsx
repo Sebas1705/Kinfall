@@ -22,9 +22,11 @@ const LANGS: Lang[] = ['es', 'en'];
 export default function HelloScreen({
   storage,
   onOpenGallery,
+  onOpenSelfTest,
 }: {
   storage?: AsyncStorageLike | null;
   onOpenGallery?: () => void;
+  onOpenSelfTest?: () => void;
 }) {
   const [seed, setSeed] = useState(DEFAULT_SEED);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -149,6 +151,11 @@ export default function HelloScreen({
         {onOpenGallery && (
           <Pressable style={styles.button} onPress={onOpenGallery} accessibilityRole="button" testID="gallery-button">
             <Text style={styles.buttonText}>Gallery</Text>
+          </Pressable>
+        )}
+        {onOpenSelfTest && (
+          <Pressable style={styles.button} onPress={onOpenSelfTest} accessibilityRole="button" testID="selftest-button">
+            <Text style={styles.buttonText}>Self test</Text>
           </Pressable>
         )}
         {outcome?.ok === false && (
