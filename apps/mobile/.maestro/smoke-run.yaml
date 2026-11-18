@@ -1,0 +1,89 @@
+# Smoke flow: new run -> pick node -> battle -> recruit -> map -> abandon -> title.
+# Every step finds elements by testID (Android resource-id), so it works in Spanish and English.
+# Seed SMOKE002 with the default starter is deterministic: the first node is a wild battle that one
+# press of the first enabled move wins, and a recruit follows. __tests__/smokePath.test.tsx plays
+# the same taps in Jest and fails if that stops being true.
+appId: app.webgames.placeholder
+name: Smoke run
+tags:
+  - smoke
+env:
+  SEED: SMOKE002
+---
+- runFlow: subflows/open-title.yaml
+
+# Title: type the seed, keep the default (first) starter, start the run.
+- tapOn:
+    id: "seed-input"
+- eraseText: 40
+- inputText: ${SEED}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "new-run"
+    direction: DOWN
+- tapOn:
+    id: "new-run"
+
+# Map: the first available node (locked nodes are disabled).
+- extendedWaitUntil:
+    visible:
+      id: "map-screen"
+    timeout: 10000
+- tapOn:
+    id: "node-.*"
+    enabled: true
+    index: 0
+
+# Battle: press the first enabled choice until the battle screen goes away. Choices are disabled
+# while a turn plays, so a press only lands once the previous turn is over.
+- extendedWaitUntil:
+    visible:
+      id: "battle-screen"
+    timeout: 10000
+- repeat:
+    times: 20
+    while:
+      visible:
+        id: "battle-choice"
+    commands:
+      - tapOn:
+          id: "battle-choice"
+          enabled: true
+          index: 0
+          optional: true
+
+# Recruit: take the defeated creature (first choice), back to the map.
+- extendedWaitUntil:
+    visible:
+      id: "event-screen"
+    timeout: 15000
+- assertVisible:
+    id: "event-offer"
+- tapOn:
+    id: "event-choice-0"
+- extendedWaitUntil:
+    visible:
+      id: "map-screen"
+    timeout: 10000
+
+# Abandon with the inline confirmation; the title comes back with Continue disabled.
+- scrollUntilVisible:
+    element:
+      id: "abandon"
+    direction: DOWN
+- tapOn:
+    id: "abandon"
+- extendedWaitUntil:
+    visible:
+      id: "abandon-confirm-yes"
+    timeout: 5000
+- tapOn:
+    id: "abandon-confirm-yes"
+- extendedWaitUntil:
+    visible:
+      id: "title-screen"
+    timeout: 10000
+- assertVisible:
+    id: "continue"
+    enabled: false

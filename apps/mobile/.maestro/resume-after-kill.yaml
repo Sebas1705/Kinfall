@@ -1,0 +1,73 @@
+# Resume after process death: a saved run standing on a recruit (a dev-tools sample, valid for
+# core's validateRun) survives a kill of the app process, and Continue opens that exact screen.
+# Needs a debug build: the "Dev tools" link only exists when __DEV__ is true.
+appId: app.webgames.placeholder
+name: Resume after kill
+tags:
+  - smoke
+---
+- runFlow: subflows/open-title.yaml
+
+# Dev tools: write the "recruit" sample into the save slot.
+- scrollUntilVisible:
+    element:
+      id: "dev-tools"
+    direction: DOWN
+- tapOn:
+    id: "dev-tools"
+- scrollUntilVisible:
+    element:
+      id: "sample-recruit"
+    direction: DOWN
+- tapOn:
+    id: "sample-recruit"
+- extendedWaitUntil:
+    visible:
+      id: "sample-status"
+    timeout: 5000
+
+# Process death (Android: like `adb shell am kill`), then a cold start that keeps the data.
+- killApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: "title-screen"
+    timeout: 60000
+
+# Continue opens the recruit screen itself, not the map.
+- extendedWaitUntil:
+    visible:
+      id: "continue"
+      enabled: true
+    timeout: 10000
+- tapOn:
+    id: "continue"
+- extendedWaitUntil:
+    visible:
+      id: "event-screen"
+    timeout: 10000
+- assertVisible:
+    id: "event-offer"
+- assertNotVisible:
+    id: "map-screen"
+
+# Leave cleanly: "Let it go" (the second choice), then abandon from the map.
+- tapOn:
+    id: "event-choice-1"
+- extendedWaitUntil:
+    visible:
+      id: "map-screen"
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: "abandon"
+    direction: DOWN
+- tapOn:
+    id: "abandon"
+- tapOn:
+    id: "abandon-confirm-yes"
+- extendedWaitUntil:
+    visible:
+      id: "title-screen"
+    timeout: 10000

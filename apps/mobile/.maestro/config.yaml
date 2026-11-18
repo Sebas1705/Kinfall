@@ -1,0 +1,5 @@
+# Maestro workspace for the mobile app (https://docs.maestro.dev).
+# `maestro test apps/mobile/.maestro` runs the top-level flows below; subflows/ holds the shared
+# steps they call and is not run on its own.
+flows:
+  - "*"
