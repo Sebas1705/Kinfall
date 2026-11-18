@@ -1,7 +1,24 @@
 # React Native app (Expo) on a shared core: implementation plan
 
-> Status: draft for the owner. Execute only after phase 2 (run loop) is merged into `main`.
+> Status: executed on branch `rn-monorepo` (tasks 1-10, 2026-11-16 to 2026-11-18; not merged, not pushed). Device-only checks are still open: see [Owner-only steps](../../owner-steps.md).
 > Goal: a learning-oriented but real React Native app that plays the same creature roguelike, reusing the deterministic engine unchanged, so the same seed gives the same run on web and on a phone.
+
+## Results
+
+Commit ranges on `rn-monorepo` (oldest first, inclusive). Test counts at the end: 767 Vitest tests (core and web) and 280 Jest tests (mobile).
+
+| Task | Commits | Outcome |
+|---|---|---|
+| 1 Monorepo split | `0002de7`..`e90f3ab` | Done; goldens and e2e unchanged |
+| 2 Platform-neutral core | `5b4dd9e`..`093d965` | Done; core `src` compiles without DOM and Node types, `clone()` replaces `structuredClone` |
+| 3 Expo scaffold | `2a7a607`..`5da9b70` | Done; hello-core hash checked by Jest |
+| 4 Adapters | `731cb9e`..`f95f1c6` | Done; async run storage in core, AsyncStorage, language and accessibility adapters |
+| 5 Sprite renderer | `fc52aa1`..`037269d` | Done; Skia sprites and a species gallery |
+| 6 Device determinism | `44511d8`..`03eed16` | Self test built and passed on the emulator; the real-phone pass is open |
+| 7 Screens | `b88995d`..`de65031` (7a navigation and session `b88995d`..`c1c5e07`, 7b battle `1ef76f0`..`b782839`, 7c events and end `db1cf63`..`de65031`) | Done; a whole run by touch with autosave and resume. Battle animation uses React Native's built-in `Animated`, not Reanimated |
+| 8 Accessibility and layout | `6e51952`..`0a4a92d` | Done; emulator matrix and checklist, TalkBack and VoiceOver walks open |
+| 9 Tests and CI | `027dc79`..`0295bdf` | Done; Maestro flows and the Android debug job written but never run |
+| 10 Docs | see `git log` after `0295bdf` | Done; README split, ADR 0001, owner steps |
 
 ## Why this is feasible
 
