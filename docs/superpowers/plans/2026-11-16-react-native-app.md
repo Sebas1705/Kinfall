@@ -18,7 +18,7 @@ Commit ranges on `rn-monorepo` (oldest first, inclusive). Test counts at the end
 | 7 Screens | `b88995d`..`de65031` (7a navigation and session `b88995d`..`c1c5e07`, 7b battle `1ef76f0`..`b782839`, 7c events and end `db1cf63`..`de65031`) | Done; a whole run by touch with autosave and resume. Battle animation uses React Native's built-in `Animated`, not Reanimated |
 | 8 Accessibility and layout | `6e51952`..`0a4a92d` | Done; emulator matrix and checklist, TalkBack and VoiceOver walks open |
 | 9 Tests and CI | `027dc79`..`0295bdf` | Done; Maestro flows and the Android debug job written but never run |
-| 10 Docs | see `git log` after `0295bdf` | Done; README split, ADR 0001, owner steps |
+| 10 Docs | `3c36bcb`..`dcacd13` | Done; README split, ADR 0001, owner steps |
 
 ## Why this is feasible
 
