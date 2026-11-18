@@ -5,7 +5,7 @@ import { hashRun, serializeRun } from '@webgames/core/sim/run/codec';
 import { availableNodes, legalRunActions } from '@webgames/core/sim/run/run';
 import type { RunPhase, RunState } from '@webgames/core/sim/run/types';
 
-import { phaseHeading, RUN_LOG_MAX, runLogContext, runLogLines, runViewOf } from '../../src/run/session';
+import { createRunSession, phaseHeading, RUN_LOG_MAX, runLogContext, runLogLines, runViewOf } from '../../src/run/session';
 import { firstNode, freshRun, makeSession, memoryStorage, RUN_KEY, STARTER } from '../../test-support/runFixtures';
 
 const SEED = 'TESTSEED';
@@ -201,6 +201,34 @@ describe('run session: write ordering', () => {
     expect(storage.writes).toHaveLength(2);
     expect(storage.data.has(RUN_KEY)).toBe(false);
     expect(storage.maxInFlight).toBe(1);
+  });
+
+  it('keeps the write queue alive when a custom storage rejects instead of reporting', async () => {
+    const saved: RunState[] = [];
+    let calls = 0;
+    const warn = jest.fn();
+    const session = createRunSession({
+      content: CONTENT,
+      storage: {
+        // Breaks the AsyncRunStorage contract (it must never reject) on the first save only.
+        save: async (run) => {
+          if (calls++ === 0) throw new Error('broken storage');
+          saved.push(run);
+          return { ok: true };
+        },
+        load: async () => ({ kind: 'none' }),
+        clear: async () => {},
+      },
+      randomSeed: () => 'FRESH1',
+      logger: { warn },
+    });
+    session.start(SEED, STARTER);
+    session.pickNode(firstNode(session.getSnapshot().run!));
+    await session.whenIdle();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toBe('run save failed unexpectedly');
+    // The next write still ran, with the latest state.
+    expect(saved).toEqual([session.getSnapshot().run]);
   });
 
   it('ignores the outcome of saves of an abandoned run (no stale warning)', async () => {
