@@ -152,6 +152,50 @@ This is an owner step. It needs a physical device and cannot be done from CI.
 4. In the app, press **Dev tools** (at the bottom of the title screen), **Self test**, then **Run self test**. Check for **PASS**, `Battle 3/3`, `Run 6/6` (or the current golden counts) and `HermesInternal: present`. Write down the Hermes version, the device model and the elapsed time.
 5. If the result is **FAIL**, keep the screen (screenshot) or the `[selftest]` lines from `adb logcat -d -s ReactNativeJS` and report the first mismatch.
 
+### Mobile tests
+
+**Jest** (Node, no device): `npm run test:mobile` from the root, or `npx jest` inside `apps/mobile`. Pass a path to run one suite (`npx jest __tests__/ui/Screen.test.tsx`) and `--coverage` for a per-file report. Shared helpers live in `apps/mobile/test-support/`: memory storages and seeded sessions (`runFixtures.ts`), instant animations and a promise flush (`battleFixtures.ts`), a real double tap (`press.ts`). `__tests__/smokePath.test.tsx` plays the same taps as the Maestro smoke flow below on the whole app, so a change that breaks the flow's assumptions (seed `SMOKE002`: a wild battle won in one turn, then a recruit) fails in Jest first.
+
+**Maestro** (device end-to-end): two flows in `apps/mobile/.maestro/`, which find every element by its `testID` (the Android resource id), so they work in both languages.
+
+- `smoke-run.yaml`: new run with seed `SMOKE002`, the first node, the battle, the recruit, the map, abandon with confirmation, back on the title with no save.
+- `resume-after-kill.yaml`: saves the dev-tools `recruit` sample, kills the app process (`killApp`, like `adb shell am kill`), relaunches and checks that **Continue** opens the recruit screen.
+
+They target a debug build of package `app.webgames.placeholder` (the Dev tools link only exists in debug builds), not Expo Go. To run them on an emulator, with [Maestro](https://docs.maestro.dev) installed:
+
+```sh
+cd apps/mobile
+npx expo prebuild --platform android --no-install   # generates android/ (git-ignored); revert the "android" script it rewrites in package.json
+npx expo run:android                                # builds and installs the debug app, starts Metro
+maestro test .maestro                               # both flows; or: maestro test .maestro/smoke-run.yaml
+```
+
+The flows were checked against the Maestro docs and parsed as YAML, but they have **not** been run yet: Maestro is not installed on the development machine. The first device run is an owner step.
+
+## CI
+
+`.github/workflows/ci.yml` runs on pushes to `main`, on pull requests and by hand (`workflow_dispatch`). It only checks: no job signs or uploads a build or reads a secret, and the token is read-only (`contents: read`). Each job and the commands to run it locally from the root:
+
+| Job | What it runs | Locally |
+|---|---|---|
+| `core` | typecheck of every workspace, Vitest, golden files regenerated and compared | `npm run typecheck`, `npm test`, `npm run golden:update`, `npm run golden:runs`, then `git diff --exit-code -- packages/core/tests/golden` |
+| `web` | production build and size budget | `npm run build`, `npm run size` |
+| `web-e2e` (after `web`) | Playwright in Chromium, Firefox and WebKit | `npm run test:e2e` (Edge only, see below) |
+| `mobile` | mobile typecheck and Jest | `npm run typecheck -w @webgames/mobile`, `npm run test:mobile` |
+| `android-debug` (after `mobile`) | `expo prebuild`, then `./gradlew assembleDebug` for the emulator ABI (`x86_64`) with JDK 21 | see below |
+
+The Android job builds the debug variant only, signed with the SDK's throwaway debug key. Locally it needs JDK 17 or newer, `ANDROID_HOME` and the NDK version the generated project asks for (`ndkVersion`; the Skia and Hermes native code needs it):
+
+```sh
+cd apps/mobile
+npx expo prebuild --platform android --no-install
+cd android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64
+```
+
+`expo prebuild` was checked locally (it also rewrites the `android` script in `package.json`; revert that, CI does not commit it). The Gradle build itself has **not** been run locally yet: the wrapper's Gradle 9.4.1 and the NDK are not installed on the development machine, so the `android-debug` job is first verified when CI runs.
+
+Caches: npm through `actions/setup-node`, Gradle through `gradle/actions/setup-gradle` (which also validates the Gradle wrapper). Actions are pinned by major tag, like the rest of the repository.
+
 ## End-to-end tests
 
 `npm run test:e2e` starts the dev server on port 5199 and runs the specs in `apps/web/tests/e2e`:
