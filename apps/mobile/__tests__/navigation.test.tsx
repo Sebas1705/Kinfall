@@ -7,7 +7,7 @@ import { nodeTypeLabel } from '@webgames/core/platform/i18n';
 import { serializeRun } from '@webgames/core/sim/run/codec';
 import { availableNodes } from '@webgames/core/sim/run/run';
 import * as Localization from 'expo-localization';
-import { BackHandler } from 'react-native';
+import { AccessibilityInfo, BackHandler } from 'react-native';
 
 import { AppShell } from '../App';
 import { navigationRef } from '../src/navigation/AppNavigator';
@@ -135,6 +135,30 @@ describe('app navigation', () => {
     await act(async () => navigationRef.goBack());
     expect(await screen.findByTestId('corrupt-notice')).toBeTruthy();
     expect(route()).toBe('Title');
+  });
+
+  it('slides screens in by default and turns the transitions off with reduce motion', async () => {
+    const user = userEvent.setup();
+    let reduce = false;
+    let emit: ((enabled: boolean) => void) | null = null;
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockImplementation(() => Promise.resolve(reduce));
+    jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation(((name: string, l: (enabled: boolean) => void) => {
+      if (name === 'reduceMotionChanged') emit = l;
+      return { remove: () => {} };
+    }) as never);
+
+    const session = makeSession(storage);
+    await render(<AppShell session={session} />);
+    await screen.findByTestId('title-screen');
+    await waitFor(() => expect(navigationRef.getCurrentOptions()).toMatchObject({ animation: 'default' }));
+
+    // Switched on while the app runs: the next screen change is not animated.
+    reduce = true;
+    await act(async () => emit?.(true));
+    await user.press(screen.getByTestId('new-run'));
+    expect(await screen.findByTestId('map-screen')).toBeTruthy();
+    expect(navigationRef.getCurrentOptions()).toMatchObject({ animation: 'none' });
+    await act(async () => session.whenIdle());
   });
 
   it('reaches the dev tools from the title in dev builds only', async () => {
