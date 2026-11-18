@@ -1,6 +1,6 @@
 # Mobile app: accessibility and layout checklist
 
-What the mobile app (`apps/mobile`) does for accessibility and adaptive layout, and how each case was checked. Task 8 of the [React Native plan](../../docs/superpowers/plans/2026-11-16-react-native-app.md). The layout rules themselves are described in the README ([Accessibility and layout](../../README.md#accessibility-and-layout)).
+What the mobile app (`apps/mobile`) does for accessibility and adaptive layout, and how each case was checked. Task 8 of the [React Native plan](../../docs/superpowers/plans/2026-11-16-react-native-app.md). The layout rules themselves are described in the [mobile README](README.md#accessibility-and-layout).
 
 Legend: **verified** (checked on the Android emulator and/or by Jest, as stated), **unit-tested only**, **not testable here** (with the reason).
 

@@ -1,6 +1,6 @@
 # webgames
 
-`webgames` is a placeholder name for a TypeScript browser-game project: a deterministic game engine plus a creature roguelike built on top of it. The name is a placeholder and may change.
+`webgames` is a placeholder name for a TypeScript game project: a deterministic game engine plus a creature roguelike built on top of it, played in the browser and on a phone from one shared core. The name is a placeholder and may change.
 
 ## Layout
 
@@ -8,19 +8,37 @@ The repository is an npm workspaces monorepo:
 
 | Path | Package | Contents |
 |---|---|---|
-| `packages/core` | `@webgames/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@webgames/core/sim/run/run`. |
+| `packages/core` | `@webgames/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu, and the battle turn controller). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@webgames/core/sim/run/run`. |
 | `apps/web` | `@webgames/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@webgames/core/...`. |
-| `apps/mobile` | `@webgames/mobile` | The React Native app (Expo, TypeScript): a whole run by touch (title, map, battle, event and end screens) over an autosaved run session, plus dev tools: a "hello core" screen that plays a bot run from a seed with `@webgames/core` and shows its hash, a sprite gallery and a device determinism self test. Jest tests (`jest-expo`) live in `__tests__`. See [Mobile app](#mobile-app). |
+| `apps/mobile` | `@webgames/mobile` | The React Native app (Expo, TypeScript): a whole run by touch over an autosaved run session, plus dev tools (a "hello core" screen, a sprite gallery and a device determinism self test). Jest tests (`jest-expo`) live in `__tests__`. See [apps/mobile/README.md](apps/mobile/README.md). |
 
-Core is platform-neutral so it can also run under React Native (Hermes):
+Why it is one repository with a shared core and two app shells: [ADR 0001](docs/adr/0001-shared-core-two-shells.md).
+
+## Core rules
+
+### Platform-neutral
+
+Core runs under Node, in browsers and under React Native (Hermes), so:
 
 - Its source has no DOM and no Node globals. `packages/core/tsconfig.json` compiles `src` with `lib: ["ES2022"]` and no `types`, so `document`, `localStorage`, `navigator` or `console` fail `tsc`; `packages/core/tsconfig.test.json` covers tests and scripts (Node types and jsdom allowed). `packages/core/tests/platform-neutral.test.ts` also scans `src` for platform globals, including `globalThis`/`self` aliases that `tsc` would accept.
 - State is copied with `clone()` (`src/sim/clone.ts`, plain data only) instead of `structuredClone`, which Hermes may lack.
-- Platform services are injected by the app. i18n: `configureI18n({ storage, detect, onChange })` binds the shared `t()`/`getLang()`/`setLang()` (English and adapter-free until then); the web app calls `installWebI18n()` from `apps/web/src/platform/webI18n.ts` at startup (localStorage key `webgames.lang`, `navigator.language`, `<html lang>`). Run saves: `createRunStorage(storage, content)` takes a `StorageLike`, and `createAsyncRunStorage(storage, content)` (`src/platform/asyncRunStorage.ts`) is its promise-based twin for React Native, with the same slot `webgames.run.v1`, results and rules (it shares the helpers in `runStorage.ts`); the web app passes `defaultStorage()` from `apps/web/src/platform/webStorage.ts` (localStorage, or null when blocked).
+- Platform services are injected by the app. i18n: `configureI18n({ storage, detect, onChange })` binds the shared `t()`/`getLang()`/`setLang()` (English and adapter-free until then); the web app calls `installWebI18n()` from `apps/web/src/platform/webI18n.ts` at startup (localStorage key `webgames.lang`, `navigator.language`, `<html lang>`), the mobile app calls `installMobileI18n()`. Run saves: `createRunStorage(storage, content)` takes a `StorageLike`, and `createAsyncRunStorage(storage, content)` (`src/platform/asyncRunStorage.ts`) is its promise-based twin for React Native, with the same slot `webgames.run.v1`, results and rules (it shares the helpers in `runStorage.ts`); the web app passes `defaultStorage()` from `apps/web/src/platform/webStorage.ts` (localStorage, or null when blocked).
 
-All commands below run from the repository root.
+Do not add platform code to core: add an interface to core and implement it in the app.
+
+### Determinism and the golden files
+
+The same seed and the same choices always give the same battle and the same run, on every engine and both apps. Three things enforce it:
+
+- **Integer-only simulation.** The engine uses integers, `Math.imul`, `Math.floor` and default string sorting, and draws randomness only from its seeded generator.
+- **Golden replays.** `packages/core/tests/golden/battle.golden.json` and `run.golden.json` store final hashes, results and scores for fixed seeds. Vitest replays them in Node, the web Playwright spec replays them in Chromium (and Firefox and WebKit in CI), the mobile Jest suite replays the hello-core hash, and the mobile dev **Self test** replays them on a device's Hermes (see [apps/mobile/README.md](apps/mobile/README.md#device-self-test-determinism-on-hermes)).
+- **CI regenerates and compares them.** The `core` job runs `npm run golden:update` and `npm run golden:runs` and fails on any diff.
+
+Golden workflow: a change that moves a golden file is a change in game behaviour. Run `npm run golden:update` (battles) and/or `npm run golden:runs` (runs), review the diff, and commit the new files together with the change that caused them and a note saying why. Never update the goldens to hide a failure on another engine: that is a determinism bug in core.
 
 ## Development
+
+All commands run from the repository root.
 
 ```sh
 npm install
@@ -37,7 +55,15 @@ npm run golden:runs   # regenerate packages/core/tests/golden/run.golden.json (r
 npm run art:preview   # write packages/core/art-preview.html with every sprite (git-ignored)
 ```
 
-## Playing
+Per app:
+
+| | Web (`apps/web`) | Mobile (`apps/mobile`) |
+|---|---|---|
+| Run | `npm run dev` | `cd apps/mobile && npx expo start` (Expo Go on a phone or emulator; `--android` for the emulator). See [Run it](apps/mobile/README.md#run-it) |
+| Test | `npm test` (Vitest) and `npm run test:e2e` (Playwright) | `npm run test:mobile` (Jest); Maestro device flows in `apps/mobile/.maestro` |
+| Build | `npm run build`, then `npm run size` | No release build is made. CI builds an Android debug APK; see [CI](#ci) |
+
+## Playing the web game
 
 Run `npm run dev` and open the page. The title screen starts a run (an Expedition): pick a starter, keep or type a seed, and choose **New run**. A run is three zones of node maps (wild creatures, elites, shrines, caches, mysteries and a boss per zone). Between battles you recruit defeated creatures, rest or evolve at shrines, and a creature that faints is lost for the run. `?seed=NAME` prefills the seed: the same seed and the same choices always give the same run.
 
@@ -45,132 +71,12 @@ Play with the keyboard (Tab or arrows, Enter to confirm) or by clicking or tappi
 
 - **Saves live in this browser.** The run is saved automatically after every action (every battle turn included) in `localStorage` under the key `webgames.run.v1`, and **Continue run** on the title screen resumes it. Clearing the site data deletes the save. If the browser blocks storage, the run stays playable and a warning says it is not being saved. A damaged save is reported and can be discarded.
 - **Single battle.** `?mode=battle` (for example `/?mode=battle&seed=NAME`) opens the phase-1 demo battle on its own, without a run.
-- **Balance.** With the current numbers the game is effectively unwinnable: the bots win 0 of 900 runs (300 seeds x 3 starters) and rarely leave zone 0, and even a search with perfect information wins only about 1 run in 15. Balance is phase 3 work.
+- **Balance.** With the current numbers the game is effectively unwinnable: the bots win 0 of 900 runs (300 seeds x 3 starters) and rarely leave zone 0, and even a search with perfect information wins only about 1 run in 15. Balance is phase 3 work (see the [phase 3 handoff](docs/superpowers/notes/2026-11-16-phase-3-handoff.md)).
 - **Known issue.** The battle engine still has no turn limit, so a boss that heals (the zone-1 Thorn Sovereign with mending_moss) can make a fight endless. Reloading resumes the same battle; the battle screen has an **Abandon run** button, and **New run** on the title screen starts over.
 
 ## Mobile app
 
-`apps/mobile` is an Expo (managed) app on Expo SDK 58 (React Native 0.88.1, React 19.3.0; the three are pinned to exact versions so device determinism checks are reproducible). It has no native folders: it runs in Expo Go, and `apps/mobile/android` and `apps/mobile/ios` are git-ignored in case a prebuild is ever made locally. App name `Webgames`, slug `webgames` and package id `app.webgames.placeholder` are placeholders.
-
-It opens on the **title screen** and plays a whole run by touch: pick a starter, keep or type a seed and choose **New run**. The map of the zone follows; a battle node (wild, elite, boss) opens the **battle screen** (Task 7b), and recruit offers, shrines, caches and mysteries open the **event screens**, until the **end screen** shows the result and score (Task 7c of the [React Native plan](docs/superpowers/plans/2026-11-16-react-native-app.md)).
-
-### How to play a run
-
-1. Start the app (see below). The title shows a random 8-character seed, the three starters and **New run**. **Continue run** is enabled only when a valid save exists.
-2. Choose **New run**: the map of zone 1 shows the party, the souls and seven steps, step 1 at the top and the boss last. Available nodes have a solid border and say "available"; the others say "locked".
-3. Tap an available node: the run saves. Step 1 nodes are battles: the battle screen shows the rival (HUD left, creature right), your creature (creature left, HUD right), the prompt and one button per choice. Tap a move: the turn is applied and saved first, then it plays (lunge, hit blink, HP bar tween, status chip pop, heal glow, swap and faint fades) while the choices stay disabled. When the battle ends, the next phase shows (the map, a recruit offer or the end of the run) with the run log lines of the battle's end.
-4. Events: a won wild battle offers the creature (**Recruit** / **Let it go**; with a full party, one **Replace {species}** per member with its HP, and "Let it go" is the screen-reader focus on arrival). A shrine offers **Rest**, **Evolve {species}** (with its cost; disabled with "Not enough souls" in text when souls are short) and **Leave**; a cache **Take the cache**; a mystery **Open it** / **Leave it**. Each pick is saved and the map comes back with its log line.
-5. The end screen says **Run won** or **Run lost** in text, then the score (core's `runScore`) and the stats. **New run** clears the save and starts at once from a fresh seed with the last starter of this session (the first starter after a resume, since a save does not record it); **Back to start** (or Android back, as the run is already over) clears the save and returns to the title.
-6. Kill the app and open it again: **Continue run** resumes into the same battle (same HP, focus, status, rival intent and choices; the battle log starts empty), the same event, the same end screen or the same map.
-7. To leave a run, use **Abandon run** on the map or in battle, or Android back anywhere in the run (back opens the confirmation; a second back closes it). **Yes, abandon** deletes the save and returns to the title with a fresh seed.
-8. The ES/EN toggle on the title switches every screen and is remembered.
-
-### Structure and navigation
-
-`apps/mobile/src`:
-
-- `run/session.ts`: the run session, a plain object with no React, unit-tested on its own. It owns the current `RunState`, `start(seed, starterId)`, `resume()`, `abandon()`, `discardSave()`, `pickNode(nodeId)`, `act(action)` (any run action: battle turns and event choices) and `newRun(starterId?)` (the end screen's New run: clear, then start from a fresh seed), the cleared-node `trail` of this session (as the web controller keeps it), the run log (run events; lines come from core's `runEventLine` at render time, so a language change rebuilds them) and the save warning. Its immutable snapshot carries `view` (`map`, `battle`, `event` or `end`, from `runViewOf(phase)`), which is all the Run screen routes on. `run/useRunSession.tsx` has `RunSessionProvider` and `useRunSession()` (`useSyncExternalStore`).
-  - Autosave: every applied action enqueues one write of the state it produced through core's `createAsyncRunStorage` (slot `webgames.run.v1`). Writes, and the clear of an abandon or a discard, run one at a time in enqueue order, so two quick taps never interleave and the last write holds the latest state. A failed save shows one dismissible banner per failure streak, a later good save hides it, and play goes on. A rejected action changes nothing, saves nothing and logs a warning.
-- `navigation/AppNavigator.tsx`: one native stack with `@react-navigation/native` 7 and `@react-navigation/native-stack` (plus `react-native-screens` and `react-native-safe-area-context` at the versions `npx expo install` pins for SDK 58; all of them run in Expo Go). Routes: `Title` -> `Run`, where `Run` is one screen that draws every phase, so the stack never grows during a run, and the dev routes `Hello`, `Gallery` and `SelfTest`. Headers are off. Android back on the Run screen opens the abandon confirmation instead of leaving; on the title it exits the app. The title re-reads the save every time it gains focus.
-- `screens/TitleScreen.tsx`: the seed field (core's `seedFromRandom` and alphabet in `packages/core/src/platform/seed.ts`, shared with the web title; the bytes come from `platform/random.ts`, which uses `globalThis.crypto.getRandomValues` when the engine has it and `expo-crypto` otherwise; Hermes in Expo Go SDK 58 has no `crypto`, so it is `expo-crypto`), the starters as a radio group (sprite, name, element and hint), **New run**, **Continue run**, the damaged-save notice with an inline two-step **Discard saved run**, the storage-unavailable notice, the saves-live-on-this-device note and the ES/EN toggle. A **Dev tools** link opens the dev screens; it exists only in development bundles (`__DEV__`).
-- `screens/MapView.tsx` draws core's `buildMapModel`: zone heading, party panel (sprite, name and an HP bar with the numbers as text) and souls, the layers, and nodes as 48dp buttons with a glyph plus their type and state in text (`map.nodeLabel` for screen readers; the current node says "you are here"). Node buttons widen with the font scale, so 200% text gets one node per row.
-- `screens/RunScreen.tsx` draws the snapshot's `view`: the map, the battle, or `PHASE_VIEWS[view]` for event (`EventView`) and end (`EndView`), plus the save banner, the run log (only the newest lines sit in a polite live region; hidden during a battle, which has its own log) and the abandon confirmation. A battle's final turn moves the run on at once (it is applied and saved before it plays), so the Run screen keeps the battle up until that turn has played and the turn controller calls `onEnd`; then it routes on the new phase. Every new phase starts scrolled to the top. Event and end screens have no abandon button, like the web; Android back still asks on an event, and on the end screen it goes straight to the title.
-- `screens/BattleView.tsx` is the battle screen (see below).
-- `screens/EventView.tsx` draws core's `buildEventModel` for recruit, shrine, cache and mystery: heading, description, the offered creature (sprite, name, elements and HP as text), the full-party note, the choices and the party panel. Choices are exactly core's legal run actions (`legalRunActions`) plus evolve entries that stay listed but disabled, with the cost and "Not enough souls" in text and a dashed border. Each choice is a 48dp button whose accessibility label is its label plus its detail; replace entries have the warning border. A pick goes through `session.act`, so it is applied, logged (core's `runEventLine`) and saved; a second tap before the next phase draws is ignored. On arrival, screen-reader focus goes to the model's `focusIndex` (the first enabled choice, or "Let it go" with a full party).
-- `screens/EndView.tsx` draws core's `buildEndModel`: the result as a header in text (the green or red colour only repeats it), the score as one accessible element ("Score: 4540"), each stat as one ("Zones cleared: 3"; the label wraps in its own column at large text, the value stays on the right), **New run** and **Back to start** (`end.toTitle`, the one new string, which replaced the unused `run.placeholder`). One tap wins: a double tap never starts two runs. Screen-reader focus starts at the result.
-- `dev/sampleRuns.ts`: `sampleRun(kind, content)` builds valid runs (they pass core's `validateRun`) standing on each event (`recruit`, `recruitFull`, `shrine`, `shrinePoor`, `cache`, `mystery`) and on both endings (`won`, `lost`), from a seed's own maps; no content or engine change. The tests use them, and the hello screen's **Save sample run** buttons write one into the save slot so **Continue run** opens that screen on a device.
-- `ui/`: `Button`, `ConfirmPanel` (inline two-step confirmations, no system alert; shown where the button that opened it was, and it scrolls itself into view), `LangToggle`, `PartyPanel`, `RunLogPanel`, `SaveBanner`, `Screen` (scrolls inside the safe area, caps and centres the content width, and can pin a footer) and `windowSize.ts` (window size classes and the layout decisions, see [Accessibility and layout](#accessibility-and-layout)). `theme.ts` mirrors the web tokens for light and dark (including surface, accent, focus and danger, plus an `outline` for unfilled controls), exports `TOUCH` (48dp) and lists every colour pair with its WCAG minimum (`CONTRAST_PAIRS`, checked by a test). `platform/LangContext.tsx` re-renders every screen after a language change.
-
-### Battle screen
-
-- **One turn state machine for both apps.** The turn controller (`packages/core/src/models/battleController.ts`, moved from `apps/web/src/view/controller.ts` with its tests) is platform-neutral: it takes the UI, the scene, the timers and the logger as interfaces (`BattleUi`, `BattleScene`, `TimerApi`, `Logger`). It commits the new state before any animation, ignores input while a play is pending, settles each turn exactly once (normal end, rejection, throw or the watchdog `watchdogMs(eventCount)` = max(2500, 700 per event) ms), calls `onEnd` once after the final play settled, and rebuilds the texts once when the language changes during a pending turn. The web keeps thin re-exports (`apps/web/src/view/controller.ts`, `runTurn.ts`), so its code and e2e tests are unchanged. `packages/core/src/models/battleTurn.ts` (`splitBattleStep`, `battleTurn`) splits an applied run step into the battle events to play and the run events to log.
-- `battle/useBattleController.ts` (`useBattleTurns`) wires that controller to React state (busy flag, choices from core's `buildMenu`, the battle log from `logLines`, a focus request) and sends each turn through the run session's `act({ type: 'battle', action })`, so the run is updated and autosaved before the turn plays. A rejected action is a no-op with a logged warning; the battle keeps its state. The screen opens from the run's saved `BattleState`, so a resumed battle shows exactly the saved HP, focus, status, intent and choices with an empty log.
-- `battle/useBattleScene.ts` implements `BattleScene` with React Native's built-in `Animated` (native driver; transforms and opacity only, the HP bar is a `scaleX` fill): attacker lunge, hit blink and shake, HP tween, status chip pop (spring), heal glow, swap fade out/in and faint fade. `battle/sceneModel.ts` is the pure part: what each side shows as the turn's events arrive. Every step has a hard time budget (nominal length + 150 ms, then a timer finishes it), a new render cancels a running play, and with the system reduce motion setting (`useA11ySettings`, which on Android follows "Remove animations" / animator duration scale 0) nothing animates and the settled state shows at once. The animation never changes the sim state.
-- Layout, vertical-first and one-handed: node heading, rival row, player row, the prompt and the choices (moves first, then swaps as "Swap to {species}"), **Abandon run** (the same two-step inline confirmation as the map, also from Android back), then the battle log last so a growing log never moves the buttons. Choices are 48dp buttons that name the move, its element (icon plus text), power and focus cost (`battle.power`, the only new string); disabled while a turn plays. HP and focus are written as text next to their bars; status is a text chip; the telegraphed rival move ("Next: {move}") is a text line in the rival HUD. Each HUD is one accessible element read as the web's `hud.summary`. Only the latest turn's lines sit in a polite live region, and after each settled turn screen-reader focus moves to the prompt above the choices (`AccessibilityInfo.sendAccessibilityEvent(..., 'focus')`), unless the abandon confirmation is open. When large text or a short window would push the choices below the creatures, the battle switches to its compact layout (smaller creatures, HP and focus on one line, the choices and **Abandon run** pinned at the bottom); on tablets, foldables and landscape phones the scene and the choices sit side by side (see [Accessibility and layout](#accessibility-and-layout)).
-- Tests (`__tests__/screens/BattleView.test.tsx`, `__tests__/battle/*`, Jest fake timers and a mocked `Animated.timing`/`spring` from `test-support/battleFixtures.ts`): a whole battle with the real engine (one autosave per turn, choices locked while pending, the next phase with the end lines), `onEnd` exactly once, the watchdog and step budgets, reduce motion, a rejected turn, resume mid-battle, abandon by button and by back, a language change during a pending turn, labels and roles, focus.
-
-### Accessibility and layout
-
-- **Window size classes** (`ui/windowSize.ts`, pure and unit-tested): width classes at 600 and 840dp, height classes at 480 and 900dp. Two panes on expanded widths (tablets, unfolded foldables, most phones on their side) and on medium widths in landscape (small phones on their side): title (continue and seed / starters and New run), map (party and log / map), battle (scene and log / choices), events (choices / party and log) and end (result / stats and log). One column elsewhere, capped at 720dp and centred. The battle's compact layout applies when the window height divided by the font scale is under 600dp (for example 360x640 or 411x914 at 200% text). The app is not locked to portrait (`app.json` `orientation: default`).
-- **Edge to edge**: content stays clear of the status bar, navigation bar and display cutouts through the safe-area insets; the status bar icons follow the theme.
-- **Screen readers**: every touchable has a role (button, radio, link), a name and its state (disabled, checked, selected); map nodes read core's `map.nodeLabel`; sprites, element icons and bars are hidden; new log lines sit in polite live regions on Android and are announced once through `AccessibilityInfo.announceForAccessibility` on iOS (`platform/announce.ts`, keyed so a re-render or a language change never repeats them).
-- **Motion**: battle animations and screen transitions are off with the system reduce motion / remove animations setting.
-- The checklist of what was verified, and what could not be, is in [apps/mobile/ACCESSIBILITY.md](apps/mobile/ACCESSIBILITY.md).
-
-The dev tools keep the earlier screens. **Hello core**: type a seed (default `golden-0`), press **Run**, and it plays a whole run with the core bot and the first starter, then shows the starter, `hashRun` of the final state, the result, the score and the number of steps. For the same seed the hash must equal the one Node computes (for example `golden-0` gives `280338e8c541b53c`, the same as `run.golden.json`). Its **Damage saved run** button writes text that fails validation into the run slot, to try the title's damaged-save notice on a device, and its **Save sample run** buttons write a valid run standing on an event or an end (see `dev/sampleRuns.ts`), to reach those screens without playing up to them.
-
-Platform adapters live in `apps/mobile/src/platform/`: `asyncStorage.ts` (`defaultAsyncStorage()`, `@react-native-async-storage/async-storage` as core's `AsyncStorageLike`, null if unusable), `mobileI18n.ts` (`installMobileI18n()` reads the saved language `webgames.lang` first, then configures core i18n with a synchronous in-memory adapter that writes through to AsyncStorage; the device language comes from `expo-localization`; `App.tsx` renders nothing until it resolves, so there is no flash of the wrong language) and `a11ySettings.ts` (`useA11ySettings()`: system reduce motion and font scale). The hello screen also has an ES/EN toggle, **Save last run** / **Load** buttons (none, ok with hash, corrupt, unavailable) and a read-only reduce motion and font scale line.
-
-Sprites: `apps/mobile/src/art/` has `<CreatureSprite species scale />` and `<ElementIcon element scale />`. They draw the core generator's grid (`generateCreature`, `elementIcon`) with `@shopify/react-native-skia` (2.14.0, the version Expo SDK 58 pins; it ships inside Expo Go, so no development build is needed). Core's pure `gridToRects(grid)` (`packages/core/src/art/gridToRects.ts`) merges same-colour horizontal runs into rects, one Skia `Rect` each, with whole-pixel edges and anti-aliasing off so cells stay crisp at integer scales. Sprites are decorative (hidden from screen readers unless `accessibilityLabel` is passed) and the grid is generated once per species. Canvases set Skia's `androidWarmup`, which also paints the picture as a plain bitmap: without it the Android emulator now and then left one sprite blank on first draw (about 1 launch in 4; none in 8 launches with it). A dev **Gallery** screen (button on the hello screen) lists every species with its elements at scales 2, 3 and 4. Jest loads Skia through `@shopify/react-native-skia/jestSetup` (see `jest.setup.js`) and transforms it via `transformIgnorePatterns`.
-
-To run it on an Android emulator (paths are this machine's, adjust them):
-
-```sh
-export JAVA_HOME="$HOME/.jdks/jdk-21.0.12.1+1"
-export ANDROID_HOME="$HOME/Android/sdk"   # the SDK that has emulator/ and platform-tools/
-export PATH="$ANDROID_HOME/platform-tools:$PATH"
-"$ANDROID_HOME/emulator/emulator" -avd <your_avd> &   # an API 34+ AVD
-cd apps/mobile && npx expo start --android
-```
-
-The Expo CLI downloads and installs the matching Expo Go on the emulator the first time, then opens the app. No account, EAS or signing is needed. To use a phone, install Expo Go and scan the QR code that `npx expo start` prints (same network).
-
-Metro uses Expo's default config (`apps/mobile/metro.config.js`): since SDK 52 it detects the npm workspace and watches the repository root, and package `exports` are enabled by default, so `@webgames/core/<path>` resolves to `packages/core/src/<path>.ts` without aliases. `apps/mobile/tsconfig.json` extends `expo/tsconfig.base` with `strict` and `noUncheckedIndexedAccess` and type-checks the core modules the app imports.
-
-### Device self test (determinism on Hermes)
-
-The core guarantee is that the same seed gives the same battle and run on every engine. Jest runs on Node, so only the device can prove it for Hermes. The dev **Self test** screen (button on the hello screen) replays every entry of both golden files, `packages/core/tests/golden/battle.golden.json` and `run.golden.json`, on the device JS engine. The screen imports those files directly (Metro bundles JSON from the watched repository root), so there is no copy that could drift.
-
-- The runner is core's pure `runGoldenSelfTest` (`packages/core/src/sim/selfTest.ts`, with `checkBattleGolden`, `checkRunGolden`, `combineSelfTest` and `selfTestSummary`). It makes the same calls and comparisons as the Node golden tests: battle final hash and winner; run final hash, result, score and tags, with no rejected actions. Each file must have a minimum number of entries (3 battles, 4 runs) and every entry needs non-empty actions. Malformed input gives `ok: false`, never an exception.
-- It runs only when you press **Run self test**. It yields to the UI between the two files so the spinner shows. The screen shows a large **PASS** or **FAIL**, the battle and run counts, the elapsed time, the first mismatch with its expected and actual values, one line per entry, a monospace summary, and the engine: `HermesInternal` presence and version, platform and OS version, React Native version, Expo SDK, device model (Android `Platform.constants`) and `typeof structuredClone`.
-- It also logs two lines that start with `[selftest]` (summary with elapsed time, then the engine). You can read them without the UI: `adb logcat -d -s ReactNativeJS | grep selftest`.
-- Auto-run is off by default. It turns on when the bundle is built with `EXPO_PUBLIC_SELFTEST_AUTORUN=1`, or when the app is opened with a URL that has a `selftest` path segment or a `?selftest=1` query, for example `exp://127.0.0.1:8081/--/selftest` in Expo Go or `webgames://selftest` in a build (`app.json` sets the scheme).
-
-Run it on the Android emulator (environment as above):
-
-```sh
-"$ANDROID_HOME/emulator/emulator" -avd <your_avd> -no-snapshot &
-adb wait-for-device
-cd apps/mobile && npx expo start --android    # then: Dev tools > Self test > Run self test
-# or without touching the UI: open the app on the self test, it runs on mount
-adb reverse tcp:8081 tcp:8081
-adb shell am start -a android.intent.action.VIEW -d "exp://127.0.0.1:8081/--/selftest" host.exp.exponent
-adb logcat -d -s ReactNativeJS | grep selftest
-# or bake auto-run into the bundle (also a good check of the minified production bundle)
-EXPO_PUBLIC_SELFTEST_AUTORUN=1 npx expo start --no-dev --minify
-```
-
-A pass looks like `[selftest] PASS battle 3/3 run 6/6 elapsed=39ms (battle 6ms, run 33ms)`. A failure looks like `FAIL battle 2/3 run 6/6 first=battle#1 {"expected":{...},"actual":{...}}`. A failure on a device is a determinism bug in core. Do not update the goldens to hide it.
-
-#### Verify on a real phone
-
-This is an owner step. It needs a physical device and cannot be done from CI.
-
-1. Install **Expo Go** from the Play Store (or the App Store). It must support SDK 58.
-2. Over Wi-Fi: put the phone and the computer on the same network, run `cd apps/mobile && npx expo start`, and scan the QR code (Android: from Expo Go; iOS: with the Camera app). If the network blocks it, try `npx expo start --tunnel`.
-3. Or over USB (Android): turn on Developer options and USB debugging, connect the phone, accept the debugging prompt, then run `adb devices` (the phone must be listed), `adb reverse tcp:8081 tcp:8081` and `npx expo start --android`.
-4. In the app, press **Dev tools** (at the bottom of the title screen), **Self test**, then **Run self test**. Check for **PASS**, `Battle 3/3`, `Run 6/6` (or the current golden counts) and `HermesInternal: present`. Write down the Hermes version, the device model and the elapsed time.
-5. If the result is **FAIL**, keep the screen (screenshot) or the `[selftest]` lines from `adb logcat -d -s ReactNativeJS` and report the first mismatch.
-
-### Mobile tests
-
-**Jest** (Node, no device): `npm run test:mobile` from the root, or `npx jest` inside `apps/mobile`. Pass a path to run one suite (`npx jest __tests__/ui/Screen.test.tsx`) and `--coverage` for a per-file report. Shared helpers live in `apps/mobile/test-support/`: memory storages and seeded sessions (`runFixtures.ts`), instant animations and a promise flush (`battleFixtures.ts`), a real double tap (`press.ts`). `__tests__/smokePath.test.tsx` plays the same taps as the Maestro smoke flow below on the whole app, so a change that breaks the flow's assumptions (seed `SMOKE002`: a wild battle won in one turn, then a recruit) fails in Jest first.
-
-**Maestro** (device end-to-end): two flows in `apps/mobile/.maestro/`, which find every element by its `testID` (the Android resource id), so they work in both languages.
-
-- `smoke-run.yaml`: new run with seed `SMOKE002`, the first node, the battle, the recruit, the map, abandon with confirmation, back on the title with no save.
-- `resume-after-kill.yaml`: saves the dev-tools `recruit` sample, kills the app process (`killApp`, like `adb shell am kill`), relaunches and checks that **Continue** opens the recruit screen.
-
-They target a debug build of package `app.webgames.placeholder` (the Dev tools link only exists in debug builds), not Expo Go. To run them on an emulator, with [Maestro](https://docs.maestro.dev) installed:
-
-```sh
-cd apps/mobile
-npx expo prebuild --platform android --no-install   # generates android/ (git-ignored); revert the "android" script it rewrites in package.json
-npx expo run:android                                # builds and installs the debug app, starts Metro
-maestro test .maestro                               # both flows; or: maestro test .maestro/smoke-run.yaml
-```
-
-The flows were checked against the Maestro docs and parsed as YAML, but they have **not** been run yet: Maestro is not installed on the development machine. The first device run is an owner step.
+`apps/mobile` is an Expo (managed) app on Expo SDK 58 that plays the same run by touch: title, map, battle, event and end screens, autosave and resume, English and Spanish, large text, screen readers, tablets and foldables. It runs in Expo Go; no native folders are committed. Everything about it (how to play, structure, battle screen, accessibility and layout, device self test, how to run it on an emulator or a real phone, Jest and Maestro tests) is in [apps/mobile/README.md](apps/mobile/README.md); the accessibility checklist is in [apps/mobile/ACCESSIBILITY.md](apps/mobile/ACCESSIBILITY.md).
 
 ## CI
 
@@ -192,7 +98,7 @@ npx expo prebuild --platform android --no-install
 cd android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64
 ```
 
-`expo prebuild` was checked locally (it also rewrites the `android` script in `package.json`; revert that, CI does not commit it). The Gradle build itself has **not** been run locally yet: the wrapper's Gradle 9.4.1 and the NDK are not installed on the development machine, so the `android-debug` job is first verified when CI runs.
+`expo prebuild` was checked locally (it also rewrites the `android` script in `package.json`; revert that, CI does not commit it). The Gradle build itself has **not** been run locally yet: the wrapper's Gradle 9.4.1 and the NDK are not installed on the development machine, so the `android-debug` job is first verified when CI runs. The workflow has not run at all yet: the repository has no GitHub remote. See [Owner-only steps](docs/owner-steps.md).
 
 Caches: npm through `actions/setup-node`, Gradle through `gradle/actions/setup-gradle` (which also validates the Gradle wrapper). Actions are pinned by major tag, like the rest of the repository.
 
@@ -219,11 +125,15 @@ Notes:
 |---|---|---|
 | 1 | Engine core and one playable battle: deterministic simulation, content, generated art, input layer, Spanish/English strings, battle view, golden replays, size budget, accessibility specs | Done |
 | 2 | Run loop: node maps over three zones, party, recruiting, shrines and evolution, bosses, score, autosave and resume, title/map/event/end screens, run bot and golden runs | Done (balance not tuned) |
+| RN | React Native app on the shared core: [plan](docs/superpowers/plans/2026-11-16-react-native-app.md), tasks 1-10 executed on branch `rn-monorepo` (not merged, not pushed) | Done, with device checks pending ([owner steps](docs/owner-steps.md)) |
 | 3-5 | Content and balance, community features, release | Not started |
 
-## Design
+## Documentation
 
-See the [creature roguelike design spec](docs/superpowers/specs/2026-11-14-creature-roguelike-design.md).
+- [docs/adr/](docs/adr/README.md): architecture decision records ([0001: shared core, two shells](docs/adr/0001-shared-core-two-shells.md)).
+- [docs/owner-steps.md](docs/owner-steps.md): what was not verified and what only the owner can do.
+- [Creature roguelike design spec](docs/superpowers/specs/2026-11-14-creature-roguelike-design.md), the [plans](docs/superpowers/plans/) and the [phase 3 handoff](docs/superpowers/notes/2026-11-16-phase-3-handoff.md).
+- [apps/mobile/README.md](apps/mobile/README.md) and [apps/mobile/ACCESSIBILITY.md](apps/mobile/ACCESSIBILITY.md).
 
 ## Licence
 
