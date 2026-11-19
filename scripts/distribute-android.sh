@@ -11,9 +11,10 @@
 #   --groups LIST   App Distribution groups, comma separated (default: testers)
 #   --notes TEXT    release notes (default: commit subjects since the last tag, or the last 15)
 #
-# Needs: doppler (logged in), node/npm, a JDK 17+ in JAVA_HOME, the Android SDK in ANDROID_HOME
-# (the NDK version React Native asks for is installed by sdkmanager), and for the upload either the
-# service account from Doppler (used here) or nothing else.
+# Needs: doppler (logged in, or DOPPLER_TOKEN set), node/npm, a JDK 17+ in JAVA_HOME and the Android
+# SDK in ANDROID_HOME (with the NDK version React Native asks for). On Windows, where native module
+# paths pass the 260-character limit from a deep folder, the build runs in a short-path clone
+# (KINFALL_BUILD_CLONE, default ~/kf) checked out at the same commit.
 set -euo pipefail
 
 DOPPLER_PROJECT="${DOPPLER_PROJECT_OVERRIDE:-kinfall}"
@@ -30,7 +31,7 @@ while [ $# -gt 0 ]; do
     --groups) DIST_GROUPS="$2"; shift ;;
     --notes) NOTES="$2"; shift ;;
     --inside-doppler) INSIDE=1 ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -38,7 +39,6 @@ done
 
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 REPO_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
-MOBILE="$REPO_ROOT/apps/mobile"
 
 # Re-run this script inside `doppler run`, so the secrets exist only in this process tree.
 if [ "$INSIDE" -eq 0 ]; then
@@ -55,9 +55,58 @@ for name in SIGNING_KEYSTORE_BASE64 SIGNING_STORE_PASSWORD SIGNING_KEY_ALIAS SIG
     exit 1
   fi
 done
+: "${ANDROID_HOME:?Set ANDROID_HOME to the Android SDK}"
 
 # Native Windows tools (Java, Gradle) need Windows paths; elsewhere this is a no-op.
 native_path() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
+
+# --- Version and release notes, from the repository the script lives in --------------------------
+cd "$REPO_ROOT"
+VERSION_NAME="$(node -p "require('./apps/mobile/app.json').expo.version")"
+# versionCode = number of commits on HEAD: grows with every commit, needs the full history.
+if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+  echo "Shallow clone: the version code (commit count) would be wrong. Fetch the full history." >&2
+  exit 1
+fi
+VERSION_CODE="$(git rev-list --count HEAD)"
+COMMIT="$(git rev-parse HEAD)"
+SHORT="$(git rev-parse --short HEAD)"
+DIRTY=""
+git diff --quiet HEAD -- . ':!apps/mobile/package.json' || DIRTY=" (uncommitted changes)"
+
+if [ -z "$NOTES" ]; then
+  if LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null)"; then
+    RANGE="$LAST_TAG..HEAD"; SINCE="since $LAST_TAG"
+  else
+    RANGE="-15"; SINCE="last 15 commits"
+  fi
+  # shellcheck disable=SC2086
+  NOTES="Kinfall $VERSION_NAME ($VERSION_CODE), commit $SHORT$DIRTY. Changes ($SINCE):
+$(git log $RANGE --no-merges --pretty='- %s')"
+fi
+
+# --- Where to build -------------------------------------------------------------------------------
+BUILD_ROOT="$REPO_ROOT"
+if command -v cygpath >/dev/null && [ "$(native_path "$REPO_ROOT" | wc -c)" -gt 20 ]; then
+  # Codegen object paths of the app module (react-native-safe-area-context, react-native-screens)
+  # pass 260 characters below a deep repository folder; a short clone at the same commit avoids it.
+  if [ -n "$DIRTY" ]; then
+    echo "Uncommitted changes: on Windows the build runs from a clone at HEAD. Commit first." >&2
+    exit 1
+  fi
+  BUILD_ROOT="${KINFALL_BUILD_CLONE:-$HOME/kf}"
+  [ -d "$BUILD_ROOT/.git" ] || git clone -q "$REPO_ROOT" "$BUILD_ROOT"
+  git -C "$BUILD_ROOT" fetch -q "$REPO_ROOT" "$COMMIT"
+  git -C "$BUILD_ROOT" checkout -q --force --detach "$COMMIT"
+  STAMP="$BUILD_ROOT/node_modules/.kinfall-lock-sha"
+  LOCK_SHA="$(git -C "$BUILD_ROOT" hash-object package-lock.json)"
+  if [ "$(cat "$STAMP" 2>/dev/null || true)" != "$LOCK_SHA" ]; then
+    (cd "$BUILD_ROOT" && npm ci --no-audit --no-fund)
+    printf '%s' "$LOCK_SHA" > "$STAMP"
+  fi
+  echo "Building in the short-path clone $BUILD_ROOT"
+fi
+MOBILE="$BUILD_ROOT/apps/mobile"
 
 WORK="$(mktemp -d)"
 PKG_BACKUP="$WORK/package.json"
@@ -73,30 +122,7 @@ KEYSTORE="$WORK/release.jks"
 printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
 export ANDROID_SIGNING_STORE_FILE="$(native_path "$KEYSTORE")"
 
-cd "$REPO_ROOT"
-VERSION_NAME="$(node -p "require('./apps/mobile/app.json').expo.version")"
-# versionCode = number of commits on HEAD: grows with every commit, needs the full history.
-if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-  echo "Shallow clone: the version code (commit count) would be wrong. Fetch the full history." >&2
-  exit 1
-fi
-VERSION_CODE="$(git rev-list --count HEAD)"
-COMMIT="$(git rev-parse --short HEAD)"
-DIRTY=""
-git diff --quiet HEAD -- . ':!apps/mobile/package.json' || DIRTY=" (uncommitted changes)"
-
-if [ -z "$NOTES" ]; then
-  if LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null)"; then
-    RANGE="$LAST_TAG..HEAD"; SINCE="since $LAST_TAG"
-  else
-    RANGE="-15"; SINCE="last 15 commits"
-  fi
-  # shellcheck disable=SC2086
-  NOTES="Kinfall $VERSION_NAME ($VERSION_CODE), commit $COMMIT$DIRTY. Changes ($SINCE):
-$(git log $RANGE --no-merges --pretty='- %s')"
-fi
-
-echo "Building Kinfall $VERSION_NAME (versionCode $VERSION_CODE, commit $COMMIT$DIRTY)"
+echo "Building Kinfall $VERSION_NAME (versionCode $VERSION_CODE, commit $SHORT$DIRTY)"
 
 cd "$MOBILE"
 npx expo prebuild --platform android --no-install
@@ -117,7 +143,7 @@ if printf '%s' "$CERTS" | grep -qi "CN=Android Debug"; then
 fi
 printf '%s\n' "$CERTS" | grep -E "certificate DN|SHA-256 digest" | head -n 2
 
-OUT="$REPO_ROOT/apps/mobile/android/kinfall-$VERSION_NAME-$VERSION_CODE.apk"
+OUT="$MOBILE/android/kinfall-$VERSION_NAME-$VERSION_CODE.apk"
 cp "$APK" "$OUT"
 ( cd "$(dirname "$OUT")" && sha256sum "$(basename "$OUT")" | tee "$(basename "$OUT").sha256" )
 echo "APK: $OUT ($(wc -c < "$OUT") bytes)"
@@ -132,7 +158,9 @@ SA_FILE="$WORK/firebase-sa.json"
 printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$SA_FILE"
 export GOOGLE_APPLICATION_CREDENTIALS="$(native_path "$SA_FILE")"
 if command -v firebase >/dev/null; then FIREBASE=(firebase); else FIREBASE=(npx --yes firebase-tools@15); fi
-"${FIREBASE[@]}" appdistribution:distribute "$(native_path "$OUT")" \
+# An empty config folder hides any personal `firebase login`, so the upload always runs as the
+# least-privilege service account.
+XDG_CONFIG_HOME="$WORK/firebase-config" "${FIREBASE[@]}" appdistribution:distribute "$(native_path "$OUT")" \
   --app "$FIREBASE_APP_ID" \
   --groups "$DIST_GROUPS" \
   --release-notes "$NOTES"
