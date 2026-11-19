@@ -142,4 +142,5 @@ if command -v firebase >/dev/null; then FIREBASE=(firebase); else FIREBASE=(npx 
 XDG_CONFIG_HOME="$WORK/firebase-config" "${FIREBASE[@]}" appdistribution:distribute "$(native_path "$OUT")" \
   --app "$FIREBASE_APP_ID" \
   --groups "$DIST_GROUPS" \
-  --release-notes "$NOTES"
+  --release-notes "$NOTES" 2>&1 | sed -E 's/([?&]token=)[^&[:space:]]*/\1REDACTED/g'
+# The CLI prints a signed one-hour download link for the APK; its token is redacted above.
