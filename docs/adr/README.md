@@ -5,6 +5,7 @@ One file per decision, named `NNNN-slug.md`. An accepted ADR is never rewritten:
 | ADR | Decision | Status | Date |
 |---|---|---|---|
 | [0001](0001-shared-core-two-shells.md) | One shared core with two app shells (web and React Native) | accepted | 2026-11-16 |
+| [0002](0002-kinfall-name-and-tester-distribution.md) | The game is named Kinfall; Android tester builds go only through Firebase App Distribution | accepted | 2026-11-19 |
 
 ## New ADR
 
