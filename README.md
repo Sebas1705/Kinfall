@@ -1,6 +1,6 @@
-# webgames
+# Kinfall
 
-`webgames` is a placeholder name for a TypeScript game project: a deterministic game engine plus a creature roguelike built on top of it, played in the browser and on a phone from one shared core. The name is a placeholder and may change.
+**Kinfall** is a TypeScript game project: a deterministic game engine plus a creature roguelike built on top of it, played in the browser and on a phone from one shared core. The name was decided on 2026-11-19 ([ADR 0002](docs/adr/0002-kinfall-name-and-tester-distribution.md)); the Android application id is `es.sebas1705.kinfall`. Internal identifiers keep the earlier working name `webgames`: the npm scope `@webgames/*`, the root package name, the storage keys (`webgames.run.v1`, `webgames.lang`, `webgames.textSize`, kept so saves survive) and this folder. A future GitHub repository should be `Sebas1705/kinfall`.
 
 ## Layout
 
@@ -61,7 +61,7 @@ Per app:
 |---|---|---|
 | Run | `npm run dev` | `cd apps/mobile && npx expo start` (Expo Go on a phone or emulator; `--android` for the emulator). See [Run it](apps/mobile/README.md#run-it) |
 | Test | `npm test` (Vitest) and `npm run test:e2e` (Playwright) | `npm run test:mobile` (Jest); Maestro device flows in `apps/mobile/.maestro` |
-| Build | `npm run build`, then `npm run size` | No release build is made. CI builds an Android debug APK; see [CI](#ci) |
+| Build | `npm run build`, then `npm run size` | Signed release APK for testers: `scripts/distribute-android.sh --dry-run` (uploading drops `--dry-run`); see [docs/distribution.md](docs/distribution.md). CI builds an Android debug APK; see [CI](#ci) |
 
 ## Playing the web game
 
@@ -76,7 +76,7 @@ Play with the keyboard (Tab or arrows, Enter to confirm) or by clicking or tappi
 
 ## Mobile app
 
-`apps/mobile` is an Expo (managed) app on Expo SDK 58 that plays the same run by touch: title, map, battle, event and end screens, autosave and resume, English and Spanish, large text, screen readers, tablets and foldables. It runs in Expo Go; no native folders are committed. Everything about it (how to play, structure, battle screen, accessibility and layout, device self test, how to run it on an emulator or a real phone, Jest and Maestro tests) is in [apps/mobile/README.md](apps/mobile/README.md); the accessibility checklist is in [apps/mobile/ACCESSIBILITY.md](apps/mobile/ACCESSIBILITY.md).
+`apps/mobile` is an Expo (managed) app on Expo SDK 58 that plays the same run by touch: title, map, battle, event and end screens, autosave and resume, English and Spanish, large text, screen readers, tablets and foldables. It runs in Expo Go; no native folders are committed. Testers get a signed release build through Firebase App Distribution ([docs/distribution.md](docs/distribution.md)). Everything about it (how to play, structure, battle screen, accessibility and layout, device self test, how to run it on an emulator or a real phone, Jest and Maestro tests) is in [apps/mobile/README.md](apps/mobile/README.md); the accessibility checklist is in [apps/mobile/ACCESSIBILITY.md](apps/mobile/ACCESSIBILITY.md).
 
 ## CI
 
@@ -98,7 +98,9 @@ npx expo prebuild --platform android --no-install
 cd android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64
 ```
 
-`expo prebuild` was checked locally (it also rewrites the `android` script in `package.json`; revert that, CI does not commit it). The Gradle build itself has **not** been run locally yet: the wrapper's Gradle 9.4.1 and the NDK are not installed on the development machine, so the `android-debug` job is first verified when CI runs. The workflow has not run at all yet: the repository has no GitHub remote. See [Owner-only steps](docs/owner-steps.md).
+`expo prebuild` rewrites the `android` script in `package.json`; revert that, CI does not commit it. Locally the NDK is installed with `sdkmanager "ndk;27.1.12297006"` and the Gradle wrapper downloads Gradle 9.4.1 itself; the release build ran on Windows on 2026-11-19 (see [docs/distribution.md](docs/distribution.md), which also explains the short CMake folders Windows needs). The workflow has not run on GitHub yet: the repository has no GitHub remote. See [Owner-only steps](docs/owner-steps.md).
+
+`.github/workflows/distribute-android.yml` is a separate, manual-only workflow that builds the signed release APK and uploads it to Firebase App Distribution. It is unused until a remote exists and needs the `DOPPLER_TOKEN` repository secret; see [docs/distribution.md](docs/distribution.md).
 
 Caches: npm through `actions/setup-node`, Gradle through `gradle/actions/setup-gradle` (which also validates the Gradle wrapper). Actions are pinned by major tag, like the rest of the repository.
 
@@ -132,6 +134,7 @@ Notes:
 
 - [docs/adr/](docs/adr/README.md): architecture decision records ([0001: shared core, two shells](docs/adr/0001-shared-core-two-shells.md)).
 - [docs/owner-steps.md](docs/owner-steps.md): what was not verified and what only the owner can do.
+- [docs/distribution.md](docs/distribution.md): Android release build, signing, Doppler secrets, versioning and Firebase App Distribution.
 - [Creature roguelike design spec](docs/superpowers/specs/2026-11-14-creature-roguelike-design.md), the [plans](docs/superpowers/plans/) and the [phase 3 handoff](docs/superpowers/notes/2026-11-16-phase-3-handoff.md).
 - [apps/mobile/README.md](apps/mobile/README.md) and [apps/mobile/ACCESSIBILITY.md](apps/mobile/ACCESSIBILITY.md).
 
