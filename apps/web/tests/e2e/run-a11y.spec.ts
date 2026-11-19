@@ -140,10 +140,10 @@ for (const scheme of ['light', 'dark'] as const) {
 test('the screen announcement and document title follow every route change', async ({ page }) => {
   await page.goto('/?seed=a11y-route');
   await expect(page.locator('#screen-title [data-action="new-run"]')).toBeVisible();
-  await expect(page).toHaveTitle('Start · Echo battle');
+  await expect(page).toHaveTitle('Start · Kinfall');
   await startRunWithKeyboard(page, 'a11y-route');
-  await expect(page).toHaveTitle('Map · Echo battle');
+  await expect(page).toHaveTitle('Map · Kinfall');
   await expect(page.locator('[data-announcer]')).toHaveText('Map');
   await page.locator('#screen-map button.map-node:not([disabled])').first().click();
-  await expect(page).toHaveTitle(/^(Battle|Event) · Echo battle$/);
+  await expect(page).toHaveTitle(/^(Battle|Event) · Kinfall$/);
 });

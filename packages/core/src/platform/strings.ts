@@ -3,7 +3,7 @@ import { runEn, runEs } from './strings.run';
 export type Lang = 'en' | 'es';
 
 const base = {
-  'app.title': 'Echo battle',
+  'app.title': 'Kinfall',
   'menu.moves': 'Moves',
   'menu.team': 'Team',
   'menu.swapTo': 'Swap to {species}',
@@ -67,7 +67,7 @@ const en = { ...base, ...runEn } as const;
 export type StringKey = keyof typeof en;
 
 const esBase: Record<keyof typeof base, string> = {
-  'app.title': 'Combate de ecos',
+  'app.title': 'Kinfall',
   'menu.moves': 'Movimientos',
   'menu.team': 'Equipo',
   'menu.swapTo': 'Cambiar a {species}',

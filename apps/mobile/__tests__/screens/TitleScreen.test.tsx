@@ -36,6 +36,14 @@ beforeEach(() => {
 });
 
 describe('title screen', () => {
+  it('shows the game name above the heading in both languages', async () => {
+    await renderTitle(makeSession(memoryStorage()));
+    expect(screen.getByTestId('app-name')).toHaveTextContent('Kinfall');
+    setLang('es');
+    await renderTitle(makeSession(memoryStorage()));
+    expect(screen.getAllByTestId('app-name').at(-1)).toHaveTextContent('Kinfall');
+  });
+
   it('keeps Continue disabled without a save and enables it for an ok save', async () => {
     await renderTitle(makeSession(memoryStorage()));
     await waitFor(() => expect(screen.getByTestId('continue').props.accessibilityState).toMatchObject({ disabled: true }));

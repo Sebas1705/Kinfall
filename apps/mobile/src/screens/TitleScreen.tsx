@@ -121,9 +121,14 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
   const intro = (
     <>
       <View style={styles.topRow}>
-        <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header">
-          {t('screen.title')}
-        </Text>
+        <View style={styles.titleBlock}>
+          <Text style={[styles.appName, { color: theme.text }]} testID="app-name">
+            {t('app.title')}
+          </Text>
+          <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header">
+            {t('screen.title')}
+          </Text>
+        </View>
         <LangToggle />
       </View>
 
@@ -233,6 +238,8 @@ const styles = StyleSheet.create({
   panes: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
   pane: { flex: 1, gap: 16, minWidth: 0 },
   topRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  titleBlock: { gap: 2 },
+  appName: { fontSize: 18, fontWeight: '700', letterSpacing: 1 },
   heading: { fontSize: 28, fontWeight: '700' },
   notice: { fontSize: 16, borderWidth: 1, borderRadius: 10, padding: 12 },
   warn: { borderWidth: 2, borderRadius: 10, padding: 12, gap: 12 },

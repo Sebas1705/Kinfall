@@ -21,8 +21,8 @@ describe('shouldAutorunSelfTest', () => {
     expect(shouldAutorunSelfTest('exp://127.0.0.1:8081/--/selftest', undefined)).toBe(true);
     expect(shouldAutorunSelfTest('exp://192.168.1.20:8081/--/?selftest=1', undefined)).toBe(true);
     expect(shouldAutorunSelfTest('exp://127.0.0.1:8081?selftest', undefined)).toBe(true);
-    expect(shouldAutorunSelfTest('webgames://selftest', undefined)).toBe(true);
-    expect(shouldAutorunSelfTest('webgames://SelfTest/', undefined)).toBe(true);
+    expect(shouldAutorunSelfTest('kinfall://selftest', undefined)).toBe(true);
+    expect(shouldAutorunSelfTest('kinfall://SelfTest/', undefined)).toBe(true);
   });
 
   it('ignores lookalikes and explicit opt-outs', () => {

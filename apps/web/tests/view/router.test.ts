@@ -67,10 +67,10 @@ describe('createRouter', () => {
     router.show('map');
     const live = root.querySelector('[data-announcer]')!;
     expect(live.textContent).toBe('Map');
-    expect(document.title).toBe('Map · Echo battle');
+    expect(document.title).toBe('Map · Kinfall');
     router.show('end');
     expect(live.textContent).toBe('Run over');
-    expect(document.title).toBe('Run over · Echo battle');
+    expect(document.title).toBe('Run over · Kinfall');
   });
 
   it('creates a polite live region when the page has none', () => {
@@ -88,7 +88,7 @@ describe('createRouter', () => {
     router.show('map');
     setLang('es');
     router.refreshTitle();
-    expect(document.title).toBe('Mapa · Combate de ecos');
+    expect(document.title).toBe('Mapa · Kinfall');
   });
 });
 

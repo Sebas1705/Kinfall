@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Webgames",
-    "slug": "webgames",
+    "name": "Kinfall",
+    "slug": "kinfall",
     "version": "0.0.0",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
-    "scheme": "webgames",
+    "scheme": "kinfall",
     "android": {
-      "package": "app.webgames.placeholder"
+      "package": "es.sebas1705.kinfall"
     },
     "ios": {
-      "bundleIdentifier": "app.webgames.placeholder"
+      "bundleIdentifier": "es.sebas1705.kinfall"
     },
     "plugins": [
       "expo-localization"

@@ -1,7 +1,7 @@
 # Resume after process death: a saved run standing on a recruit (a dev-tools sample, valid for
 # core's validateRun) survives a kill of the app process, and Continue opens that exact screen.
 # Needs a debug build: the "Dev tools" link only exists when __DEV__ is true.
-appId: app.webgames.placeholder
+appId: es.sebas1705.kinfall
 name: Resume after kill
 tags:
   - smoke

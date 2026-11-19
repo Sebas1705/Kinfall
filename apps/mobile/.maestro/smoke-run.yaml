@@ -3,7 +3,7 @@
 # Seed SMOKE002 with the default starter is deterministic: the first node is a wild battle that one
 # press of the first enabled move wins, and a recruit follows. __tests__/smokePath.test.tsx plays
 # the same taps in Jest and fails if that stops being true.
-appId: app.webgames.placeholder
+appId: es.sebas1705.kinfall
 name: Smoke run
 tags:
   - smoke
