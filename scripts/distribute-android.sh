@@ -12,9 +12,7 @@
 #   --notes TEXT    release notes (default: commit subjects since the last tag, or the last 15)
 #
 # Needs: doppler (logged in, or DOPPLER_TOKEN set), node/npm, a JDK 17+ in JAVA_HOME and the Android
-# SDK in ANDROID_HOME (with the NDK version React Native asks for). On Windows, where native module
-# paths pass the 260-character limit from a deep folder, the build runs in a short-path clone
-# (KINFALL_BUILD_CLONE, default ~/kf) checked out at the same commit.
+# SDK in ANDROID_HOME (with the NDK version React Native asks for).
 set -euo pipefail
 
 DOPPLER_PROJECT="${DOPPLER_PROJECT_OVERRIDE:-kinfall}"
@@ -31,7 +29,7 @@ while [ $# -gt 0 ]; do
     --groups) DIST_GROUPS="$2"; shift ;;
     --notes) NOTES="$2"; shift ;;
     --inside-doppler) INSIDE=1 ;;
-    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -69,7 +67,6 @@ if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
   exit 1
 fi
 VERSION_CODE="$(git rev-list --count HEAD)"
-COMMIT="$(git rev-parse HEAD)"
 SHORT="$(git rev-parse --short HEAD)"
 DIRTY=""
 git diff --quiet HEAD -- . ':!apps/mobile/package.json' || DIRTY=" (uncommitted changes)"
@@ -85,28 +82,10 @@ if [ -z "$NOTES" ]; then
 $(git log $RANGE --no-merges --pretty='- %s')"
 fi
 
-# --- Where to build -------------------------------------------------------------------------------
-BUILD_ROOT="$REPO_ROOT"
-if command -v cygpath >/dev/null && [ "$(native_path "$REPO_ROOT" | wc -c)" -gt 20 ]; then
-  # Codegen object paths of the app module (react-native-safe-area-context, react-native-screens)
-  # pass 260 characters below a deep repository folder; a short clone at the same commit avoids it.
-  if [ -n "$DIRTY" ]; then
-    echo "Uncommitted changes: on Windows the build runs from a clone at HEAD. Commit first." >&2
-    exit 1
-  fi
-  BUILD_ROOT="${KINFALL_BUILD_CLONE:-$HOME/kf}"
-  [ -d "$BUILD_ROOT/.git" ] || git clone -q "$REPO_ROOT" "$BUILD_ROOT"
-  git -C "$BUILD_ROOT" fetch -q "$REPO_ROOT" "$COMMIT"
-  git -C "$BUILD_ROOT" checkout -q --force --detach "$COMMIT"
-  STAMP="$BUILD_ROOT/node_modules/.kinfall-lock-sha"
-  LOCK_SHA="$(git -C "$BUILD_ROOT" hash-object package-lock.json)"
-  if [ "$(cat "$STAMP" 2>/dev/null || true)" != "$LOCK_SHA" ]; then
-    (cd "$BUILD_ROOT" && npm ci --no-audit --no-fund)
-    printf '%s' "$LOCK_SHA" > "$STAMP"
-  fi
-  echo "Building in the short-path clone $BUILD_ROOT"
-fi
-MOBILE="$BUILD_ROOT/apps/mobile"
+# --- Build ----------------------------------------------------------------------------------------
+# On Windows, apps/mobile/plugins/withWindowsCmakePaths.js keeps native build paths under 260
+# characters, so the build runs in place on every OS.
+MOBILE="$REPO_ROOT/apps/mobile"
 
 WORK="$(mktemp -d)"
 PKG_BACKUP="$WORK/package.json"

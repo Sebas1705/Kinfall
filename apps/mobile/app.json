@@ -17,7 +17,7 @@
       "expo-localization",
       "expo-system-ui",
       "./plugins/withReleaseSigning",
-      "./plugins/withShortNativeBuildDir"
+      "./plugins/withWindowsCmakePaths"
     ]
   }
 }
