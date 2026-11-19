@@ -9,7 +9,7 @@
 #   --dry-run       build, sign and verify the APK, print what would be uploaded, upload nothing
 #   --config NAME   Doppler config (default: prd)
 #   --groups LIST   App Distribution groups, comma separated (default: testers)
-#   --notes TEXT    release notes (default: commit subjects since the last tag, or the last 15)
+#   --notes TEXT    release notes (default: commit subjects since the previous tag, or the last 15)
 #
 # Needs: doppler (logged in, or DOPPLER_TOKEN set), node/npm, a JDK 17+ in JAVA_HOME and the Android
 # SDK in ANDROID_HOME (with the NDK version React Native asks for).
@@ -72,7 +72,11 @@ DIRTY=""
 git diff --quiet HEAD -- . ':!apps/mobile/package.json' || DIRTY=" (uncommitted changes)"
 
 if [ -z "$NOTES" ]; then
-  if LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null)"; then
+  # When HEAD itself carries the release tag (a tag-triggered CI run), the notes start at the tag
+  # before it, so they are not empty.
+  NOTES_BASE="HEAD"
+  if git describe --tags --exact-match HEAD >/dev/null 2>&1; then NOTES_BASE="HEAD^"; fi
+  if LAST_TAG="$(git describe --tags --abbrev=0 "$NOTES_BASE" 2>/dev/null)"; then
     RANGE="$LAST_TAG..HEAD"; SINCE="since $LAST_TAG"
   else
     RANGE="-15"; SINCE="last 15 commits"
