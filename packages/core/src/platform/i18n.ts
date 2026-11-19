@@ -6,7 +6,7 @@ import { STRINGS, type Lang, type StringKey } from './strings';
 export type { Lang, StringKey } from './strings';
 export { STRINGS } from './strings';
 
-/** Storage key of the saved language choice. */
+/** Storage key of the saved language choice. Keeps the old `webgames` name so it survives (ADR 0002). */
 export const LANG_STORAGE_KEY = 'webgames.lang';
 
 /** Synchronous key-value storage for the language choice; failures are swallowed by the caller. */

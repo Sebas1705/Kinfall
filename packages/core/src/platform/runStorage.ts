@@ -2,7 +2,10 @@ import type { Content } from '../content';
 import { deserializeRun, serializeRun } from '../sim/run/codec';
 import type { RunState } from '../sim/run/types';
 
-/** The single storage slot of the current run (shared by the sync and async variants). */
+/**
+ * The single storage slot of the current run (shared by the sync and async variants). It keeps the
+ * old working name `webgames` on purpose: renaming it would orphan existing saves (ADR 0002).
+ */
 export const RUN_STORAGE_KEY = 'webgames.run.v1';
 const KEY = RUN_STORAGE_KEY;
 const MAX_ERROR = 200;

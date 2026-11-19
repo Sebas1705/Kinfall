@@ -2,6 +2,7 @@
 import { t } from '@kinfall/core/platform/i18n';
 import type { StringKey } from '@kinfall/core/platform/i18n';
 
+// Keeps the old working name `webgames` on purpose, so the saved setting survives (ADR 0002).
 const TEXT_SIZE_KEY = 'webgames.textSize';
 const TEXT_SIZES = { min: 80, max: 150, step: 10 };
 
