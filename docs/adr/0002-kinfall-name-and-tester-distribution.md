@@ -13,7 +13,9 @@
 ## Decision
 
 - The game is named **Kinfall** (both languages). The Expo app is `name: Kinfall`, `slug: kinfall`, `scheme: kinfall`, and the Android application id and iOS bundle id are `es.sebas1705.kinfall`, following the owner's `es.sebas1705.*` convention. The web page title and header say Kinfall too (`app.title`).
-- Internal identifiers keep the old name: the npm workspace scope `@webgames/*`, the root package name `webgames`, the storage keys `webgames.run.v1`, `webgames.lang` and `webgames.textSize` (renaming them would orphan existing saves and settings), and the local folder `Repos/Sebas1705/webgames`. A future GitHub repository should be `Sebas1705/kinfall`; renaming the folder and creating the remote are owner steps.
+- The npm packages take the new name too (amended 2026-11-19, branch `kinfall-rename`): root package `kinfall`, workspace scope `@kinfall/*` (`@kinfall/core`, `@kinfall/web`, `@kinfall/mobile`). They are private and never published, so the rename only touches imports, workspace filters and the lockfile.
+- The storage keys keep the old name on purpose: `webgames.run.v1`, `webgames.lang` and `webgames.textSize`. Renaming them would orphan existing saves and settings in browsers and on testers' phones; a rename would need a one-time migration that copies the old keys first. The golden files do not contain package names, so the rename leaves them byte-identical.
+- The local folder stays `Repos/Sebas1705/webgames` until the owner renames it to `kinfall`. A future GitHub repository should be `Sebas1705/kinfall`; renaming the folder and creating the remote are owner steps ([owner-steps.md](../owner-steps.md)).
 - Android tester builds are release-variant APKs (JS bundled with Hermes, no Metro), signed with one upload key kept outside the repository, and are uploaded to Firebase project `kinfall-sebas1705`, group `testers`, by `scripts/distribute-android.sh`. Secrets live in Doppler project `kinfall`. The pipeline is described in [docs/distribution.md](../distribution.md).
 
 ## Consequences
@@ -21,7 +23,7 @@
 - Testers install Kinfall from the App Distribution invitation; later builds update in place as long as the same key and application id are used.
 - The application id is now fixed. Changing it means a new Firebase app registration and a separate app on testers' phones.
 - Losing the keystore means a new key and every tester uninstalling and reinstalling (local saves are lost). The keystore must be backed up off this PC.
-- Old placeholder identifiers remain in internal names only; they are not visible to players.
+- Old placeholder identifiers remain only in the storage keys (and the local folder until it is renamed); they are not visible to players.
 
 ## Alternatives considered
 

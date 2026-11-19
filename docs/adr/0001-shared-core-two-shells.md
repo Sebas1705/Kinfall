@@ -15,9 +15,9 @@
 
 The repository is one npm workspaces monorepo with one shared core and two shells:
 
-- `packages/core` (`@webgames/core`) holds everything that does not need a page. It is platform-neutral: `src` compiles with `lib: ["ES2022"]` and no `types`, so any use of `document`, `localStorage`, `navigator` or `console` fails `tsc`; a test also scans for platform globals. It is consumed as TypeScript source, with no build step.
-- `apps/web` (`@webgames/web`) is the browser shell (Vite, Pixi, DOM views).
-- `apps/mobile` (`@webgames/mobile`) is the React Native shell.
+- `packages/core` (`@kinfall/core`) holds everything that does not need a page. It is platform-neutral: `src` compiles with `lib: ["ES2022"]` and no `types`, so any use of `document`, `localStorage`, `navigator` or `console` fails `tsc`; a test also scans for platform globals. It is consumed as TypeScript source, with no build step.
+- `apps/web` (`@kinfall/web`) is the browser shell (Vite, Pixi, DOM views).
+- `apps/mobile` (`@kinfall/mobile`) is the React Native shell.
 - Platform services are injected into core by each shell: language (`configureI18n`), run saves (`createRunStorage` for sync storages, `createAsyncRunStorage` for async ones), the battle turn controller (`BattleUi`, `BattleScene`, `TimerApi`, `Logger`). State is copied with `clone()`, not `structuredClone`.
 - One repository, one CI. The golden files are shared: Node, the browser and the device JS engine (Hermes) must all reproduce them.
 

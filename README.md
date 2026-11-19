@@ -1,6 +1,6 @@
 # Kinfall
 
-**Kinfall** is a TypeScript game project: a deterministic game engine plus a creature roguelike built on top of it, played in the browser and on a phone from one shared core. The name was decided on 2026-11-19 ([ADR 0002](docs/adr/0002-kinfall-name-and-tester-distribution.md)); the Android application id is `es.sebas1705.kinfall`. Internal identifiers keep the earlier working name `webgames`: the npm scope `@webgames/*`, the root package name, the storage keys (`webgames.run.v1`, `webgames.lang`, `webgames.textSize`, kept so saves survive) and this folder. A future GitHub repository should be `Sebas1705/kinfall`.
+**Kinfall** is a TypeScript game project: a deterministic game engine plus a creature roguelike built on top of it, played in the browser and on a phone from one shared core. The name was decided on 2026-11-19 ([ADR 0002](docs/adr/0002-kinfall-name-and-tester-distribution.md)); the Android application id is `es.sebas1705.kinfall`. The npm packages use the same name (root package `kinfall`, workspace scope `@kinfall/*`). Only two things keep the earlier working name `webgames`: the storage keys `webgames.run.v1`, `webgames.lang` and `webgames.textSize`, kept on purpose so existing saves and settings survive, and the local folder until the owner renames it. A future GitHub repository should be `Sebas1705/kinfall`.
 
 ## Layout
 
@@ -8,9 +8,9 @@ The repository is an npm workspaces monorepo:
 
 | Path | Package | Contents |
 |---|---|---|
-| `packages/core` | `@webgames/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu, and the battle turn controller). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@webgames/core/sim/run/run`. |
-| `apps/web` | `@webgames/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@webgames/core/...`. |
-| `apps/mobile` | `@webgames/mobile` | The React Native app (Expo, TypeScript): a whole run by touch over an autosaved run session, plus dev tools (a "hello core" screen, a sprite gallery and a device determinism self test). Jest tests (`jest-expo`) live in `__tests__`. See [apps/mobile/README.md](apps/mobile/README.md). |
+| `packages/core` | `@kinfall/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu, and the battle turn controller). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@kinfall/core/sim/run/run`. |
+| `apps/web` | `@kinfall/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@kinfall/core/...`. |
+| `apps/mobile` | `@kinfall/mobile` | The React Native app (Expo, TypeScript): a whole run by touch over an autosaved run session, plus dev tools (a "hello core" screen, a sprite gallery and a device determinism self test). Jest tests (`jest-expo`) live in `__tests__`. See [apps/mobile/README.md](apps/mobile/README.md). |
 
 Why it is one repository with a shared core and two app shells: [ADR 0001](docs/adr/0001-shared-core-two-shells.md).
 
@@ -87,7 +87,7 @@ Play with the keyboard (Tab or arrows, Enter to confirm) or by clicking or tappi
 | `core` | typecheck of every workspace, Vitest, golden files regenerated and compared | `npm run typecheck`, `npm test`, `npm run golden:update`, `npm run golden:runs`, then `git diff --exit-code -- packages/core/tests/golden` |
 | `web` | production build and size budget | `npm run build`, `npm run size` |
 | `web-e2e` (after `web`) | Playwright in Chromium, Firefox and WebKit | `npm run test:e2e` (Edge only, see below) |
-| `mobile` | mobile typecheck and Jest | `npm run typecheck -w @webgames/mobile`, `npm run test:mobile` |
+| `mobile` | mobile typecheck and Jest | `npm run typecheck -w @kinfall/mobile`, `npm run test:mobile` |
 | `android-debug` (after `mobile`) | `expo prebuild`, then `./gradlew assembleDebug` for the emulator ABI (`x86_64`) with JDK 21 | see below |
 
 The Android job builds the debug variant only, signed with the SDK's throwaway debug key. Locally it needs JDK 17 or newer, `ANDROID_HOME` and the NDK version the generated project asks for (`ndkVersion`; the Skia and Hermes native code needs it):

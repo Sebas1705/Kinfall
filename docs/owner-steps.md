@@ -4,7 +4,7 @@ State after the React Native plan ([tasks 1-10](superpowers/plans/2026-11-16-rea
 
 ## Done on 2026-11-19 (branch `distribution`)
 
-- **Name decided:** the game is **Kinfall**, application id and bundle id `es.sebas1705.kinfall` ([ADR 0002](adr/0002-kinfall-name-and-tester-distribution.md)). Internal names (`@webgames/*`, storage keys, the folder) stay.
+- **Name decided:** the game is **Kinfall**, application id and bundle id `es.sebas1705.kinfall` ([ADR 0002](adr/0002-kinfall-name-and-tester-distribution.md)). The npm packages were renamed afterwards (branch `kinfall-rename`: root `kinfall`, scope `@kinfall/*`); the storage keys (`webgames.run.v1`, `webgames.lang`, `webgames.textSize`) keep the old name so saves survive, and the folder stays until the owner renames it.
 - **Android release build:** `expo prebuild` plus `./gradlew assembleRelease` run locally on Windows (NDK 27.1.12297006 installed in the user SDK; Gradle 9.4.1 from the wrapper). The APK bundles the JavaScript (no Metro) and was checked on the emulator. `expo-system-ui` is added, so dark mode follows the system in native builds.
 - **Signing:** one upload keystore outside the repository (`C:\Users\sebss\Documents\kinfall-release.jks`), with its base64 and passwords in Doppler project `kinfall` (config `prd`).
 - **Firebase:** project `kinfall-sebas1705` (Kinfall), Android app `es.sebas1705.kinfall` with the key's SHA-1 and SHA-256, App Distribution group `testers` (no testers yet), CI service account `kinfall-ci` with only the App Distribution Admin role (key in Doppler).
