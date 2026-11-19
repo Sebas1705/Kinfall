@@ -2,19 +2,22 @@
   "expo": {
     "name": "Kinfall",
     "slug": "kinfall",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
     "scheme": "kinfall",
     "android": {
-      "package": "es.sebas1705.kinfall"
+      "package": "es.sebas1705.kinfall",
+      "versionCode": 1
     },
     "ios": {
       "bundleIdentifier": "es.sebas1705.kinfall"
     },
     "plugins": [
       "expo-localization",
-      "expo-system-ui"
+      "expo-system-ui",
+      "./plugins/withReleaseSigning",
+      "./plugins/withShortNativeBuildDir"
     ]
   }
 }
