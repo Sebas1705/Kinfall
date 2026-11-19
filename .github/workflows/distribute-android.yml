@@ -1,14 +1,24 @@
 name: Distribute Android (Firebase App Distribution)
 
-# OPTIONAL and UNUSED until the repository has a GitHub remote. Manual trigger only: it never runs on
-# push or pull request. It builds the signed release APK of apps/mobile (Kinfall) and uploads it to
+# Activates once the repository has its GitHub remote (Sebas1705/kinfall) and the repository secret
+# DOPPLER_TOKEN exists. It builds the signed release APK of apps/mobile (Kinfall) and uploads it to
 # Firebase App Distribution with scripts/distribute-android.sh, exactly like a local run.
+#
+# Triggers:
+# - A pushed tag vX.Y.Z: a real upload to group testers. The tag must match "version" in
+#   apps/mobile/app.json (the version name), or the run fails before building.
+# - By hand (workflow_dispatch): dry_run defaults to true (build and verify, upload nothing).
+# A tag push runs the workflow file of the tagged commit, so tags on commits older than this
+# trigger (v0.1.0 included) start nothing. See docs/distribution.md.
 #
 # Only one repository secret is needed: DOPPLER_TOKEN, a read-only Doppler service token for
 # kinfall/prd. Every other value (keystore, passwords, Firebase app id, service account) stays in
 # Doppler. Setup and rollback: docs/distribution.md.
 
 on:
+  push:
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -35,8 +45,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The version code is the commit count: it needs the whole history.
+          # The version code is the commit count and the notes start at the previous tag: it needs
+          # the whole history and the tags.
           fetch-depth: 0
+      - name: Check the tag against the app version
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag '$TAG' is not vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          app_version="$(node -p "require('./apps/mobile/app.json').expo.version")"
+          if [ "$TAG" != "v$app_version" ]; then
+            echo "::error::Tag $TAG does not match apps/mobile/app.json version $app_version. Set \"version\" to ${TAG#v} in app.json and tag that commit, or delete this tag."
+            exit 1
+          fi
+          echo "Version name $app_version from tag $TAG"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -51,8 +78,9 @@ jobs:
       - name: Build, sign and upload
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-          DRY_RUN: ${{ inputs.dry_run }}
-          DIST_GROUPS: ${{ inputs.groups }}
+          # A tag push has no inputs: it uploads for real, to group testers.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          DIST_GROUPS: ${{ inputs.groups || 'testers' }}
         run: |
           set -euo pipefail
           test -n "$DOPPLER_TOKEN" || { echo "::error::Repository secret DOPPLER_TOKEN is not set (see docs/distribution.md)"; exit 1; }
