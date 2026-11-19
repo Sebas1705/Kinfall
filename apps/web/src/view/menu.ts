@@ -1,7 +1,7 @@
-// Battle menu (presentation side): DOM rendering of the pure menu model (buildMenu, in @webgames/core).
-import type { MenuModel } from '@webgames/core/models/menu';
-import { t } from '@webgames/core/platform/i18n';
-import type { Action } from '@webgames/core/sim/state';
+// Battle menu (presentation side): DOM rendering of the pure menu model (buildMenu, in @kinfall/core).
+import type { MenuModel } from '@kinfall/core/models/menu';
+import { t } from '@kinfall/core/platform/i18n';
+import type { Action } from '@kinfall/core/sim/state';
 
 /**
  * Replaces `host`'s content with one real `<button>` per entry, grouped into moves and team.

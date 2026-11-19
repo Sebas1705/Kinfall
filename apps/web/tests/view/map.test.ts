@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '@webgames/core/content';
-import { nodeTypeLabel, setLang } from '@webgames/core/platform/i18n';
-import { maxHpOf, startRun } from '@webgames/core/sim/run/run';
-import type { MapNode, RunState } from '@webgames/core/sim/run/types';
-import { buildMapModel } from '@webgames/core/models/map';
+import { CONTENT } from '@kinfall/core/content';
+import { nodeTypeLabel, setLang } from '@kinfall/core/platform/i18n';
+import { maxHpOf, startRun } from '@kinfall/core/sim/run/run';
+import type { MapNode, RunState } from '@kinfall/core/sim/run/types';
+import { buildMapModel } from '@kinfall/core/models/map';
 import { renderMap } from '../../src/view/screens/map';
-import type { MapModel } from '@webgames/core/models/map';
+import type { MapModel } from '@kinfall/core/models/map';
 
 afterEach(() => setLang('en'));
 

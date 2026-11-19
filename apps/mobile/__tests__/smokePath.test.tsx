@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { setLang } from '@webgames/core/platform/i18n';
+import { setLang } from '@kinfall/core/platform/i18n';
 import * as Localization from 'expo-localization';
 import { AccessibilityInfo } from 'react-native';
 

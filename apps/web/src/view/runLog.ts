@@ -1,9 +1,9 @@
 // Run log: the localised lines of run events (souls, losses, recruits, evolutions...) shown on the
 // map, event and end screens. Events are kept, not lines, so a language change can rebuild it.
-import type { Content } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import { runEventLine, speciesName } from '@webgames/core/platform/i18n';
-import type { RunEvent } from '@webgames/core/sim/run/types';
+import type { Content } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import { runEventLine, speciesName } from '@kinfall/core/platform/i18n';
+import type { RunEvent } from '@kinfall/core/sim/run/types';
 import { RUN_LOG_MAX } from './runUi';
 import type { RunUi } from './runUi';
 

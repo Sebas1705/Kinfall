@@ -1,11 +1,11 @@
-import { CONTENT } from '@webgames/core/content';
+import { CONTENT } from '@kinfall/core/content';
 import {
   checkBattleGolden,
   checkRunGolden,
   combineSelfTest,
   selfTestSummary,
   type SelfTestResult,
-} from '@webgames/core/sim/selfTest';
+} from '@kinfall/core/sim/selfTest';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 

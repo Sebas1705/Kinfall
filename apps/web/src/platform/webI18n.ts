@@ -1,6 +1,6 @@
 // Binds core i18n to the browser: the choice lives in localStorage, the default follows
 // navigator.language and <html lang> tracks the current language.
-import { configureI18n, type I18n, type Lang, type LangStorage } from '@webgames/core/platform/i18n';
+import { configureI18n, type I18n, type Lang, type LangStorage } from '@kinfall/core/platform/i18n';
 
 /** localStorage as a language store; core swallows the errors a blocked storage throws. */
 export const browserLangStorage: LangStorage = {

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, render, screen, userEvent, within } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { setLang } from '@webgames/core/platform/i18n';
-import { serializeRun } from '@webgames/core/sim/run/codec';
-import { runScore } from '@webgames/core/sim/run/score';
+import { CONTENT } from '@kinfall/core/content';
+import { setLang } from '@kinfall/core/platform/i18n';
+import { serializeRun } from '@kinfall/core/sim/run/codec';
+import { runScore } from '@kinfall/core/sim/run/score';
 import { AccessibilityInfo, BackHandler } from 'react-native';
 
 import { sampleRun } from '../../src/dev/sampleRuns';

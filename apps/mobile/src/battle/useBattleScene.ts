@@ -6,8 +6,8 @@
 // - a newer render cancels a running play (its remaining events are skipped) and `play` always
 //   resolves; the controller's watchdog bounds the whole turn on top of that;
 // - reduced motion plays nothing: the settle render shows the final state.
-import type { BattleScene } from '@webgames/core/models/battleController';
-import type { BattleEvent, BattleState, Side } from '@webgames/core/sim/state';
+import type { BattleScene } from '@kinfall/core/models/battleController';
+import type { BattleEvent, BattleState, Side } from '@kinfall/core/sim/state';
 import { useMemo, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 

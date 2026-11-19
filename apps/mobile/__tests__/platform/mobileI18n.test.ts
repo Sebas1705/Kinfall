@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import type { AsyncStorageLike } from '@webgames/core/platform/asyncRunStorage';
-import { getLang, setLang, t } from '@webgames/core/platform/i18n';
+import type { AsyncStorageLike } from '@kinfall/core/platform/asyncRunStorage';
+import { getLang, setLang, t } from '@kinfall/core/platform/i18n';
 import * as Localization from 'expo-localization';
 
 import { detectDeviceLang, installMobileI18n } from '../../src/platform/mobileI18n';

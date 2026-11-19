@@ -1,8 +1,8 @@
-// Map screen: DOM rendering (renderMap) of the pure map model (buildMapModel, in @webgames/core).
+// Map screen: DOM rendering (renderMap) of the pure map model (buildMapModel, in @kinfall/core).
 // Layers stack vertically, step 1 first and the boss last, so the map reads well at 320 px.
-import type { MapModel } from '@webgames/core/models/map';
-import { t } from '@webgames/core/platform/i18n';
-import type { NodeType } from '@webgames/core/sim/run/types';
+import type { MapModel } from '@kinfall/core/models/map';
+import { t } from '@kinfall/core/platform/i18n';
+import type { NodeType } from '@kinfall/core/sim/run/types';
 import { confirmInline, el } from './dom';
 import { partyPanel } from './party';
 

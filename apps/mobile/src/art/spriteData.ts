@@ -1,7 +1,7 @@
-import { generateCreature } from '@webgames/core/art/creatureGen';
-import { elementIcon } from '@webgames/core/art/elementIcon';
-import { gridToRects, type PixelRect } from '@webgames/core/art/gridToRects';
-import { CONTENT, type ElementId, type SpeciesDef } from '@webgames/core/content';
+import { generateCreature } from '@kinfall/core/art/creatureGen';
+import { elementIcon } from '@kinfall/core/art/elementIcon';
+import { gridToRects, type PixelRect } from '@kinfall/core/art/gridToRects';
+import { CONTENT, type ElementId, type SpeciesDef } from '@kinfall/core/content';
 
 /** Sprite as draw rectangles, in grid cells, plus the grid size. */
 export interface SpriteData {

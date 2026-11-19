@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
-import { CONTENT } from '@webgames/core/content';
-import { legalRunActions } from '@webgames/core/sim/run/run';
-import { validateRun } from '@webgames/core/sim/run/codec';
+import { CONTENT } from '@kinfall/core/content';
+import { legalRunActions } from '@kinfall/core/sim/run/run';
+import { validateRun } from '@kinfall/core/sim/run/codec';
 
 import { SAMPLE_KINDS, sampleRun } from '../../src/dev/sampleRuns';
 

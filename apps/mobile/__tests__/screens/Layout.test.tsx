@@ -3,9 +3,9 @@
 // a sweep that every touchable element has a role, a name, its state and a 48dp target.
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { setLang } from '@webgames/core/platform/i18n';
-import { serializeRun } from '@webgames/core/sim/run/codec';
+import { CONTENT } from '@kinfall/core/content';
+import { setLang } from '@kinfall/core/platform/i18n';
+import { serializeRun } from '@kinfall/core/sim/run/codec';
 import { AccessibilityInfo, BackHandler, Dimensions } from 'react-native';
 
 import { sampleRun, type SampleKind } from '../../src/dev/sampleRuns';

@@ -1,9 +1,9 @@
 // Test helpers for the run session: scriptable in-memory storages and a seeded run.
-import { CONTENT } from '@webgames/core/content';
-import { createAsyncRunStorage, type AsyncStorageLike } from '@webgames/core/platform/asyncRunStorage';
-import { RUN_STORAGE_KEY } from '@webgames/core/platform/runStorage';
-import { availableNodes, startRun } from '@webgames/core/sim/run/run';
-import type { RunState } from '@webgames/core/sim/run/types';
+import { CONTENT } from '@kinfall/core/content';
+import { createAsyncRunStorage, type AsyncStorageLike } from '@kinfall/core/platform/asyncRunStorage';
+import { RUN_STORAGE_KEY } from '@kinfall/core/platform/runStorage';
+import { availableNodes, startRun } from '@kinfall/core/sim/run/run';
+import type { RunState } from '@kinfall/core/sim/run/types';
 
 import { createRunSession, type RunSession } from '../src/run/session';
 

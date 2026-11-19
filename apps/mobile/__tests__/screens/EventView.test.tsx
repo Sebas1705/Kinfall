@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, render, screen, userEvent, within } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import { setLang, speciesName } from '@webgames/core/platform/i18n';
-import { serializeRun } from '@webgames/core/sim/run/codec';
-import { maxHpOf } from '@webgames/core/sim/run/run';
-import type { RunState } from '@webgames/core/sim/run/types';
+import { CONTENT } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import { setLang, speciesName } from '@kinfall/core/platform/i18n';
+import { serializeRun } from '@kinfall/core/sim/run/codec';
+import { maxHpOf } from '@kinfall/core/sim/run/run';
+import type { RunState } from '@kinfall/core/sim/run/types';
 import { AccessibilityInfo, BackHandler, Dimensions } from 'react-native';
 
 import { sampleRun, type SampleKind } from '../../src/dev/sampleRuns';

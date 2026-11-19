@@ -1,6 +1,6 @@
 // The app's only entropy: random seed codes for the title screen. Core stays deterministic; it gets
 // the bytes through `seedFromRandom(fill)`.
-import { seedFromRandom, type RandomFill } from '@webgames/core/platform/seed';
+import { seedFromRandom, type RandomFill } from '@kinfall/core/platform/seed';
 import { getRandomValues } from 'expo-crypto';
 
 interface CryptoLike {

@@ -2,8 +2,8 @@
 // microtask flush that lets a turn's play settle.
 import { jest } from '@jest/globals';
 import { act } from '@testing-library/react-native';
-import type { RunState } from '@webgames/core/sim/run/types';
-import type { BattleState } from '@webgames/core/sim/state';
+import type { RunState } from '@kinfall/core/sim/run/types';
+import type { BattleState } from '@kinfall/core/sim/state';
 import { Animated } from 'react-native';
 
 import type { RunSession } from '../src/run/session';

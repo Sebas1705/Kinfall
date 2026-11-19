@@ -1,9 +1,9 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { CONTENT } from '@webgames/core/content';
-import { setLang } from '@webgames/core/platform/i18n';
-import { hashRun, serializeRun } from '@webgames/core/sim/run/codec';
-import { availableNodes, legalRunActions } from '@webgames/core/sim/run/run';
-import type { RunPhase, RunState } from '@webgames/core/sim/run/types';
+import { CONTENT } from '@kinfall/core/content';
+import { setLang } from '@kinfall/core/platform/i18n';
+import { hashRun, serializeRun } from '@kinfall/core/sim/run/codec';
+import { availableNodes, legalRunActions } from '@kinfall/core/sim/run/run';
+import type { RunPhase, RunState } from '@kinfall/core/sim/run/types';
 
 import { createRunSession, phaseHeading, RUN_LOG_MAX, runLogContext, runLogLines, runViewOf } from '../../src/run/session';
 import { firstNode, freshRun, makeSession, memoryStorage, RUN_KEY, STARTER } from '../../test-support/runFixtures';

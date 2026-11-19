@@ -84,7 +84,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run typecheck -w @webgames/mobile
+      - run: npm run typecheck -w @kinfall/mobile
       - run: npm run test:mobile -- --ci
 
   android-debug:

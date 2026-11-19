@@ -1,5 +1,5 @@
-import type { PartyRow } from '@webgames/core/models/party';
-import { t } from '@webgames/core/platform/i18n';
+import type { PartyRow } from '@kinfall/core/models/party';
+import { t } from '@kinfall/core/platform/i18n';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { CreatureSprite } from '../art/CreatureSprite';

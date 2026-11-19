@@ -1,4 +1,4 @@
-import { t } from '@webgames/core/platform/i18n';
+import { t } from '@kinfall/core/platform/i18n';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useAnnounce } from '../platform/announce';

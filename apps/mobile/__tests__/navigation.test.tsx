@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, render, screen, userEvent, waitFor } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { createAsyncRunStorage } from '@webgames/core/platform/asyncRunStorage';
-import { nodeTypeLabel } from '@webgames/core/platform/i18n';
-import { serializeRun } from '@webgames/core/sim/run/codec';
-import { availableNodes } from '@webgames/core/sim/run/run';
+import { CONTENT } from '@kinfall/core/content';
+import { createAsyncRunStorage } from '@kinfall/core/platform/asyncRunStorage';
+import { nodeTypeLabel } from '@kinfall/core/platform/i18n';
+import { serializeRun } from '@kinfall/core/sim/run/codec';
+import { availableNodes } from '@kinfall/core/sim/run/run';
 import * as Localization from 'expo-localization';
 import { AccessibilityInfo, BackHandler } from 'react-native';
 

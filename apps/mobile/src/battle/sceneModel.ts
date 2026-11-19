@@ -2,8 +2,8 @@
 // the turn's events update one by one (HP down on damage, a status chip, a swap...). Pure display
 // data: the sim's state is already final when a play starts, and the next render replaces all of
 // this with that state. Mirrors the web scene (apps/web/src/view/battleView.ts).
-import type { StatusId } from '@webgames/core/content';
-import type { BattleEvent, BattleState, Combatant, Side } from '@webgames/core/sim/state';
+import type { StatusId } from '@kinfall/core/content';
+import type { BattleEvent, BattleState, Combatant, Side } from '@kinfall/core/sim/state';
 
 export interface ShownCreature {
   speciesId: string;

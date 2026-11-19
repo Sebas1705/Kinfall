@@ -1,9 +1,9 @@
 // Phase-1 demo battle page (`?mode=battle`): settings, the DOM facade and the PixiJS scene around
 // the turn controller (src/view/controller.ts), which owns the pick -> applyAction -> play -> rebuild cycle.
-import { CONTENT } from '@webgames/core/content';
-import { getLang, setLang, t } from '@webgames/core/platform/i18n';
+import { CONTENT } from '@kinfall/core/content';
+import { getLang, setLang, t } from '@kinfall/core/platform/i18n';
 import { createInput } from '../platform/input';
-import { createBattle } from '@webgames/core/sim/battle';
+import { createBattle } from '@kinfall/core/sim/battle';
 import { createBattleDom } from './battleDom';
 import { createBattleView } from './battleView';
 import type { BattleView } from './battleView';

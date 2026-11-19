@@ -1,8 +1,8 @@
-import { CONTENT } from '@webgames/core/content';
-import { simulateRun } from '@webgames/core/sim/run/bot';
-import { hashRun } from '@webgames/core/sim/run/codec';
-import type { RunState } from '@webgames/core/sim/run/types';
-import { runScore } from '@webgames/core/sim/run/score';
+import { CONTENT } from '@kinfall/core/content';
+import { simulateRun } from '@kinfall/core/sim/run/bot';
+import { hashRun } from '@kinfall/core/sim/run/codec';
+import type { RunState } from '@kinfall/core/sim/run/types';
+import { runScore } from '@kinfall/core/sim/run/score';
 
 export const DEFAULT_SEED = 'golden-0';
 

@@ -2,7 +2,7 @@
 // play: every animation settles (frame ticks, a timeout fallback, finishAll or cancel), an exception
 // inside a step is logged and never leaves a promise pending, and a newer play cancels an older one.
 
-import type { TimerApi } from '@webgames/core/models/battleController';
+import type { TimerApi } from '@kinfall/core/models/battleController';
 
 export type { TimerApi };
 

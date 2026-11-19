@@ -1,4 +1,4 @@
-import type { SpeciesDef } from '@webgames/core/content';
+import type { SpeciesDef } from '@kinfall/core/content';
 import { memo, useMemo } from 'react';
 
 import { PixelSprite } from './PixelSprite';

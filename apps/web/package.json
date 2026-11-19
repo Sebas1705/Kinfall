@@ -1,5 +1,5 @@
 {
-  "name": "@webgames/web",
+  "name": "@kinfall/web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@webgames/core": "*",
+    "@kinfall/core": "*",
     "pixi.js": "^8.23.0"
   }
 }

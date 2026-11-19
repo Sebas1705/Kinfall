@@ -1,7 +1,7 @@
 // A BattleView that loads the real (PixiJS) scene on first use, so the run page does not download it
 // before the first battle. Until it is ready, plays resolve at once and the latest state is drawn as
 // soon as the scene exists; the controller's sim state is never affected.
-import type { BattleState } from '@webgames/core/sim/state';
+import type { BattleState } from '@kinfall/core/sim/state';
 import type { BattleView } from './battleView';
 
 export function lazyBattleView(load: () => Promise<BattleView>, onUnavailable: (err: unknown) => void): BattleView {

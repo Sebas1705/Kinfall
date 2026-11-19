@@ -1,15 +1,15 @@
 // Event screens of a run (recruit, shrine, cache, mystery): the pure event model (buildEventModel,
-// in @webgames/core) drawn with React Native, like the web's screens/event.ts. The choices are
+// in @kinfall/core) drawn with React Native, like the web's screens/event.ts. The choices are
 // exactly the legal run actions, plus evolve entries that are disabled with their reason in text
 // when souls are short. A pick goes through the run session (applied, logged, autosaved).
 //
 // On arrival, screen-reader focus goes to the model's initial choice: the first enabled one, or
 // "Let it go" when a full party would make a stray activation replace a member.
-import { CONTENT } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import { buildEventModel, type EventChoice, type EventModel } from '@webgames/core/models/event';
-import { t } from '@webgames/core/platform/i18n';
-import type { RunAction, RunState } from '@webgames/core/sim/run/types';
+import { CONTENT } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import { buildEventModel, type EventChoice, type EventModel } from '@kinfall/core/models/event';
+import { t } from '@kinfall/core/platform/i18n';
+import type { RunAction, RunState } from '@kinfall/core/sim/run/types';
 import { useEffect, useRef, type ComponentRef, type Ref } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 

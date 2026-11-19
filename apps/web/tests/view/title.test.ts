@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '@webgames/core/content';
-import { setLang } from '@webgames/core/platform/i18n';
-import type { LoadResult } from '@webgames/core/platform/runStorage';
-import { startRun } from '@webgames/core/sim/run/run';
+import { CONTENT } from '@kinfall/core/content';
+import { setLang } from '@kinfall/core/platform/i18n';
+import type { LoadResult } from '@kinfall/core/platform/runStorage';
+import { startRun } from '@kinfall/core/sim/run/run';
 import { initialSeed, randomSeed, renderTitle, SEED_ALPHABET } from '../../src/view/screens/title';
 import type { TitleProps } from '../../src/view/screens/title';
 

@@ -1,14 +1,14 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
+import { CONTENT } from '@kinfall/core/content';
 
 import { CreatureSprite } from '../../src/art/CreatureSprite';
 import { ElementIcon } from '../../src/art/ElementIcon';
 
 const HID = { hidden: true };
 const mockGenerate = jest.fn();
-jest.mock('@webgames/core/art/creatureGen', () => {
-  const actual = jest.requireActual<typeof import('@webgames/core/art/creatureGen')>('@webgames/core/art/creatureGen');
+jest.mock('@kinfall/core/art/creatureGen', () => {
+  const actual = jest.requireActual<typeof import('@kinfall/core/art/creatureGen')>('@kinfall/core/art/creatureGen');
   return {
     ...actual,
     generateCreature: (...args: Parameters<typeof actual.generateCreature>) => {

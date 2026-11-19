@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AsyncStorageLike } from '@webgames/core/platform/asyncRunStorage';
+import type { AsyncStorageLike } from '@kinfall/core/platform/asyncRunStorage';
 
 /**
  * AsyncStorage as the core's `AsyncStorageLike`, or null when the native module is missing or

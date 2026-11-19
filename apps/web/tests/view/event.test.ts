@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '@webgames/core/content';
-import { setLang } from '@webgames/core/platform/i18n';
-import { legalRunActions, maxHpOf, startRun } from '@webgames/core/sim/run/run';
-import { runScore } from '@webgames/core/sim/run/score';
-import type { RunPhase, RunState } from '@webgames/core/sim/run/types';
-import { buildEndModel } from '@webgames/core/models/end';
+import { CONTENT } from '@kinfall/core/content';
+import { setLang } from '@kinfall/core/platform/i18n';
+import { legalRunActions, maxHpOf, startRun } from '@kinfall/core/sim/run/run';
+import { runScore } from '@kinfall/core/sim/run/score';
+import type { RunPhase, RunState } from '@kinfall/core/sim/run/types';
+import { buildEndModel } from '@kinfall/core/models/end';
 import { renderEnd } from '../../src/view/screens/end';
-import { buildEventModel } from '@webgames/core/models/event';
+import { buildEventModel } from '@kinfall/core/models/event';
 import { renderEvent } from '../../src/view/screens/event';
 
 beforeEach(() => {

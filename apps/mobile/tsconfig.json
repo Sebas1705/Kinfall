@@ -1,6 +1,6 @@
 {
   // Expo's base (bundler resolution with the react-native condition, react-jsx) plus the repo's strictness.
-  // It also type-checks every @webgames/core module the app imports.
+  // It also type-checks every @kinfall/core module the app imports.
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,

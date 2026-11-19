@@ -1,5 +1,5 @@
-import { CONTENT } from '@webgames/core/content';
-import { speciesName, t, type StringKey } from '@webgames/core/platform/i18n';
+import { CONTENT } from '@kinfall/core/content';
+import { speciesName, t, type StringKey } from '@kinfall/core/platform/i18n';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { CreatureSprite } from '../art/CreatureSprite';

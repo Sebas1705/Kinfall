@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
-import { CONTENT } from '@webgames/core/content';
-import { createBattle } from '@webgames/core/sim/battle';
-import type { BattleState } from '@webgames/core/sim/state';
+import { CONTENT } from '@kinfall/core/content';
+import { createBattle } from '@kinfall/core/sim/battle';
+import type { BattleState } from '@kinfall/core/sim/state';
 
 import { applyShownEvent, shownSides } from '../../src/battle/sceneModel';
 

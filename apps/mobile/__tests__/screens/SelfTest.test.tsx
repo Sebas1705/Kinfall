@@ -14,8 +14,8 @@ const RUNS = jest.requireActual<unknown[]>(`${GOLDEN}/run.golden.json`).length;
 
 // Wraps the real runner; when `mockFailRunAt` is a number, that run entry is reported as a mismatch.
 let mockFailRunAt: number | null = null;
-jest.mock('@webgames/core/sim/selfTest', () => {
-  const actual = jest.requireActual<typeof import('@webgames/core/sim/selfTest')>('@webgames/core/sim/selfTest');
+jest.mock('@kinfall/core/sim/selfTest', () => {
+  const actual = jest.requireActual<typeof import('@kinfall/core/sim/selfTest')>('@kinfall/core/sim/selfTest');
   return {
     ...actual,
     checkRunGolden: (data: unknown, content: Parameters<typeof actual.checkRunGolden>[1]) => {

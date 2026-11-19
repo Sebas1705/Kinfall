@@ -12,12 +12,12 @@
 // - two panes: on tablets, unfolded foldables and phones in landscape the scene and the log sit on
 //   the left and the choices on the right.
 // The abandon confirmation replaces the Abandon button where it was.
-import { CONTENT, type ElementId } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import type { MenuEntry } from '@webgames/core/models/menu';
-import { moveName, speciesName, t } from '@webgames/core/platform/i18n';
-import type { RunState } from '@webgames/core/sim/run/types';
-import type { BattleState, Side } from '@webgames/core/sim/state';
+import { CONTENT, type ElementId } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import type { MenuEntry } from '@kinfall/core/models/menu';
+import { moveName, speciesName, t } from '@kinfall/core/platform/i18n';
+import type { RunState } from '@kinfall/core/sim/run/types';
+import type { BattleState, Side } from '@kinfall/core/sim/state';
 import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type Ref } from 'react';
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 

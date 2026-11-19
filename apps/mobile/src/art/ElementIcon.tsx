@@ -1,4 +1,4 @@
-import type { ElementId } from '@webgames/core/content';
+import type { ElementId } from '@kinfall/core/content';
 import { memo } from 'react';
 
 import { PixelSprite } from './PixelSprite';

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, render, screen, userEvent, waitFor, within } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { nodeTypeLabel, setLang, t } from '@webgames/core/platform/i18n';
-import { serializeRun } from '@webgames/core/sim/run/codec';
-import { availableNodes, maxHpOf } from '@webgames/core/sim/run/run';
-import type { RunState } from '@webgames/core/sim/run/types';
+import { CONTENT } from '@kinfall/core/content';
+import { nodeTypeLabel, setLang, t } from '@kinfall/core/platform/i18n';
+import { serializeRun } from '@kinfall/core/sim/run/codec';
+import { availableNodes, maxHpOf } from '@kinfall/core/sim/run/run';
+import type { RunState } from '@kinfall/core/sim/run/types';
 import { BackHandler, Dimensions } from 'react-native';
 
 import type { RunSession } from '../../src/run/session';

@@ -1,7 +1,7 @@
 // End screen: the result of a finished run, its stats and score, and a way to start again.
-// The pure model (buildEndModel) lives in @webgames/core.
-import type { EndModel } from '@webgames/core/models/end';
-import { t } from '@webgames/core/platform/i18n';
+// The pure model (buildEndModel) lives in @kinfall/core.
+import type { EndModel } from '@kinfall/core/models/end';
+import { t } from '@kinfall/core/platform/i18n';
 import { el } from './dom';
 
 export function renderEnd(host: HTMLElement, model: EndModel, onNewRun: () => void): void {

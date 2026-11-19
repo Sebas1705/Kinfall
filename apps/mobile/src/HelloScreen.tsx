@@ -1,9 +1,9 @@
-import { CONTENT } from '@webgames/core/content';
-import { createAsyncRunStorage, type AsyncStorageLike } from '@webgames/core/platform/asyncRunStorage';
-import { RUN_STORAGE_KEY } from '@webgames/core/platform/runStorage';
-import { setLang, t, type Lang } from '@webgames/core/platform/i18n';
-import { hashRun, serializeRun } from '@webgames/core/sim/run/codec';
-import type { RunState } from '@webgames/core/sim/run/types';
+import { CONTENT } from '@kinfall/core/content';
+import { createAsyncRunStorage, type AsyncStorageLike } from '@kinfall/core/platform/asyncRunStorage';
+import { RUN_STORAGE_KEY } from '@kinfall/core/platform/runStorage';
+import { setLang, t, type Lang } from '@kinfall/core/platform/i18n';
+import { hashRun, serializeRun } from '@kinfall/core/sim/run/codec';
+import type { RunState } from '@kinfall/core/sim/run/types';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 

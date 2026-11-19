@@ -1,7 +1,7 @@
 // Input layer (presentation side): keyboard, gamepad and on-screen touch buttons
 // all funnel into one GameAction stream. Not part of the simulation.
 
-import type { GameAction } from '@webgames/core/models/battleController';
+import type { GameAction } from '@kinfall/core/models/battleController';
 
 // The action set is shared with the battle controller in core.
 export type { GameAction };

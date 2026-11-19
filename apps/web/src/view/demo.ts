@@ -1,6 +1,6 @@
-import type { Content } from '@webgames/core/content';
-import { createRng } from '@webgames/core/sim/rng';
-import type { TeamSpec } from '@webgames/core/sim/state';
+import type { Content } from '@kinfall/core/content';
+import { createRng } from '@kinfall/core/sim/rng';
+import type { TeamSpec } from '@kinfall/core/sim/state';
 
 /**
  * Teams for the demo battle page, picked from the seed with the sim's PRNG (never Math.random):

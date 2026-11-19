@@ -1,11 +1,11 @@
-// Map screen: the pure map model (buildMapModel, in @webgames/core) drawn with React Native.
+// Map screen: the pure map model (buildMapModel, in @kinfall/core) drawn with React Native.
 // Layers stack vertically, step 1 first and the boss last; nodes wrap in rows. Every node names its
 // type and state in text (never colour alone) and is a 48dp button. In two panes (tablets,
 // foldables, landscape) the party and the run log sit on the left and the map on the right.
-import { CONTENT } from '@webgames/core/content';
-import { buildMapModel, type MapModel } from '@webgames/core/models/map';
-import { t } from '@webgames/core/platform/i18n';
-import type { NodeType, RunState } from '@webgames/core/sim/run/types';
+import { CONTENT } from '@kinfall/core/content';
+import { buildMapModel, type MapModel } from '@kinfall/core/models/map';
+import { t } from '@kinfall/core/platform/i18n';
+import type { NodeType, RunState } from '@kinfall/core/sim/run/types';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 

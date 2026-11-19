@@ -1,9 +1,9 @@
 // Title screen: continue a saved run, or start a new one from a seed and a starter. Mirrors the web
 // title (apps/web/src/view/screens/title.ts) with the device wording of the save notes.
-import { CONTENT } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import { speciesName, t, type StringKey } from '@webgames/core/platform/i18n';
-import { SEED_MAX, cleanSeed } from '@webgames/core/platform/seed';
+import { CONTENT } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import { speciesName, t, type StringKey } from '@kinfall/core/platform/i18n';
+import { SEED_MAX, cleanSeed } from '@kinfall/core/platform/seed';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 

@@ -1,11 +1,11 @@
 // Event screens (recruit, shrine, cache, mystery): DOM rendering (renderEvent) of the pure event
-// model (buildEventModel, in @webgames/core).
-import { CONTENT } from '@webgames/core/content';
-import type { Content } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import type { EventChoice, EventModel } from '@webgames/core/models/event';
-import { t } from '@webgames/core/platform/i18n';
-import type { RunAction } from '@webgames/core/sim/run/types';
+// model (buildEventModel, in @kinfall/core).
+import { CONTENT } from '@kinfall/core/content';
+import type { Content } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import type { EventChoice, EventModel } from '@kinfall/core/models/event';
+import { t } from '@kinfall/core/platform/i18n';
+import type { RunAction } from '@kinfall/core/sim/run/types';
 import { creatureCanvas } from './art';
 import { el } from './dom';
 import { partyPanel } from './party';

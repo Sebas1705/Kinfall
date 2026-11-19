@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { render, screen, userEvent, waitFor, within } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { setLang } from '@webgames/core/platform/i18n';
-import { SEED_ALPHABET } from '@webgames/core/platform/seed';
-import { serializeRun } from '@webgames/core/sim/run/codec';
+import { CONTENT } from '@kinfall/core/content';
+import { setLang } from '@kinfall/core/platform/i18n';
+import { SEED_ALPHABET } from '@kinfall/core/platform/seed';
+import { serializeRun } from '@kinfall/core/sim/run/codec';
 import * as Localization from 'expo-localization';
 
 import { AppShell } from '../../App';
@@ -12,7 +12,7 @@ import { randomSeed } from '../../src/platform/random';
 import { createRunSession, type RunSession } from '../../src/run/session';
 import { RunSessionProvider } from '../../src/run/useRunSession';
 import { TitleScreen } from '../../src/screens/TitleScreen';
-import { createAsyncRunStorage } from '@webgames/core/platform/asyncRunStorage';
+import { createAsyncRunStorage } from '@kinfall/core/platform/asyncRunStorage';
 import { freshRun, makeSession, memoryStorage, RUN_KEY, type MemoryStorage } from '../../test-support/runFixtures';
 
 async function renderTitle(session: RunSession, props: Partial<Parameters<typeof TitleScreen>[0]> = {}) {

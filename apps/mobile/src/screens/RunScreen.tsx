@@ -6,8 +6,8 @@
 // A battle's final turn moves the run on at once (it is applied and saved before its animation), so
 // the battle screen stays up until that turn has played; then the next phase shows, with the run log
 // lines of the battle's end (souls, losses) as its fresh lines.
-import { t } from '@webgames/core/platform/i18n';
-import type { RunState } from '@webgames/core/sim/run/types';
+import { t } from '@kinfall/core/platform/i18n';
+import type { RunState } from '@kinfall/core/sim/run/types';
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { BackHandler, StyleSheet, Text, type ScrollViewInstance } from 'react-native';
 

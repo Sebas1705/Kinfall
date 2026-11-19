@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CONTENT } from '@webgames/core/content';
-import { setLang } from '@webgames/core/platform/i18n';
-import { STRINGS } from '@webgames/core/platform/strings';
-import { applyAction, createBattle, legalActions } from '@webgames/core/sim/battle';
-import type { BattleEvent, BattleState } from '@webgames/core/sim/state';
-import { buildMenu, logLines } from '@webgames/core/models/menu';
+import { CONTENT } from '@kinfall/core/content';
+import { setLang } from '@kinfall/core/platform/i18n';
+import { STRINGS } from '@kinfall/core/platform/strings';
+import { applyAction, createBattle, legalActions } from '@kinfall/core/sim/battle';
+import type { BattleEvent, BattleState } from '@kinfall/core/sim/state';
+import { buildMenu, logLines } from '@kinfall/core/models/menu';
 import { renderMenu } from '../../src/view/menu';
 
 const PLAYER = { speciesIds: ['cindermite', 'tidewisp', 'skirrow'] };

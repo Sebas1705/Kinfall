@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { configureI18n, getLang, LANG_STORAGE_KEY, setLang, t } from '@webgames/core/platform/i18n';
-import { STRINGS } from '@webgames/core/platform/strings';
+import { configureI18n, getLang, LANG_STORAGE_KEY, setLang, t } from '@kinfall/core/platform/i18n';
+import { STRINGS } from '@kinfall/core/platform/strings';
 import { browserLangStorage, detectBrowserLang, installWebI18n } from '../../src/platform/webI18n';
 
 afterEach(() => {

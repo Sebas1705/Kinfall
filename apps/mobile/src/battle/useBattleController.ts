@@ -1,7 +1,7 @@
 // Mobile glue of core's battle turn controller (the same state machine the web runs): a React-state
 // BattleUi, the Animated scene, and turns that go through the run session, so each turn is applied
 // to the run and autosaved before its animation starts. Touch only: no navigation input.
-import { CONTENT } from '@webgames/core/content';
+import { CONTENT } from '@kinfall/core/content';
 import {
   createBattleController,
   type BattleController,
@@ -9,10 +9,10 @@ import {
   type BattleUi,
   type Logger,
   type TimerApi,
-} from '@webgames/core/models/battleController';
-import { splitBattleStep } from '@webgames/core/models/battleTurn';
-import type { MenuModel } from '@webgames/core/models/menu';
-import type { Action, BattleState, Side } from '@webgames/core/sim/state';
+} from '@kinfall/core/models/battleController';
+import { splitBattleStep } from '@kinfall/core/models/battleTurn';
+import type { MenuModel } from '@kinfall/core/models/menu';
+import type { Action, BattleState, Side } from '@kinfall/core/sim/state';
 import { useEffect, useRef, useState } from 'react';
 
 import type { RunSession } from '../run/session';

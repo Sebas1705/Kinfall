@@ -1,10 +1,10 @@
 // End screen of a run: the result, the score and the stats (buildEndModel and runScore, in
-// @webgames/core), like the web's screens/end.ts. "New run" starts again at once from a fresh seed
+// @kinfall/core), like the web's screens/end.ts. "New run" starts again at once from a fresh seed
 // (the save is cleared first); "Back to start" clears the save and returns to the title. The
 // result is written out in text ("Run won" / "Run lost"); its colour only repeats it.
-import { CONTENT } from '@webgames/core/content';
-import { buildEndModel } from '@webgames/core/models/end';
-import { t } from '@webgames/core/platform/i18n';
+import { CONTENT } from '@kinfall/core/content';
+import { buildEndModel } from '@kinfall/core/models/end';
+import { t } from '@kinfall/core/platform/i18n';
 import { useEffect, useRef, type ComponentRef } from 'react';
 import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 

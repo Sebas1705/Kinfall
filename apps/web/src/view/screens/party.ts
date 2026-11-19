@@ -1,6 +1,6 @@
 // Party and souls panel shared by the map and event screens.
-import type { PartyRow } from '@webgames/core/models/party';
-import { t } from '@webgames/core/platform/i18n';
+import type { PartyRow } from '@kinfall/core/models/party';
+import { t } from '@kinfall/core/platform/i18n';
 import { el } from './dom';
 
 /** `idPrefix` keeps ids unique: hidden screens keep their old DOM while another one is shown. */

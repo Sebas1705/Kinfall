@@ -1,4 +1,4 @@
-import { setLang, t, type Lang } from '@webgames/core/platform/i18n';
+import { setLang, t, type Lang } from '@kinfall/core/platform/i18n';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useLang } from '../platform/LangContext';

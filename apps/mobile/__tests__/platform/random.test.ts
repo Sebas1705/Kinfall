@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
-import { SEED_ALPHABET, SEED_LENGTH } from '@webgames/core/platform/seed';
+import { SEED_ALPHABET, SEED_LENGTH } from '@kinfall/core/platform/seed';
 
 import { fillRandom, randomSeed, randomSource } from '../../src/platform/random';
 

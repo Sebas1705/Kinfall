@@ -2,18 +2,18 @@
 // writes anything back: animation timing only changes visuals. Every animation also has a timeout
 // fallback, and a hidden tab finishes them at once, so `play` always resolves.
 import { Application, CanvasSource, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
-import { generateCreature } from '@webgames/core/art/creatureGen';
-import { elementIcon } from '@webgames/core/art/elementIcon';
-import type { PixelGrid } from '@webgames/core/art/palette';
-import { CONTENT } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import type { ElementId, SpeciesDef, StatusId } from '@webgames/core/content';
-import { speciesName, t } from '@webgames/core/platform/i18n';
-import type { BattleEvent, BattleState, Combatant, Side } from '@webgames/core/sim/state';
+import { generateCreature } from '@kinfall/core/art/creatureGen';
+import { elementIcon } from '@kinfall/core/art/elementIcon';
+import type { PixelGrid } from '@kinfall/core/art/palette';
+import { CONTENT } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import type { ElementId, SpeciesDef, StatusId } from '@kinfall/core/content';
+import { speciesName, t } from '@kinfall/core/platform/i18n';
+import type { BattleEvent, BattleState, Combatant, Side } from '@kinfall/core/sim/state';
 import { createAnimator } from './animator';
 import type { PlayContext } from './animator';
-import { intentText } from '@webgames/core/models/menu';
-import type { BattleScene } from '@webgames/core/models/battleController';
+import { intentText } from '@kinfall/core/models/menu';
+import type { BattleScene } from '@kinfall/core/models/battleController';
 import { paintGrid } from './pixelCanvas';
 
 export interface BattleView extends BattleScene {

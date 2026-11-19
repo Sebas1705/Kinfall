@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import { watchdogMs } from '@webgames/core/models/battleController';
-import { buildMenu, intentText } from '@webgames/core/models/menu';
-import { getLang, nodeTypeLabel, setLang, speciesName, t, type Lang } from '@webgames/core/platform/i18n';
-import { serializeRun } from '@webgames/core/sim/run/codec';
-import type { BattleState, Side } from '@webgames/core/sim/state';
+import { CONTENT } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import { watchdogMs } from '@kinfall/core/models/battleController';
+import { buildMenu, intentText } from '@kinfall/core/models/menu';
+import { getLang, nodeTypeLabel, setLang, speciesName, t, type Lang } from '@kinfall/core/platform/i18n';
+import { serializeRun } from '@kinfall/core/sim/run/codec';
+import type { BattleState, Side } from '@kinfall/core/sim/state';
 import { AccessibilityInfo, BackHandler } from 'react-native';
 
 import { LangContext } from '../../src/platform/LangContext';

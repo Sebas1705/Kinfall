@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTENT } from '@webgames/core/content';
+import { CONTENT } from '@kinfall/core/content';
 import { demoTeams } from '../../src/view/demo';
 
 describe('demoTeams', () => {

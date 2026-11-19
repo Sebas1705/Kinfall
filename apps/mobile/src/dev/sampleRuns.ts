@@ -2,11 +2,11 @@
 // "Save sample run" buttons) and the screen tests can open those screens without playing up to
 // them. Every sample passes core's full save validation (validateRun), so it loads like a real save.
 // Nothing here changes game content or the engine: the samples are built from a seed's own maps.
-import type { Content } from '@webgames/core/content';
-import { findNode } from '@webgames/core/sim/run/map';
-import { buildEncounter } from '@webgames/core/sim/run/encounters';
-import { maxHpOf, startRun } from '@webgames/core/sim/run/run';
-import type { MapNode, NodeType, RunState } from '@webgames/core/sim/run/types';
+import type { Content } from '@kinfall/core/content';
+import { findNode } from '@kinfall/core/sim/run/map';
+import { buildEncounter } from '@kinfall/core/sim/run/encounters';
+import { maxHpOf, startRun } from '@kinfall/core/sim/run/run';
+import type { MapNode, NodeType, RunState } from '@kinfall/core/sim/run/types';
 
 export const SAMPLE_KINDS = ['recruit', 'recruitFull', 'shrine', 'shrinePoor', 'cache', 'mystery', 'won', 'lost'] as const;
 export type SampleKind = (typeof SAMPLE_KINDS)[number];

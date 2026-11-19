@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { BattleState } from '@webgames/core/sim/state';
+import type { BattleState } from '@kinfall/core/sim/state';
 import { lazyBattleView } from '../../src/view/lazyView';
 
 const flush = async () => {

@@ -1,6 +1,6 @@
-import { CONTENT } from '@webgames/core/content';
-import { createAsyncRunStorage } from '@webgames/core/platform/asyncRunStorage';
-import { getLang, type Lang } from '@webgames/core/platform/i18n';
+import { CONTENT } from '@kinfall/core/content';
+import { createAsyncRunStorage } from '@kinfall/core/platform/asyncRunStorage';
+import { getLang, type Lang } from '@kinfall/core/platform/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

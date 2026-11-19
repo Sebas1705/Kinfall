@@ -1,8 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 import { render, screen, userEvent } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { simulateRun } from '@webgames/core/sim/run/bot';
-import { hashRun } from '@webgames/core/sim/run/codec';
+import { CONTENT } from '@kinfall/core/content';
+import { simulateRun } from '@kinfall/core/sim/run/bot';
+import { hashRun } from '@kinfall/core/sim/run/codec';
 
 import App from '../App';
 import { openDevTools } from '../test-support/devTools';

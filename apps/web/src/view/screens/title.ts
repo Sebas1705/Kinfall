@@ -1,14 +1,14 @@
 // Title screen: continue a saved run, or start a new one from a seed and a starter.
 // The random seed uses crypto.getRandomValues here, in the UI layer only; the sim never sees entropy.
-import type { Content } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import { speciesName, t } from '@webgames/core/platform/i18n';
-import type { LoadResult } from '@webgames/core/platform/runStorage';
+import type { Content } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import { speciesName, t } from '@kinfall/core/platform/i18n';
+import type { LoadResult } from '@kinfall/core/platform/runStorage';
 import { creatureCanvas } from './art';
-import { SEED_MAX, cleanSeed, seedFromRandom } from '@webgames/core/platform/seed';
+import { SEED_MAX, cleanSeed, seedFromRandom } from '@kinfall/core/platform/seed';
 import { confirmInline, el } from './dom';
 
-export { SEED_ALPHABET, SEED_MAX } from '@webgames/core/platform/seed';
+export { SEED_ALPHABET, SEED_MAX } from '@kinfall/core/platform/seed';
 
 export interface TitleProps {
   content: Content;

@@ -1,13 +1,13 @@
 // Binds core i18n to the device. Core's language storage is synchronous and AsyncStorage is not,
 // so the saved choice is read once up front and kept in memory (writes go through to AsyncStorage).
-import type { AsyncStorageLike } from '@webgames/core/platform/asyncRunStorage';
+import type { AsyncStorageLike } from '@kinfall/core/platform/asyncRunStorage';
 import {
   LANG_STORAGE_KEY,
   configureI18n,
   isLang,
   type I18n,
   type Lang,
-} from '@webgames/core/platform/i18n';
+} from '@kinfall/core/platform/i18n';
 import { getLocales } from 'expo-localization';
 
 import { defaultAsyncStorage } from './asyncStorage';

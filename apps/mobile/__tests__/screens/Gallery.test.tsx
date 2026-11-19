@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from '@jest/globals';
 import { act, render, screen, userEvent, within } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { getLang, setLang, speciesName, t, type Lang, type StringKey } from '@webgames/core/platform/i18n';
+import { CONTENT } from '@kinfall/core/content';
+import { getLang, setLang, speciesName, t, type Lang, type StringKey } from '@kinfall/core/platform/i18n';
 
 const HID = { hidden: true };
 

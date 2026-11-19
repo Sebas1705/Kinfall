@@ -7,14 +7,14 @@
 // clear of an abandon or discard) run one at a time in the order they were enqueued, so two quick
 // taps can never interleave and the last write always holds the latest state. A failed save shows
 // one dismissible warning per failure streak; play goes on and a later successful save hides it.
-import type { Content } from '@webgames/core/content';
-import { lookup } from '@webgames/core/content/lookup';
-import type { AsyncRunStorage } from '@webgames/core/platform/asyncRunStorage';
-import { nodeTypeLabel, runEventLine, speciesName, t, type RunEventContext } from '@webgames/core/platform/i18n';
-import type { LoadResult } from '@webgames/core/platform/runStorage';
-import { findNode } from '@webgames/core/sim/run/map';
-import { applyRunAction, startRun } from '@webgames/core/sim/run/run';
-import type { RunAction, RunEvent, RunPhase, RunState, RunStep } from '@webgames/core/sim/run/types';
+import type { Content } from '@kinfall/core/content';
+import { lookup } from '@kinfall/core/content/lookup';
+import type { AsyncRunStorage } from '@kinfall/core/platform/asyncRunStorage';
+import { nodeTypeLabel, runEventLine, speciesName, t, type RunEventContext } from '@kinfall/core/platform/i18n';
+import type { LoadResult } from '@kinfall/core/platform/runStorage';
+import { findNode } from '@kinfall/core/sim/run/map';
+import { applyRunAction, startRun } from '@kinfall/core/sim/run/run';
+import type { RunAction, RunEvent, RunPhase, RunState, RunStep } from '@kinfall/core/sim/run/types';
 
 /** Run events kept in the log; older ones are dropped (same as the web app). */
 export const RUN_LOG_MAX = 60;

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, renderHook } from '@testing-library/react-native';
-import { CONTENT } from '@webgames/core/content';
-import { createBattle } from '@webgames/core/sim/battle';
-import type { BattleEvent, BattleState } from '@webgames/core/sim/state';
+import { CONTENT } from '@kinfall/core/content';
+import { createBattle } from '@kinfall/core/sim/battle';
+import type { BattleEvent, BattleState } from '@kinfall/core/sim/state';
 import type { Animated } from 'react-native';
 
 import { FAINTED_OPACITY, STEP_FALLBACK_MS, STEP_MS, useBattleScene } from '../../src/battle/useBattleScene';
