@@ -28,7 +28,7 @@ scripts/distribute-android.sh --dry-run    # build, sign, verify; uploads nothin
 scripts/distribute-android.sh              # the same, then uploads to group testers
 ```
 
-Options: `--config <doppler config>` (default `prd`), `--groups a,b` (default `testers`), `--notes "text"` (default: commit subjects since the last tag, or the last 15 commits when there is no tag, after a header with the version, version code and commit). The script needs `doppler` (logged in, or `DOPPLER_TOKEN` set), Node and npm, and installs nothing.
+Options: `--config <doppler config>` (default `prd`), `--groups a,b` (default `testers`), `--notes "text"` (default: commit subjects since the previous tag, or the last 15 commits when there is no tag, after a header with the version, version code and commit; when `HEAD` itself carries a tag, as in a tag-triggered CI run, the notes start at the tag before it). The script needs `doppler` (logged in, or `DOPPLER_TOKEN` set), Node and npm, and installs nothing.
 
 ### First release
 
@@ -50,7 +50,7 @@ Options: `--config <doppler config>` (default `prd`), `--groups a,b` (default `t
 
 ## Versioning
 
-- **versionName** is `expo.version` in `apps/mobile/app.json` (`0.1.0` now). Bump it by hand for a user-visible change, SemVer while 0.x (breaking or notable is minor, fixes are patch). A tag `vX.Y.Z` on the commit that was distributed marks a release and becomes the start of the next release notes.
+- **versionName** is `expo.version` in `apps/mobile/app.json` (`0.1.0` now). Bump it by hand for a user-visible change, SemVer while 0.x (breaking or notable is minor, fixes are patch). A tag `vX.Y.Z` on the commit that was distributed marks a release and becomes the start of the next release notes; once the remote exists, pushing such a tag is what distributes it (see [GitHub Actions](#github-actions-automatic-on-version-tags)).
 - **versionCode** is the number of commits on `HEAD` (`git rev-list --count HEAD`), passed as `-PappVersionCode`. It grows with every commit, so a later build always updates an earlier one. It needs the full history: the script refuses a shallow clone, and the workflow checks out with `fetch-depth: 0`. A local Gradle build without the property uses `android.versionCode` from `app.json` (1).
 - Never distribute two different builds with the same versionCode: commit first (the notes header says `(uncommitted changes)` when the tree is dirty).
 
@@ -81,9 +81,47 @@ Nothing of this is in the repository, in `android/` or in the APK. The script de
 - App Distribution group `testers` (display name Testers). Testers are added by the owner (see [owner steps](owner-steps.md)); each tester gets an email invitation, accepts it on the phone and installs from the App Tester page or the Firebase App Tester app.
 - Check the uploads: `firebase appdistribution:groups:list --project kinfall-sebas1705` (release count per group), or Firebase console > App Distribution > Releases.
 
-## GitHub Actions (optional, unused for now)
+## GitHub Actions (automatic on version tags)
 
-`.github/workflows/distribute-android.yml` runs the same script on `ubuntu-latest`, by hand only (`workflow_dispatch`, input `dry_run` defaults to true). It is **unused until the repository has a GitHub remote**. It needs one repository secret, `DOPPLER_TOKEN`: a read-only Doppler service token for `kinfall/prd` (Doppler > kinfall > prd > Access > Generate service token, read access). Permissions are `contents: read`; actions are pinned by major tag like `ci.yml`. The existing CI (`ci.yml`) never signs or uploads anything.
+`.github/workflows/distribute-android.yml` runs the same script on `ubuntu-latest`. It **activates once the repository has its GitHub remote (`Sebas1705/kinfall`) and the repository secret `DOPPLER_TOKEN` exists**; until then nothing runs.
+
+- **Pushed tag `vX.Y.Z`:** a real upload to group `testers`. The first step checks that the tag is `vMAJOR.MINOR.PATCH` and equals `v` + `expo.version` in `apps/mobile/app.json` (the version name), and fails with a clear message before building otherwise. The version code is the commit count of the tagged commit, and the release notes are the commit subjects since the previous tag.
+- **By hand (`workflow_dispatch`):** input `dry_run` defaults to true (build, sign and verify, upload nothing); `groups` defaults to `testers`.
+- One repository secret, `DOPPLER_TOKEN`: a read-only Doppler service token for `kinfall/prd`. Permissions are `contents: read`, one run at a time (`concurrency: distribute-android`, never cancelled), actions pinned by major tag like `ci.yml`. The existing CI (`ci.yml`) never signs or uploads anything and does not run on tags, so tag only a commit of `main` whose CI is green.
+
+### Releasing a new version
+
+1. Bump `expo.version` in `apps/mobile/app.json` (for example `0.2.0`), commit, push `main` and wait for CI.
+2. Tag that commit and push only that tag: `git tag -a v0.2.0 -m "Kinfall 0.2.0"` then `git push origin v0.2.0`.
+3. Watch the run in Actions > Distribute Android; the release appears in Firebase console > App Distribution > Releases.
+
+A tag that does not match `app.json` fails the run and uploads nothing: delete it (`git push origin :refs/tags/v0.2.0` and `git tag -d v0.2.0`), fix the version and tag again.
+
+### v0.1.0 was uploaded by hand
+
+`v0.1.0` (commit `9b6d2ce`, versionCode 108) was **already uploaded manually** on 2026-11-19 (see [First release](#first-release)). GitHub runs the workflow file **of the tagged commit** for a tag push, and at `9b6d2ce` the workflow is manual only, so pushing `v0.1.0` starts no run and uploads nothing: push it knowingly with `git push origin v0.1.0` so the tag exists on GitHub and the notes of `v0.2.0` start there. Do not move it to a newer commit: that would upload a second `0.1.0` with a higher version code. Pushing with `git push --tags` is fine for the same reason, but pushing tags one by one keeps every upload deliberate.
+
+### Owner steps to activate it
+
+Run these from the repository root in Git Bash, logged in to `gh` (as `Sebas1705`) and `doppler`. No token is printed: the Doppler CLI writes it straight into `gh`, which reads the secret from stdin.
+
+```sh
+# 1. Create the GitHub repository and add it as origin (choose --private or --public).
+gh repo create Sebas1705/kinfall --private --source . --remote origin
+
+# 2. Create a read-only Doppler service token for kinfall/prd and store it as the repository secret
+#    DOPPLER_TOKEN without showing it (tr drops the trailing newline).
+doppler configs tokens create github-actions --project kinfall --config prd --access read --plain \
+  | tr -d '\r\n' \
+  | gh secret set DOPPLER_TOKEN --repo Sebas1705/kinfall
+gh secret list --repo Sebas1705/kinfall        # shows the name and date only
+
+# 3. Push main (CI runs), then the tags (v0.1.0 starts no upload, see above).
+git push -u origin main
+git push origin v0.1.0
+```
+
+Optionally run Actions > Distribute Android > Run workflow with `dry_run` checked to prove the build and the secret work before the first tag that uploads. To revoke the token later: `doppler configs tokens --project kinfall --config prd` lists the tokens (name and slug, never the value), `doppler configs tokens revoke <slug> --project kinfall --config prd` revokes one (then create a new one as above).
 
 ## Rollback
 

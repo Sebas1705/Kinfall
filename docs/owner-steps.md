@@ -8,7 +8,7 @@ State after the React Native plan ([tasks 1-10](superpowers/plans/2026-11-16-rea
 - **Android release build:** `expo prebuild` plus `./gradlew assembleRelease` run locally on Windows (NDK 27.1.12297006 installed in the user SDK; Gradle 9.4.1 from the wrapper). The APK bundles the JavaScript (no Metro) and was checked on the emulator. `expo-system-ui` is added, so dark mode follows the system in native builds.
 - **Signing:** one upload keystore outside the repository (`C:\Users\sebss\Documents\kinfall-release.jks`), with its base64 and passwords in Doppler project `kinfall` (config `prd`).
 - **Firebase:** project `kinfall-sebas1705` (Kinfall), Android app `es.sebas1705.kinfall` with the key's SHA-1 and SHA-256, App Distribution group `testers` (no testers yet), CI service account `kinfall-ci` with only the App Distribution Admin role (key in Doppler).
-- **Pipeline:** `scripts/distribute-android.sh` (with `--dry-run`) and the manual-only workflow `.github/workflows/distribute-android.yml`; the first release (0.1.0, versionCode 108) was uploaded to group `testers`. On the emulator the same build started without Metro, played in English and Spanish, resumed a battle after a force stop, followed dark mode and passed the self test on Hermes. Details: [docs/distribution.md](distribution.md).
+- **Pipeline:** `scripts/distribute-android.sh` (with `--dry-run`) and the workflow `.github/workflows/distribute-android.yml` (manual at first; since branch `kinfall-rename` it also uploads on pushed `vX.Y.Z` tags); the first release (0.1.0, versionCode 108) was uploaded to group `testers`. On the emulator the same build started without Metro, played in English and Spanish, resumed a battle after a force stop, followed dark mode and passed the self test on Hermes. Details: [docs/distribution.md](distribution.md).
 
 ## Owner steps for tester distribution
 
@@ -16,8 +16,9 @@ State after the React Native plan ([tasks 1-10](superpowers/plans/2026-11-16-rea
 2. **Back up the keystore off this PC:** copy `C:\Users\sebss\Documents\kinfall-release.jks` and its password (Doppler `kinfall/prd`, `SIGNING_STORE_PASSWORD`) to a password manager or another safe place. Losing it means every tester must uninstall and reinstall Kinfall.
 3. **Test on a real phone:** accept the invitation on an Android phone, install Kinfall, play into a battle, kill and reopen the app (Continue run), switch ES/EN and the system dark mode.
 4. **Hermes self test on the phone:** with the release build installed, open `kinfall://selftest` (for example from `adb shell am start -a android.intent.action.VIEW -d "kinfall://selftest"` over USB, or a link in a note app). It runs at once; expect **PASS**, `Battle 3/3`, `Run 6/6` and `HermesInternal: present`, and write down the Hermes version and the device model. A FAIL is a core bug: do not update the goldens.
-5. **If the repository gets a GitHub remote** (it should be `Sebas1705/kinfall`; renaming the local folder is also the owner's call): to use the optional workflow, create a read-only Doppler service token for `kinfall/prd` and add it as repository secret `DOPPLER_TOKEN`. Run it by hand with `dry_run` first.
-6. **Before any store listing** (Play internal testing, TestFlight): a Play Console app for `es.sebas1705.kinfall`, Play App Signing with this key as the upload key, an AAB build (`bundleRelease`), a privacy policy and store texts. The name and package id are decided; do this as a separate plan.
+5. **Create the GitHub remote and turn on automatic distribution:** create `Sebas1705/kinfall`, add the repository secret `DOPPLER_TOKEN` (a read-only Doppler service token for `kinfall/prd`), push `main`, then push the tags. From then on, pushing a tag `vX.Y.Z` that matches `apps/mobile/app.json` uploads that build to `testers`. `v0.1.0` was already uploaded by hand and pushing it starts no upload. Exact commands, with no token printed: [Owner steps to activate it](distribution.md#owner-steps-to-activate-it).
+6. **Rename the local folder** from `Repos/Sebas1705/webgames` to `Repos/Sebas1705/kinfall` (the npm packages are already `kinfall` / `@kinfall/*`). Stop Metro, editors and Gradle daemons first (`apps/mobile/android/gradlew --stop` if `android/` exists), rename the folder, then run `npm ci` in it: the workspace links in `node_modules/@kinfall` point to the old absolute path. Delete `apps/mobile/android` (it is generated) and, if you want the space back, `~/.cxx`. The storage keys keep the `webgames.*` names on purpose, so saves are not affected.
+7. **Before any store listing** (Play internal testing, TestFlight): a Play Console app for `es.sebas1705.kinfall`, Play App Signing with this key as the upload key, an AAB build (`bundleRelease`), a privacy policy and store texts. The name and package id are decided; do this as a separate plan.
 
 ## Not verified yet
 
@@ -33,7 +34,7 @@ State after the React Native plan ([tasks 1-10](superpowers/plans/2026-11-16-rea
 
 ## Decisions for the owner
 
-- **`distribution`:** the branch is not merged and not pushed. Merging it, pushing it and creating the remote are the owner's calls.
+- **`kinfall-rename`:** the distribution work is on local `main`; branch `kinfall-rename` (cut from it) adds the package rename and the tag-triggered distribution. Nothing is pushed. Merging the branch, pushing and creating the remote are the owner's calls.
 - **Starter not recorded in saves.** A run save does not store the chosen starter, so after a resume the end screen's **New run** uses the first starter. Fixing it needs a save-format change in core (check the goldens afterwards), so it was left out. Decide if it is worth a save version bump.
 - **Balance (phase 3).** The game is effectively unwinnable (bots win 0 of 900 runs). That is a separate effort with its own plan: see the [phase 3 handoff](superpowers/notes/2026-11-16-phase-3-handoff.md). Core changes there move the golden files for both apps.
 
