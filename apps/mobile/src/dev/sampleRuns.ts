@@ -1,14 +1,15 @@
-// Dev and test aid: valid runs standing on each event and on both endings, so QA (the dev tools'
+// Dev and test aid: valid runs standing on each event, on both endings and on a battle in the later
+// zones (to check each zone's battle scene), so QA (the dev tools'
 // "Save sample run" buttons) and the screen tests can open those screens without playing up to
 // them. Every sample passes core's full save validation (validateRun), so it loads like a real save.
 // Nothing here changes game content or the engine: the samples are built from a seed's own maps.
 import type { Content } from '@kinfall/core/content';
 import { findNode } from '@kinfall/core/sim/run/map';
 import { buildEncounter } from '@kinfall/core/sim/run/encounters';
-import { maxHpOf, startRun } from '@kinfall/core/sim/run/run';
+import { applyRunAction, maxHpOf, startRun } from '@kinfall/core/sim/run/run';
 import type { MapNode, NodeType, RunState } from '@kinfall/core/sim/run/types';
 
-export const SAMPLE_KINDS = ['recruit', 'recruitFull', 'shrine', 'shrinePoor', 'cache', 'mystery', 'won', 'lost'] as const;
+export const SAMPLE_KINDS = ['recruit', 'recruitFull', 'shrine', 'shrinePoor', 'cache', 'mystery', 'won', 'lost', 'battleZone2', 'battleZone3'] as const;
 export type SampleKind = (typeof SAMPLE_KINDS)[number];
 
 /** Seeds tried in order until one has the wanted node right after step 1. */
@@ -81,8 +82,28 @@ function endedRun(content: Content, result: 'won' | 'lost'): RunState {
 }
 
 /**
+ * A run that just entered the first wild battle of zone `zone` (0-based), with the three starters at
+ * full HP and the earlier zones counted as cleared.
+ */
+function battleRun(content: Content, zone: number): RunState {
+  const fresh = startRun('SAMPLE0', content.starters[0]!, content);
+  const before = fresh.maps.slice(0, zone);
+  const run: RunState = {
+    ...fresh,
+    zone,
+    at: null,
+    party: content.starters.map((id) => ({ speciesId: id, hp: maxHpOf(id, content) })),
+    souls: 3,
+    stats: { ...fresh.stats, nodesCleared: before.reduce((n, m) => n + m.layers.length, 0), bossesBeaten: zone },
+  };
+  const layer = run.maps[zone]!.layers[0]!;
+  const node = layer.find((n) => n.type === 'wild') ?? layer[0]!;
+  return applyRunAction(run, { type: 'node', nodeId: node.id }, content).run;
+}
+
+/**
  * A valid run for `kind`: a recruit offer (with room, or with a full party), a shrine with enough
- * souls to evolve (or none), a cache, a mystery, or a won or lost end.
+ * souls to evolve (or none), a cache, a mystery, a won or lost end, or a battle in zone 2 or 3.
  */
 export function sampleRun(kind: SampleKind, content: Content): RunState {
   switch (kind) {
@@ -102,5 +123,9 @@ export function sampleRun(kind: SampleKind, content: Content): RunState {
       return endedRun(content, 'won');
     case 'lost':
       return endedRun(content, 'lost');
+    case 'battleZone2':
+      return battleRun(content, 1);
+    case 'battleZone3':
+      return battleRun(content, 2);
   }
 }
