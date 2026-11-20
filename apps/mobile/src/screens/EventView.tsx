@@ -6,7 +6,7 @@
 //
 // On arrival, screen-reader focus goes to the model's initial choice: the first enabled one, or
 // "Let it go" when a full party would make a stray activation replace a member.
-import { eventVignette, VIGNETTE_WIDTH, zoneIdOf } from '@kinfall/core/art/scene';
+import { eventVignette, VIGNETTE_HEIGHT, VIGNETTE_WIDTH, zoneIdOf } from '@kinfall/core/art/scene';
 import { CONTENT } from '@kinfall/core/content';
 import { lookup } from '@kinfall/core/content/lookup';
 import { buildEventModel, type EventChoice, type EventModel } from '@kinfall/core/models/event';
@@ -38,17 +38,20 @@ export function choiceLabel(choice: EventChoice): string {
   return choice.detail ? `${choice.label}, ${choice.detail}` : choice.label;
 }
 
-/** Vignette cell size (dp) for the available width: the 64-cell scene at a whole size, 2 to 5. */
-export function vignetteCell(width: number): number {
-  return Math.max(2, Math.min(5, Math.floor(width / VIGNETTE_WIDTH)));
+/**
+ * Vignette cell size (dp): the 64x40-cell scene as wide as the column allows, but at most a fifth of
+ * the window height (so the choices stay near the top on short phones), 2 to 5.
+ */
+export function vignetteCell(width: number, height = Infinity): number {
+  return Math.max(2, Math.min(5, Math.floor(width / VIGNETTE_WIDTH), Math.floor((height * 0.2) / VIGNETTE_HEIGHT)));
 }
 
 /** The event's little scene (shrine, cache, mystery, recruit camp) in a plate; decorative. */
-function Vignette({ kind, zone, seed, width }: { kind: EventModel['kind']; zone: number; seed: string; width: number }) {
+function Vignette({ kind, zone, seed, width, height }: { kind: EventModel['kind']; zone: number; seed: string; width: number; height: number }) {
   const grid = useMemo(() => eventVignette(kind, zoneIdOf(zone), seed), [kind, zone, seed]);
   return (
-    <Plate style={styles.vignette} pad={0} testID="event-vignette">
-      <GridImage grid={grid} cellDp={vignetteCell(width)} />
+    <Plate style={styles.vignette} pad={0}>
+      <GridImage grid={grid} cellDp={vignetteCell(width, height)} testID="event-vignette" />
     </Plate>
   );
 }
@@ -112,7 +115,7 @@ function ChoiceButton({ choice, index, onPress, theme, ref }: {
 export function EventView({ run, confirming, confirmPanel, log }: PhaseViewProps) {
   const theme = useTheme();
   const { twoPane } = useLayout();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   useLang();
   const { session } = useRunSession();
   const model = buildEventModel(run, CONTENT);
@@ -143,7 +146,7 @@ export function EventView({ run, confirming, confirmPanel, log }: PhaseViewProps
       <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="event-heading">
         {model.title}
       </Text>
-      <Vignette kind={model.kind} zone={run.zone} seed={run.seed} width={column} />
+      <Vignette kind={model.kind} zone={run.zone} seed={run.seed} width={column} height={height} />
       <Text style={[styles.desc, { color: theme.text }]} testID="event-desc">
         {model.description}
       </Text>

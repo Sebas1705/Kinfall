@@ -47,7 +47,7 @@ function NodeButton({ node, onPick, basis }: { node: MapNodeModel; onPick: (id: 
       accessibilityState={{ disabled: !available, selected: node.current }}
       testID={`node-${node.id}`}
       icon={icon}
-      iconTestID={`node-icon-${node.type}`}
+      iconTestID={`map-icon-${node.type}`}
       style={[styles.node, { flexBasis: basis }]}
     >
       {({ textColor }) => (
