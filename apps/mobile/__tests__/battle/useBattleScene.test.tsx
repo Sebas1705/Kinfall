@@ -113,4 +113,54 @@ describe('useBattleScene', () => {
     expect(done).toBe(true);
     expect(result.current.shown.enemy!.hp).toBe(s.teams.enemy[0]!.maxHp);
   });
+
+  it('hands every event to the effect hook as it starts, flagged reduced when nothing animates', async () => {
+    mockAnimations();
+    const seen: Array<[string, boolean]> = [];
+    const hook = (e: BattleEvent, reduced: boolean) => void seen.push([e.type, reduced]);
+    const s = battle();
+    const { result } = await renderHook(() => useBattleScene(48, console, hook));
+    await act(async () => result.current.scene.render(s));
+    const events: BattleEvent[] = [
+      { type: 'move', side: 'player', moveId: 'ember_lash', hit: true },
+      { type: 'damage', side: 'enemy', amount: 10, effectiveness: 100 },
+      { type: 'end', winner: 'player' },
+    ];
+    await act(async () => {
+      await result.current.scene.play(events, { reducedMotion: false });
+    });
+    expect(seen).toEqual([
+      ['move', false],
+      ['damage', false],
+      ['end', false],
+    ]);
+    seen.length = 0;
+    const anims = mockAnimations();
+    await act(async () => {
+      await result.current.scene.play(events, { reducedMotion: true });
+    });
+    expect(seen).toEqual([
+      ['move', true],
+      ['damage', true],
+      ['end', true],
+    ]);
+    expect(anims.started).toHaveLength(0);
+  });
+
+  it('a failing effect hook never breaks the play', async () => {
+    mockAnimations();
+    const errors: unknown[] = [];
+    const s = battle();
+    const { result } = await renderHook(() =>
+      useBattleScene(48, { error: (...a: unknown[]) => void errors.push(a) }, () => {
+        throw new Error('boom');
+      }),
+    );
+    await act(async () => result.current.scene.render(s));
+    await act(async () => {
+      await result.current.scene.play([{ type: 'damage', side: 'enemy', amount: 10, effectiveness: 100 }], { reducedMotion: false });
+    });
+    expect(result.current.shown.enemy!.hp).toBe(s.teams.enemy[0]!.maxHp - 10);
+    expect(errors).toHaveLength(1);
+  });
 });
