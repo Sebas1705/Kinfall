@@ -14,7 +14,7 @@ import { useCallback } from 'react';
 import { StatusBar, useColorScheme } from 'react-native';
 
 import HelloScreen from '../HelloScreen';
-import { useA11ySettings } from '../platform/a11ySettings';
+import { useReducedMotion } from '../platform/motionSetting';
 import { useRunSession } from '../run/useRunSession';
 import { RunScreen } from '../screens/RunScreen';
 import Gallery from '../screens/Gallery';
@@ -83,8 +83,8 @@ function SelfTestRoute({ navigation, route }: NativeStackScreenProps<RootStackPa
 export function AppNavigator({ devTools = __DEV__, onReady }: AppNavigatorProps) {
   const dark = useColorScheme() === 'dark';
   const palette = dark ? DARK : LIGHT;
-  // Screen changes slide in, except with the system's reduce motion / remove animations switch.
-  const { reduceMotion } = useA11ySettings();
+  // Screen changes slide in, except with reduced motion (the system switch or the app's own).
+  const reduceMotion = useReducedMotion();
   const navTheme: NavTheme = {
     ...(dark ? DarkTheme : DefaultTheme),
     colors: {

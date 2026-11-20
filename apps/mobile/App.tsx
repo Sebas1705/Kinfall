@@ -2,17 +2,19 @@ import { CONTENT } from '@kinfall/core/content';
 import { createAsyncRunStorage } from '@kinfall/core/platform/asyncRunStorage';
 import { getLang, type Lang } from '@kinfall/core/platform/i18n';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Appearance, Linking, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppNavigator, navigationRef } from './src/navigation/AppNavigator';
 import { defaultAsyncStorage } from './src/platform/asyncStorage';
 import { LangContext } from './src/platform/LangContext';
 import { installMobileI18n } from './src/platform/mobileI18n';
+import { loadMotionSetting } from './src/platform/motionSetting';
 import { randomSeed } from './src/platform/random';
 import { createRunSession, type RunSession } from './src/run/session';
 import { RunSessionProvider } from './src/run/useRunSession';
 import { selfTestEnvFlag, shouldAutorunSelfTest } from './src/selfTestAutorun';
+import { DARK, LIGHT } from './src/theme';
 
 async function initialUrl(): Promise<string | null> {
   try {
@@ -55,7 +57,7 @@ export function AppShell({ session: injected, devTools }: AppProps) {
   useEffect(() => {
     let active = true;
     const request = () => openSelfTest(++autoRuns.current);
-    Promise.all([installMobileI18n({ onChange: (l) => setLangState(l) }), initialUrl()]).then(([, url]) => {
+    Promise.all([installMobileI18n({ onChange: (l) => setLangState(l) }), initialUrl(), loadMotionSetting()]).then(([, url]) => {
       if (!active) return;
       setLangState(getLang());
       if (shouldAutorunSelfTest(url, selfTestEnvFlag())) request();
@@ -70,7 +72,7 @@ export function AppShell({ session: injected, devTools }: AppProps) {
     };
   }, []);
 
-  if (!ready) return <View style={{ flex: 1, backgroundColor: '#ffffff' }} />;
+  if (!ready) return <View style={{ flex: 1, backgroundColor: Appearance.getColorScheme() === 'dark' ? DARK.bg : LIGHT.bg }} />;
   return (
     <SafeAreaProvider>
       <LangContext.Provider value={lang}>
