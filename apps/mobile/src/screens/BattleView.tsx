@@ -1,43 +1,53 @@
-// Battle screen of a run, touch only and one-handed: the rival on top (HUD left, creature right),
-// the player's creature below (creature left, HUD right), then the choices, the persistent "Abandon
-// run" button and the turn log last (so a growing log never moves the buttons). Turns run through core's turn
-// controller (useBattleTurns) and the Animated scene (useBattleScene). HP, focus and status are
-// always written out as text, never colour alone.
+// Battle screen of a run, touch only and one-handed: the rival's HUD plate, the battle stage (the
+// run's zone scene with both creatures on their platforms, effects and floating numbers; Skia,
+// hidden from screen readers), the player's HUD plate, then the choices, the persistent "Abandon
+// run" button and the turn log last (so a growing log never moves the buttons). Turns run through
+// core's turn controller (useBattleTurns) and the Animated scene (useBattleScene), whose events also
+// start the stage's effects. HP, focus and status are always written out as text, never colour
+// alone.
 //
 // Three layouts (src/ui/windowSize.ts):
-// - stacked: one scrolling column (phones at normal text sizes);
+// - stacked: one scrolling column (phones at normal text sizes); the stage runs edge to edge;
 // - compact: when large text or a short window would push the choices below the creatures, the
-//   HUDs shrink (smaller creatures, HP and focus on one line) and the choices and Abandon are pinned
-//   at the bottom of the screen, so they are always reachable without scrolling the scene away;
-// - two panes: on tablets, unfolded foldables and phones in landscape the scene and the log sit on
-//   the left and the choices on the right.
+//   HUDs shrink (HP and focus on one line), the stage gets a smaller share of the height and the
+//   choices and Abandon are pinned at the bottom of the screen;
+// - two panes: on tablets, unfolded foldables and phones in landscape the stage, the HUDs and the
+//   log sit on the left and the choices on the right.
 // The abandon confirmation replaces the Abandon button where it was.
 import { CONTENT, type ElementId } from '@kinfall/core/content';
 import { lookup } from '@kinfall/core/content/lookup';
 import type { MenuEntry } from '@kinfall/core/models/menu';
-import { moveName, speciesName, t } from '@kinfall/core/platform/i18n';
+import { speciesName, t } from '@kinfall/core/platform/i18n';
 import type { RunState } from '@kinfall/core/sim/run/types';
 import type { BattleState, Side } from '@kinfall/core/sim/state';
-import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type Ref } from 'react';
-import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type Ref } from 'react';
+import { AccessibilityInfo, Animated, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 
-import { CreatureSprite } from '../art/CreatureSprite';
+import { BattleStage, STAGE_SPRITE_SIZE } from '../art/BattleStage';
 import { ElementIcon } from '../art/ElementIcon';
+import { elementGrid } from '../art/sceneCache';
+import { createStageDirector, startEventEffects } from '../art/stageDirector';
+import { sceneKeyOf } from '../art/stageLayout';
 import { useBattleTurns, type BattleLog } from '../battle/useBattleController';
 import { useBattleScene, type SideMotion } from '../battle/useBattleScene';
 import type { ShownCreature } from '../battle/sceneModel';
-import { useA11ySettings } from '../platform/a11ySettings';
 import { useAnnounce } from '../platform/announce';
 import { useLang } from '../platform/LangContext';
+import { useReducedMotion } from '../platform/motionSetting';
 import { phaseHeading } from '../run/session';
 import { useRunSession } from '../run/useRunSession';
-import { TOUCH, useTheme, type Theme } from '../theme';
+import { useTheme, type Theme } from '../theme';
 import { Button } from '../ui/Button';
+import { FramePressable, Plate, usePlateText } from '../ui/PixelFrame';
+import { PixelBar } from '../ui/PixelBar';
 import { Screen } from '../ui/Screen';
 import { useLayout } from '../ui/windowSize';
 
 /** Turns of the battle log kept on screen (the latest one is the live region). */
 export const BATTLE_LOG_VISIBLE = 4;
+
+/** Share of the window height the stage may take: stacked, compact and two-pane layouts. */
+export const STAGE_HEIGHT_SHARE = { stacked: 0.42, compact: 0.28, twoPane: 0.5 } as const;
 
 export interface BattleViewProps {
   /** The run as it was when the battle screen opened (its phase is this battle). */
@@ -57,12 +67,6 @@ export interface BattleViewProps {
   /** The main scroll area (the Run screen scrolls it to the top on a phase change). */
   scrollRef?: Ref<ScrollViewInstance>;
   testID?: string;
-}
-
-/** Sprite scale for the window width: 72dp creatures on small phones, 96dp otherwise; 48dp in the compact layout. */
-export function spriteScaleFor(width: number, compact = false): number {
-  if (compact) return 2;
-  return width < 400 ? 3 : 4;
 }
 
 const speciesLabel = (id: string) => speciesName(lookup(CONTENT).species(id));
@@ -95,157 +99,125 @@ export function choiceDetail(entry: MenuEntry, state: BattleState): string {
   return parts.join(' · ');
 }
 
-function Meter({ value, max, color, theme, motion }: { value: number; max: number; color: string; theme: Theme; motion?: Animated.Value }) {
-  const ratio = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
-  return (
-    <View style={[styles.track, { backgroundColor: theme.surface2, borderColor: theme.border }]} importantForAccessibility="no-hide-descendants">
-      <Animated.View
-        style={[styles.fill, { backgroundColor: color, transform: [{ scaleX: motion ?? ratio }] }]}
-      />
-    </View>
-  );
-}
-
 function Hud({ side, c, motion, intent, theme, compact }: { side: Side; c: ShownCreature; motion: SideMotion; intent: string | null; theme: Theme; compact: boolean }) {
+  const ink = usePlateText();
   const sideName = t(side === 'player' ? 'hud.player' : 'hud.enemy');
   const hp = `${t('hud.hp')} ${c.hp}/${c.maxHp}`;
   const focus = `${t('hud.focus')} ${c.focus}/${c.maxFocus}`;
+  const elements = lookup(CONTENT).species(c.speciesId).elements;
   return (
-    <View
-      style={[styles.hud, { borderColor: theme.border, backgroundColor: theme.surface }]}
+    <Plate
+      style={styles.hud}
       accessible
       accessibilityLabel={intent ? `${hudLabel(side, c)} ${intent}` : hudLabel(side, c)}
       testID={`hud-${side}`}
+      pad={compact ? 2 : 4}
     >
-      {compact ? (
-        <Text style={[styles.hudName, { color: theme.text }]}>
-          <Text style={[styles.hudSide, { color: theme.muted }]}>{`${sideName} · `}</Text>
-          <Text testID={`hud-${side}-name`}>{speciesLabel(c.speciesId)}</Text>
+      <View style={styles.hudTop}>
+        <Text style={[styles.hudName, { color: ink.text }]} testID={`hud-${side}-name`}>
+          {speciesLabel(c.speciesId)}
         </Text>
-      ) : (
-        <>
-          <Text style={[styles.hudSide, { color: theme.muted }]}>{sideName}</Text>
-          <Text style={[styles.hudName, { color: theme.text }]} testID={`hud-${side}-name`}>
-            {speciesLabel(c.speciesId)}
-          </Text>
-        </>
-      )}
+        <View style={styles.hudElements}>
+          {elements.map((el) => (
+            <ElementIcon key={el} element={el} scale={2} />
+          ))}
+          <Text style={[styles.hudSide, { color: ink.muted }]}>{elements.map((el) => t(`element.${el}`)).join(' / ')}</Text>
+        </View>
+        <Text style={[styles.hudSide, styles.hudSideName, { color: ink.muted }]}>{sideName}</Text>
+      </View>
       {compact ? (
         <>
-          <Text style={[styles.hudValue, { color: theme.text }]}>
+          <Text style={[styles.hudValue, { color: ink.text }]}>
             <Text testID={`hud-${side}-hp`}>{hp}</Text>
             {' · '}
             <Text testID={`hud-${side}-focus`}>{focus}</Text>
           </Text>
-          <Meter value={c.hp} max={c.maxHp} color={theme.good} theme={theme} motion={motion.hp} />
+          <PixelBar kind="hp" value={c.hp} max={c.maxHp} progress={motion.hp} />
         </>
       ) : (
-        <>
-          <Text style={[styles.hudValue, { color: theme.text }]} testID={`hud-${side}-hp`}>
-            {hp}
-          </Text>
-          <Meter value={c.hp} max={c.maxHp} color={theme.good} theme={theme} motion={motion.hp} />
-          <Text style={[styles.hudValue, { color: theme.text }]} testID={`hud-${side}-focus`}>
-            {focus}
-          </Text>
-          <Meter value={c.focus} max={c.maxFocus} color={theme.accent} theme={theme} />
-        </>
+        <View style={styles.meters}>
+          <View style={styles.meter}>
+            <Text style={[styles.hudValue, { color: ink.text }]} testID={`hud-${side}-hp`}>
+              {hp}
+            </Text>
+            <PixelBar kind="hp" value={c.hp} max={c.maxHp} progress={motion.hp} />
+          </View>
+          <View style={styles.meter}>
+            <Text style={[styles.hudValue, { color: ink.text }]} testID={`hud-${side}-focus`}>
+              {focus}
+            </Text>
+            <PixelBar kind="focus" value={c.focus} max={c.maxFocus} />
+          </View>
+        </View>
       )}
       {c.status ? (
-        <Animated.View
-          style={[styles.chip, { borderColor: theme.danger, transform: [{ scale: motion.chip }] }]}
-          testID={`hud-${side}-status`}
-        >
+        <Animated.View style={[styles.chip, { borderColor: theme.danger, transform: [{ scale: motion.chip }] }]} testID={`hud-${side}-status`}>
           <Text style={[styles.chipText, { color: theme.danger }]}>{t(`status.${c.status}`)}</Text>
         </Animated.View>
       ) : null}
       {intent ? (
-        <Text style={[styles.intent, { color: theme.text }]} testID="battle-intent">
+        <Text style={[styles.intent, { color: ink.text }]} testID="battle-intent">
           {intent}
         </Text>
       ) : null}
-    </View>
+    </Plate>
   );
 }
 
-function Creature({ c, motion, scale, theme }: { c: ShownCreature; motion: SideMotion; scale: number; theme: Theme }) {
-  const size = 24 * scale;
-  // A hit blinks the sprite (its opacity dips with the flash value), on top of the faint/swap fade.
-  const opacity = useMemo(
-    () => Animated.multiply(motion.opacity, motion.flash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.15] })),
-    [motion],
-  );
-  return (
-    <Animated.View
-      style={[styles.creature, { width: size, height: size, transform: [{ translateX: motion.x }, { translateY: motion.y }] }]}
-      importantForAccessibility="no-hide-descendants"
-      accessibilityElementsHidden
-      testID={`creature-${c.speciesId}`}
-    >
-      {/* Heal pulse: a soft glow behind the creature. */}
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glow, { backgroundColor: theme.good, opacity: motion.pulse }]} />
-      <Animated.View style={{ opacity }}>
-        <CreatureSprite species={c.speciesId} scale={scale} />
-      </Animated.View>
-    </Animated.View>
-  );
-}
-
-function ChoiceButton({ entry, detail, disabled, onPress, element, theme }: {
+function ChoiceButton({ entry, detail, disabled, onPress, element }: {
   entry: MenuEntry;
   detail: string;
   disabled: boolean;
   onPress: () => void;
   element: ElementId | null;
-  theme: Theme;
 }) {
   const label = detail ? `${entry.label}, ${detail}` : entry.label;
+  const icon = useMemo(() => (element ? { grid: elementGrid(element), cellDp: 3 } : null), [element]);
   return (
-    <Pressable
-      onPress={disabled ? undefined : onPress}
+    <FramePressable
+      onPress={onPress}
       disabled={disabled}
-      accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled }}
       testID="battle-choice"
-      style={({ pressed }) => [
-        styles.choice,
-        { backgroundColor: disabled ? theme.surface2 : theme.surface, borderColor: pressed && !disabled ? theme.focus : disabled ? theme.border : theme.accent },
-      ]}
+      icon={icon}
+      iconTestID={element ? `element-${element}-icon` : undefined}
+      style={styles.choice}
     >
-      {element ? <ElementIcon element={element} scale={3} /> : null}
-      <View style={styles.choiceText}>
-        <Text style={[styles.choiceLabel, { color: disabled ? theme.disabledText : theme.text }]}>{entry.label}</Text>
-        {detail ? <Text style={[styles.choiceDetail, { color: disabled ? theme.disabledText : theme.muted }]}>{detail}</Text> : null}
-      </View>
-    </Pressable>
+      {({ textColor }) => (
+        <View style={styles.choiceText}>
+          <Text style={[styles.choiceLabel, { color: textColor }]}>{entry.label}</Text>
+          {detail ? <Text style={[styles.choiceDetail, { color: textColor }]}>{detail}</Text> : null}
+        </View>
+      )}
+    </FramePressable>
   );
 }
 
-function LogPanel({ log, theme }: { log: BattleLog; theme: Theme }) {
+function LogPanel({ log }: { log: BattleLog }) {
+  const ink = usePlateText();
   // iOS: the newest turn once (keyed by the turn count, so a language rewrite never repeats it).
   useAnnounce(log.fresh.length > 0 ? log.turns.length : null, log.fresh.join(' '));
   if (log.turns.length === 0) return null;
   const hasFresh = log.fresh.length > 0;
   const older = (hasFresh ? log.turns.slice(0, -1) : log.turns).slice(-(BATTLE_LOG_VISIBLE - (hasFresh ? 1 : 0)));
   return (
-    <View style={[styles.log, { borderColor: theme.border, backgroundColor: theme.surface }]} testID="battle-log">
-      <Text style={[styles.logHeading, { color: theme.text }]} accessibilityRole="header">
+    <Plate style={styles.log} testID="battle-log">
+      <Text style={[styles.logHeading, { color: ink.text }]} accessibilityRole="header">
         {t('battle.log')}
       </Text>
       {older.flat().map((line, i) => (
-        <Text key={`o${i}`} style={[styles.logLine, { color: theme.muted }]} testID="battle-log-line">
+        <Text key={`o${i}`} style={[styles.logLine, { color: ink.muted }]} testID="battle-log-line">
           {line}
         </Text>
       ))}
       <View accessibilityLiveRegion="polite" testID="battle-log-fresh">
         {log.fresh.map((line, i) => (
-          <Text key={`n${i}`} style={[styles.logLine, { color: theme.text }]} testID="battle-log-line">
+          <Text key={`n${i}`} style={[styles.logLine, { color: ink.text }]} testID="battle-log-line">
             {line}
           </Text>
         ))}
       </View>
-    </View>
+    </Plate>
   );
 }
 
@@ -253,18 +225,30 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
   const theme = useTheme();
   const lang = useLang();
   const { session } = useRunSession();
-  const { reduceMotion } = useA11ySettings();
-  const { width } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+  const { width, height } = useWindowDimensions();
   const layout = useLayout();
   const compact = layout.compactBattle;
-  const scale = spriteScaleFor(width, compact);
-  const { scene, shown, motion } = useBattleScene(24 * scale);
   // The run moves on as soon as the final turn is applied; the screen keeps the battle it opened with.
   const [opened] = useState(() => run);
   const initial = opened.phase.kind === 'battle' ? opened.phase.battle : null;
   if (!initial) throw new Error('BattleView needs a run in a battle phase');
+  const key = useMemo(() => sceneKeyOf(initial.seed), [initial.seed]);
+  const director = useMemo(() => createStageDirector(`${key.seed}|${initial.seed}`), [key.seed, initial.seed]);
+  const onEvent = useCallback(
+    (e: Parameters<typeof startEventEffects>[1], reduced: boolean) =>
+      startEventEffects(director, e, reduced, { victory: t('result.victory'), defeat: t('result.defeat') }),
+    [director],
+  );
+  const { scene, shown, motion } = useBattleScene(STAGE_SPRITE_SIZE, console, onEvent);
   const turns = useBattleTurns({ session, initial, scene, reducedMotion: reduceMotion, onEnd: () => onEnd() });
   const { busy, choices, log, focusRequest, controller } = turns;
+
+  // A playing turn gets frames at the display rate; idle ambient life at most 30 fps.
+  useEffect(() => {
+    director.turnBusy = busy;
+    director.wake();
+  }, [busy, director]);
 
   // Language change: rebuild the texts now, or once when a pending turn settles.
   const firstLang = useRef(lang);
@@ -307,7 +291,6 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
                 disabled={entry.disabled || busy}
                 onPress={() => choices!.pick(entry.action)}
                 element={element}
-                theme={theme}
               />
             );
           })}
@@ -320,21 +303,29 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
       {phaseHeading(opened)}
     </Text>
   );
+  const share = layout.twoPane ? STAGE_HEIGHT_SHARE.twoPane : compact ? STAGE_HEIGHT_SHARE.compact : STAGE_HEIGHT_SHARE.stacked;
+  // Phones: the stage runs edge to edge (the screen's 16dp side padding is bled out).
+  const bleed = !layout.twoPane && layout.width === 'compact';
+  const paneWidth = layout.twoPane ? Math.min(width, 1200) * (5 / 9) - 40 : Math.min(width, 720 + 32) - (bleed ? 0 : 32);
+  const stage = (
+    <BattleStage
+      zone={key.zone}
+      seed={key.seed}
+      shown={shown}
+      motion={motion}
+      director={director}
+      reducedMotion={reduceMotion}
+      maxHeight={Math.max(120, height * share)}
+      initialWidth={paneWidth}
+      style={bleed ? styles.bleed : styles.framed}
+    />
+  );
   const sceneView = (
-    <>
-      {shown.enemy ? (
-        <View style={styles.row}>
-          <Hud side="enemy" c={shown.enemy} motion={motion.enemy} intent={model?.intent ?? null} theme={theme} compact={compact} />
-          <Creature c={shown.enemy} motion={motion.enemy} scale={scale} theme={theme} />
-        </View>
-      ) : null}
-      {shown.player ? (
-        <View style={[styles.row, styles.rowPlayer]}>
-          <Creature c={shown.player} motion={motion.player} scale={scale} theme={theme} />
-          <Hud side="player" c={shown.player} motion={motion.player} intent={null} theme={theme} compact={compact} />
-        </View>
-      ) : null}
-    </>
+    <View style={styles.scene}>
+      {shown.enemy ? <Hud side="enemy" c={shown.enemy} motion={motion.enemy} intent={model?.intent ?? null} theme={theme} compact={compact} /> : null}
+      {stage}
+      {shown.player ? <Hud side="player" c={shown.player} motion={motion.player} intent={null} theme={theme} compact={compact} /> : null}
+    </View>
   );
   const actions = (
     <View style={styles.actions} testID="battle-actions">
@@ -351,7 +342,7 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
     </View>
   );
   // Below the choices (or beside them), so a growing log never moves the buttons under the thumb.
-  const logPanel = <LogPanel log={log} theme={theme} />;
+  const logPanel = <LogPanel log={log} />;
 
   if (layout.twoPane) {
     return (
@@ -393,37 +384,30 @@ const styles = StyleSheet.create({
   paneActions: { flex: 4 },
   actions: { gap: 12 },
   heading: { fontSize: 24, fontWeight: '700' },
-  row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  rowPlayer: { flexWrap: 'wrap-reverse' },
-  hud: { flexGrow: 1, flexShrink: 1, flexBasis: 170, borderWidth: 1, borderRadius: 10, padding: 10, gap: 4 },
+  scene: { gap: 8 },
+  bleed: { marginHorizontal: -16 },
+  framed: { borderRadius: 4 },
+  hud: { gap: 4 },
+  hudTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 2 },
+  hudElements: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   hudSide: { fontSize: 13, fontWeight: '600' },
+  hudSideName: { marginLeft: 'auto', textTransform: 'uppercase', letterSpacing: 0.5 },
   hudName: { fontSize: 18, fontWeight: '700' },
   hudValue: { fontSize: 15 },
-  track: { height: 10, borderRadius: 5, borderWidth: 1, overflow: 'hidden' },
-  fill: { height: '100%', width: '100%', transformOrigin: 'left' },
-  chip: { alignSelf: 'flex-start', borderWidth: 2, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 2, marginTop: 2 },
+  meters: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 4 },
+  meter: { flexGrow: 1, flexBasis: 130, gap: 2 },
+  chip: { alignSelf: 'flex-start', borderWidth: 2, paddingHorizontal: 10, paddingVertical: 2, marginTop: 2 },
   chipText: { fontSize: 14, fontWeight: '700' },
   intent: { fontSize: 15, fontWeight: '700', marginTop: 4 },
-  creature: { alignSelf: 'center' },
-  glow: { borderRadius: 999 },
-  log: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 2 },
+  log: { gap: 2 },
   logHeading: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
   logLine: { fontSize: 15 },
   choices: { gap: 12 },
   prompt: { fontSize: 18, fontWeight: '700' },
   group: { gap: 6 },
   groupHeading: { fontSize: 14, fontWeight: '700' },
-  groupList: { gap: 8 },
-  choice: {
-    minHeight: TOUCH,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 2,
-  },
+  groupList: { gap: 10 },
+  choice: { alignItems: 'stretch' },
   choiceText: { flexShrink: 1, gap: 2 },
   choiceLabel: { fontSize: 17, fontWeight: '600' },
   choiceDetail: { fontSize: 14 },

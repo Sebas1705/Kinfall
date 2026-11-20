@@ -1,5 +1,6 @@
-// The battle scene's motion, with React Native's built-in Animated (native driver: transforms and
-// opacity only). It implements core's BattleScene: `render` draws a state at rest, `play` walks a
+// The battle scene's motion, with React Native's built-in Animated (the creatures' values on the JS
+// driver, read by the Skia stage; HP bars and status chips on the native driver). It implements
+// core's BattleScene: `render` draws a state at rest, `play` walks a
 // turn's events as short animations. Guarantees, as in the web animator:
 // - the sim's state is never touched: events only change what is shown;
 // - every step has a hard time budget (a timer finishes it if the native side never calls back);
@@ -86,19 +87,35 @@ export function runStep(anim: Animated.CompositeAnimation, budgetMs: number): Pr
   });
 }
 
+/**
+ * The creature's position, opacity, flash and pulse feed the Skia stage, which reads them on its
+ * own frame clock, so they run on the JS driver; the HP bars and status chips are views and stay
+ * on the native driver.
+ */
+const STAGE_VALUES = new WeakSet<Animated.Value>();
+
 const timing = (value: Animated.Value, toValue: number, duration: number) =>
-  Animated.timing(value, { toValue, duration, easing: Easing.out(Easing.quad), useNativeDriver: true });
+  Animated.timing(value, { toValue, duration, easing: Easing.out(Easing.quad), useNativeDriver: !STAGE_VALUES.has(value) });
+
+/** Called with each event as it starts to play (and for every event at once with reduced motion). */
+export type SceneEventHook = (event: BattleEvent, reducedMotion: boolean) => void;
 
 /**
- * The scene for one battle screen. `spriteSize` (dp) scales the lunge. The returned `scene` object
- * is stable for the component's lifetime.
+ * The scene for one battle screen. `spriteSize` scales the lunge (in the units the stage draws
+ * in: scene pixels for the Skia stage). `onEvent` starts the decorative effects of each event; it
+ * never delays the play. The returned `scene` object is stable for the component's lifetime.
  */
-export function useBattleScene(spriteSize: number, logger: Pick<Console, 'error'> = console): SceneHandle {
+export function useBattleScene(spriteSize: number, logger: Pick<Console, 'error'> = console, onEvent?: SceneEventHook): SceneHandle {
   const [shown, setShown] = useState<ShownSides>({ enemy: null, player: null });
-  const motion = useMemo(() => ({ enemy: newMotion(), player: newMotion() }), []);
-  const live = useRef({ generation: 0, rendered: null as BattleState | null, shown: shown, spriteSize, logger });
+  const motion = useMemo(() => {
+    const m = { enemy: newMotion(), player: newMotion() };
+    for (const side of SIDES) for (const v of [m[side].x, m[side].y, m[side].opacity, m[side].flash, m[side].pulse]) STAGE_VALUES.add(v);
+    return m;
+  }, []);
+  const live = useRef({ generation: 0, rendered: null as BattleState | null, shown: shown, spriteSize, logger, onEvent });
   live.current.spriteSize = spriteSize;
   live.current.logger = logger;
+  live.current.onEvent = onEvent;
 
   const scene = useMemo<BattleScene>(() => {
     const ref = live.current;
@@ -205,11 +222,23 @@ export function useBattleScene(spriteSize: number, logger: Pick<Console, 'error'
         show(next);
       },
       async play(events, opts) {
-        if (opts.reducedMotion) return;
+        const hook = (e: BattleEvent, reduced: boolean) => {
+          try {
+            ref.onEvent?.(e, reduced);
+          } catch (err) {
+            ref.logger.error('battle effect failed', err);
+          }
+        };
+        if (opts.reducedMotion) {
+          // Nothing animates; the effects show their still (reduced) variants.
+          for (const e of events) hook(e, true);
+          return;
+        }
         const generation = ++ref.generation;
         const alive = () => ref.generation === generation;
         for (const e of events) {
           if (!alive()) return;
+          hook(e, false);
           try {
             await playEvent(e, alive);
           } catch (err) {

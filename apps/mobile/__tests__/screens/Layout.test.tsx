@@ -11,6 +11,7 @@ import { AccessibilityInfo, BackHandler, Dimensions } from 'react-native';
 import { sampleRun, type SampleKind } from '../../src/dev/sampleRuns';
 import type { RunSession } from '../../src/run/session';
 import { RunSessionProvider } from '../../src/run/useRunSession';
+import { STAGE_HEIGHT_SHARE } from '../../src/screens/BattleView';
 import { RunScreen } from '../../src/screens/RunScreen';
 import { TitleScreen } from '../../src/screens/TitleScreen';
 import { flush, mockAnimations, sessionInBattle } from '../../test-support/battleFixtures';
@@ -86,6 +87,8 @@ function hostElements(root: El): El[] {
 }
 
 const flat = (style: unknown) => Object.assign({}, ...[style].flat(5).filter(Boolean)) as Record<string, unknown>;
+/** Height (dp) of the battle stage box. */
+const stageHeight = () => Number(flat(screen.getByTestId('battle-stage', { includeHiddenElements: true }).props.style).height);
 const textOf = (e: El): string => (e.children ?? []).map((c) => (typeof c === 'string' ? c : textOf(c))).join('');
 
 /** Every touchable must be named, have a role and state, and offer at least 48dp both ways. */
@@ -94,7 +97,7 @@ function expectAccessibleTouchables() {
   expect(touchables.length).toBeGreaterThan(0);
   for (const e of touchables) {
     const id = String(e.props.testID ?? textOf(e));
-    expect([id, e.props.accessibilityRole]).toEqual([id, expect.stringMatching(/^(button|radio|link)$/)]);
+    expect([id, e.props.accessibilityRole]).toEqual([id, expect.stringMatching(/^(button|radio|link|switch)$/)]);
     const name = (e.props.accessibilityLabel as string | undefined) ?? textOf(e);
     expect([id, name.trim().length > 0]).toEqual([id, true]);
     const style = flat(e.props.style);
@@ -115,8 +118,10 @@ describe('compact battle (large text on a small phone)', () => {
     // The scene stays in the scrolling part, above the footer.
     expect(within(screen.getByTestId('run-battle')).getByTestId('hud-enemy')).toBeTruthy();
     expect(within(screen.getByTestId('run-battle')).queryByTestId('battle-choices')).toBeNull();
-    // Creatures at scale 2 (48dp) and HP and focus on one line.
-    expect(screen.getAllByTestId(/^sprite-.*-2$/, { includeHiddenElements: true }).length).toBe(2);
+    // The stage (both creatures) takes a small share of the height, and HP and focus sit on one line.
+    const stage = screen.getByTestId('battle-stage', { includeHiddenElements: true });
+    expect(stageHeight()).toBeLessThanOrEqual(SMALL_BIG_TEXT.height * STAGE_HEIGHT_SHARE.compact);
+    expect(stage.props.importantForAccessibility).toBe('no-hide-descendants');
     const hpLine = screen.getByTestId('hud-player-hp');
     expect(screen.getByTestId('hud-player-focus')).toBeTruthy();
     // Nested in one line of text (no own style), not a separate row per value.
@@ -155,7 +160,9 @@ describe('stacked battle (a phone at normal text size)', () => {
     await renderRun(session);
     expect(screen.queryByTestId('battle-footer')).toBeNull();
     expect(screen.queryByTestId('battle-two-pane')).toBeNull();
-    expect(screen.getAllByTestId(/^sprite-.*-4$/, { includeHiddenElements: true }).length).toBe(2);
+    // A taller stage than the compact battle's, still under its share of the window.
+    expect(stageHeight()).toBeGreaterThan(SMALL_BIG_TEXT.height * STAGE_HEIGHT_SHARE.compact);
+    expect(stageHeight()).toBeLessThanOrEqual(PHONE.height * STAGE_HEIGHT_SHARE.stacked);
     await fireEvent.press(screen.getByTestId('abandon'));
     expect(within(screen.getByTestId('battle-actions')).getByTestId('abandon-confirm')).toBeTruthy();
   });

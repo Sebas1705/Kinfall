@@ -315,7 +315,7 @@ describe('battle screen', () => {
       expect(label.startsWith(`${m.names.en}, `)).toBe(true);
       expect(label).toContain(`Focus ${m.focusCost}`);
       if (m.kind === 'damage') expect(label).toContain(`Power ${m.power}`);
-      expect(within(buttons[i]!).getByTestId(`element-${m.element}-3`, { includeHiddenElements: true })).toBeTruthy();
+      expect(within(buttons[i]!).getByTestId(`element-${m.element}-icon`, { includeHiddenElements: true })).toBeTruthy();
       expect(buttons[i]!.props.accessibilityState).toMatchObject({ disabled: false });
     });
     const p = active(state, 'player');
