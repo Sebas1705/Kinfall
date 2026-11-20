@@ -1,0 +1,479 @@
+/* Scene art styles: loaded with the art chunk (never in the main bundle). The pixel frames are
+   CSS border-images set as custom properties on <html> by frames.ts; everything here is gated by
+   `.art-frames` so the plain styles stay in charge until (and unless) the frames exist. Frames are
+   2 CSS px per art pixel; text keeps the frame's contrast-checked colour. */
+
+.art-frames {
+  --k-btn-w: 10px;
+  --k-plate-w: 12px;
+}
+
+/* ---- buttons: raised pixel frame, pressed, disabled, and a focus ring outside the box ---- */
+.art-frames :is(.choice, .secondary, .danger, .pad, .map-node, .setting select),
+.art-frames .starter-card {
+  border-style: solid;
+  border-width: var(--k-btn-w);
+  border-radius: 0;
+  border-image: var(--k-btn);
+  background: var(--k-btn-bg) padding-box;
+  color: var(--k-btn-text);
+  image-rendering: pixelated;
+}
+
+/* The main action of a screen wears the ornate plate (bracket corners with the zone's gem). */
+.art-frames .primary {
+  border-style: solid;
+  border-width: var(--k-plate-w);
+  border-radius: 0;
+  border-image: var(--k-plate);
+  background: var(--k-plate-bg) padding-box;
+  color: var(--k-plate-text);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  image-rendering: pixelated;
+}
+
+.art-frames :is(.choice, .primary, .secondary, .danger, .pad, .map-node) {
+  padding-block: 0.15rem;
+}
+
+.art-frames .choice {
+  padding-inline: 0.35rem;
+}
+
+.art-frames :is(.secondary, .danger) {
+  padding-inline: 0.6rem;
+}
+
+.art-frames .primary {
+  padding-inline: 0.8rem;
+}
+
+.art-frames .pad {
+  padding-inline: 0.2rem;
+}
+
+.art-frames .danger {
+  color: var(--lose);
+}
+
+.art-frames :is(.choice, .primary, .secondary, .danger, .pad, .map-node):hover:not(:disabled) {
+  border-color: transparent;
+  filter: brightness(1.1);
+}
+
+.art-frames :is(.choice, .primary, .secondary, .danger, .pad, .map-node):active:not(:disabled),
+.art-frames .map-node--current,
+.art-frames .starter-card:has(input:checked) {
+  border-image: var(--k-btn-pressed);
+  background-color: var(--k-btn-pressed-bg);
+  border-style: solid;
+  border-width: var(--k-btn-w);
+  color: var(--k-btn-text);
+}
+
+.art-frames :is(.choice, .primary, .secondary, .danger, .map-node):disabled {
+  border-image: var(--k-btn-disabled);
+  background-color: var(--k-btn-disabled-bg);
+  color: var(--k-btn-disabled-text);
+  border-style: solid;
+  border-width: var(--k-btn-w);
+}
+
+.art-frames .primary:disabled {
+  border-width: var(--k-plate-w);
+}
+
+.art-frames :is(.choice, .primary, .map-node):disabled :is(.choice-detail, .map-node-state) {
+  color: var(--k-btn-disabled-text);
+}
+
+/* Focus: the pixel ring (2 art px in the focus colour, 1 px gap) drawn outside the button, plus a
+   transparent outline that forced-colours mode turns into a real one. */
+.art-frames :is(.choice, .primary, .secondary, .danger, .pad, .map-node):focus-visible,
+.art-frames .choice.selected,
+.art-frames .starter-card:has(input:focus-visible) {
+  border-image: var(--k-btn-focus);
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+}
+
+/* The ornate primary keeps its plate and gets a ring in the same focus colour. */
+.art-frames .primary:focus-visible {
+  border-image: var(--k-plate);
+  outline: 4px solid var(--k-ring);
+  outline-offset: 2px;
+}
+
+.art-frames :is(.choice, .map-node):disabled.selected {
+  border-image: var(--k-btn-disabled);
+}
+
+.art-frames .choice-detail,
+.art-frames .map-node-state,
+.art-frames .starter-element,
+.art-frames .starter-hint {
+  color: var(--k-plate-muted);
+}
+
+.art-frames .map-node--current .map-node-state {
+  color: var(--k-btn-text);
+}
+
+/* ---- plates: panels, logs, notices, stats ---- */
+.art-frames :is(.log, .result, .notice, .confirm, .offer, .run-status, .save-warning, .end-stats > div, .summary:not(.sr-only)) {
+  border-style: solid;
+  border-width: var(--k-plate-w);
+  border-radius: 0;
+  border-image: var(--k-plate);
+  background: var(--k-plate-bg) padding-box;
+  color: var(--k-plate-text);
+  image-rendering: pixelated;
+}
+
+.art-frames :is(.log, .result, .notice, .confirm, .offer, .run-status, .save-warning) {
+  padding: 0.15rem 0.35rem;
+}
+
+.art-frames .end-stats > div {
+  padding: 0 0.25rem;
+}
+
+.art-frames :is(.notice--warn, .save-warning) {
+  box-shadow: inset 0.3rem 0 0 var(--lose);
+  padding-left: 0.65rem;
+}
+
+.art-frames :is(.log .log-turn) {
+  border-top-color: color-mix(in srgb, var(--k-plate-text) 25%, transparent);
+}
+
+.art-frames :is(.end-stats dt, .run-status .panel-title, .result-note) {
+  color: var(--k-plate-muted);
+}
+
+/* Text inputs sit in a sunken well. */
+.art-frames .field input {
+  border-style: solid;
+  border-width: var(--k-btn-w);
+  border-radius: 0;
+  border-image: var(--k-btn-pressed);
+  background: var(--k-btn-pressed-bg) padding-box;
+  color: var(--k-btn-text);
+  padding: 0.1rem 0.4rem;
+}
+
+.art-frames .field input:focus-visible {
+  border-image: var(--k-btn-focus);
+  outline: 3px solid transparent;
+}
+
+/* ---- headings: a little game-title weight ---- */
+.art-frames .screen-heading,
+.art-frames .result-title {
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 0 color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+/* ---- title hero: animated zone with the chosen starter, and the wordmark ---- */
+.title-hero {
+  position: relative;
+  margin-inline: -1rem;
+  line-height: 0;
+  overflow: hidden;
+  background: #1e1430;
+}
+
+.scene-art {
+  display: block;
+  max-width: none;
+  image-rendering: pixelated;
+}
+
+.title-logo {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  max-width: calc(100% - 1rem);
+  height: auto;
+}
+
+/* ---- map: zone banner, pixel node icons and a dotted trail between the steps ---- */
+.scene-banner,
+.end-scene {
+  line-height: 0;
+  overflow: hidden;
+  border: 2px solid #06050a;
+  background: #140f1e;
+}
+
+.art-frames .map-node-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.node-icon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+.art-frames .map-node:disabled .node-icon {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.art-frames .map-layers {
+  position: relative;
+  padding-left: 1.6rem;
+}
+
+.art-frames .map-layers::before {
+  content: '';
+  position: absolute;
+  left: 0.55rem;
+  top: 0.4rem;
+  bottom: 1.2rem;
+  width: 4px;
+  background: repeating-linear-gradient(to bottom, var(--k-ring) 0 4px, transparent 4px 10px);
+  opacity: 0.7;
+}
+
+.art-frames .map-step {
+  position: relative;
+}
+
+.art-frames .map-step::before {
+  content: '';
+  position: absolute;
+  left: -1.35rem;
+  top: 0.1em;
+  width: 10px;
+  height: 10px;
+  background: var(--k-btn-bg);
+  box-shadow: 0 0 0 2px var(--k-ring);
+}
+
+.art-frames .map-layer:has(.map-node--available) .map-step::before {
+  background: var(--k-ring);
+}
+
+/* ---- events: the vignette in a plate ---- */
+.event-vignette {
+  align-self: center;
+  line-height: 0;
+  max-width: 100%;
+  border-style: solid;
+  border-width: var(--k-plate-w);
+  border-image: var(--k-plate);
+  background: var(--k-plate-bg);
+}
+
+.vignette-art {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+/* ---- battle stage: the scene with its two HUD plates (stacked on phones, overlaid when wide) ---- */
+.scene.scene--art {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'enemy' 'canvas' 'player';
+  gap: 0.35rem;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+  min-height: 0;
+}
+
+/* Phones: the scene runs edge to edge (into the page padding) so it can use a 2x scale. */
+.scene--art .scene-canvas {
+  grid-area: canvas;
+  border-block: 2px solid #06050a;
+  box-sizing: content-box;
+  margin-inline: -1rem;
+  image-rendering: pixelated;
+}
+
+.hud-plate {
+  min-width: 0;
+  border-style: solid;
+  border-width: var(--k-plate-w);
+  border-image: var(--k-plate);
+  background: var(--k-plate-bg) padding-box;
+  color: var(--k-plate-text);
+  padding: 0 0.2rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  image-rendering: pixelated;
+}
+
+.hud-plate[hidden],
+.hud-status[hidden],
+.hud-intent[hidden] {
+  display: none;
+}
+
+.hud-plate--enemy {
+  grid-area: enemy;
+}
+
+.hud-plate--player {
+  grid-area: player;
+}
+
+.hud-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+}
+
+.hud-tag {
+  margin-left: auto;
+}
+
+/* HP and Focus side by side on phones (two short rows), stacked in the wide overlay. */
+.hud-bars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  gap: 0 0.75rem;
+}
+
+.hud-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.hud-tag,
+.hud-label {
+  color: var(--k-plate-muted);
+}
+
+.hud-tag {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hud-els,
+.hud-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.35rem;
+}
+
+.hud-el + .hud-icon {
+  margin-left: 0.3rem;
+}
+
+.hud-icon {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+}
+
+.hud-status .hud-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.hud-row {
+  display: grid;
+  grid-template-columns: auto minmax(2rem, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hud-bar {
+  position: relative;
+  display: block;
+  height: 14px;
+  border: 4px solid transparent;
+  border-image: var(--k-bar);
+  background: var(--k-track) padding-box;
+  image-rendering: pixelated;
+}
+
+.hud-bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--k-hp-high);
+  box-shadow: inset 0 2px 0 var(--k-shine);
+}
+
+.hud-bar[data-level='mid'] > i {
+  background: var(--k-hp-mid);
+}
+
+.hud-bar[data-level='low'] > i {
+  background: var(--k-hp-low);
+}
+
+.hud-bar--focus > i {
+  background: var(--k-focus-fill);
+}
+
+/* HP tick marks every 25%. */
+.hud-bar--hp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent calc(25% - 1px), #06050a99 0 25%, transparent 0 calc(50% - 1px), #06050a99 0 50%, transparent 0 calc(75% - 1px), #06050a99 0 75%, transparent 0);
+}
+
+.hud-num {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.hud-intent {
+  margin: 0.15rem 0 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* Wide screens: the plates float over the sky, each above its own creature. */
+@media (min-width: 48rem) {
+  .scene.scene--art {
+    position: relative;
+    display: block;
+  }
+
+  .scene--art .scene-canvas {
+    display: block;
+    border: 2px solid #06050a;
+    margin-inline: -2px;
+  }
+
+  .hud-plate {
+    position: absolute;
+    top: 0.6rem;
+    width: min(16.5rem, 34%);
+    z-index: 1;
+  }
+
+  .hud-bars {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hud-plate--player {
+    left: 0.6rem;
+  }
+
+  .hud-plate--enemy {
+    right: 0.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art-frames :is(.choice, .primary, .secondary, .danger, .pad, .map-node):hover:not(:disabled) {
+    filter: none;
+  }
+}
