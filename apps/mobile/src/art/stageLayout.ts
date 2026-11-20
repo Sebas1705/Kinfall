@@ -27,6 +27,8 @@ export const STAGE_CENTRE_X = 129;
 export const PHONE_CROP_TOP = 26;
 /** From this many device px per scene px the whole scene is shown instead of the creatures' crop. */
 export const FULL_SCENE_MIN_SCALE = 4;
+/** Boxes at least this wide (dp) show the whole scene; narrower ones (phones) the creatures' crop. */
+export const WHOLE_SCENE_MIN_DP = 560;
 
 export interface StageFrame {
   /** Whole device pixels per scene pixel. */
@@ -55,6 +57,8 @@ export interface StageFrame {
 export interface FrameOptions {
   /** Sky rows to crop in the creatures' crop (default PHONE_CROP_TOP). */
   cropTop?: number;
+  /** Show the whole scene (wide boxes) instead of the creatures' crop; default: by pixel width. */
+  whole?: boolean;
   /** Banner mode: always every column, rows `cropTop` .. `cropTop + rows`. */
   banner?: { cropTop: number; rows: number };
 }
@@ -69,7 +73,7 @@ export function stageFrame(widthPx: number, maxHeightPx: number, opts: FrameOpti
     const viewWidth = Math.ceil(w / scale);
     return { scale, viewWidth, originX: Math.floor(SCENE_WIDTH / 2 - viewWidth / 2), viewHeight: rows, originY, widthPx: w, heightPx: rows * scale };
   }
-  const wholeScene = full >= FULL_SCENE_MIN_SCALE;
+  const wholeScene = full >= 1 && (opts.whole ?? full >= FULL_SCENE_MIN_SCALE);
   const originY = wholeScene ? 0 : Math.max(0, Math.min(SCENE_HEIGHT - 1, Math.floor(opts.cropTop ?? PHONE_CROP_TOP)));
   const rows = SCENE_HEIGHT - originY;
   const byWidth = wholeScene ? full : Math.floor(w / MIN_VISIBLE_WIDTH);

@@ -17,7 +17,7 @@ import { paintScene, type SceneCreature } from './paintScene';
 import { cachedScene } from './sceneCache';
 import { artAvailable, recordPicture } from './skia';
 import type { StageDirector } from './stageDirector';
-import { stageFrame, type FrameOptions } from './stageLayout';
+import { stageFrame, WHOLE_SCENE_MIN_DP, type FrameOptions } from './stageLayout';
 
 interface SurfaceHandle {
   show(picture: SkPicture | null): void;
@@ -58,7 +58,8 @@ export function ArtScene({ zone, seed, reducedMotion, creatures, director, maxHe
   const ratio = PixelRatio.get();
   const sc = useMemo(() => cachedScene(zone, seed), [zone, seed]);
   const frame = useMemo(
-    () => stageFrame(Math.round(width * ratio), Math.round(maxHeight * ratio), frameOpts),
+    // Phones get the creatures' crop (as large as the width allows), wide panes the whole scene.
+    () => stageFrame(Math.round(width * ratio), Math.round(maxHeight * ratio), { whole: width >= WHOLE_SCENE_MIN_DP, ...frameOpts }),
     // The options are small literals; compare them by value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [width, ratio, maxHeight, JSON.stringify(frameOpts ?? null)],

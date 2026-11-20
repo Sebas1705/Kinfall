@@ -50,6 +50,16 @@ describe('stageFrame', () => {
     expect(f.originX + f.viewWidth).toBeGreaterThanOrEqual(SCENE_WIDTH);
   });
 
+  it('keeps the creatures crop on a phone even when the pixels would fit the whole scene', () => {
+    // 411dp at 2.625 = 1079 px: 4 px per art px would fit the whole scene, but phones get the crop.
+    const phone = stageFrame(1079, 5000, { whole: false });
+    expect(phone.originY).toBe(PHONE_CROP_TOP);
+    expect(phone.scale).toBe(Math.floor(1079 / MIN_VISIBLE_WIDTH));
+    const pane = stageFrame(1079, 5000, { whole: true });
+    expect(pane.originY).toBe(0);
+    expect(pane.scale).toBe(Math.floor(1079 / SCENE_WIDTH));
+  });
+
   it('lets the height cap win (landscape, compact battle), never below scale 1', () => {
     const capped = stageFrame(945, 360);
     expect(capped.heightPx).toBeLessThanOrEqual(360);
