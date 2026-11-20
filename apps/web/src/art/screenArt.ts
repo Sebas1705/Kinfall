@@ -61,6 +61,11 @@ export function logoCanvas(doc: Document, width: number): HTMLCanvasElement {
   return c;
 }
 
+/** Whole-number scale of a 64-pixel vignette: about 3/4 of the width, up to a 560 px column, 2x to 6x. */
+export function vignetteScale(width: number): number {
+  return Math.max(2, Math.min(6, Math.floor((Math.min(width, 560) * 0.75) / 64)));
+}
+
 const players = new Map<HTMLElement, ScenePlayer[]>();
 const keep = (section: HTMLElement, list: ScenePlayer[]) => {
   for (const p of players.get(section) ?? []) if (!list.includes(p)) p.dispose();
@@ -156,7 +161,7 @@ function decorateEvent(section: HTMLElement): void {
   frame.dataset.key = key;
   frame.setAttribute(ART, '');
   frame.setAttribute('aria-hidden', 'true');
-  frame.append(pixelCanvas(doc, grid, gridBitmap(grid), 4, 'vignette-art'));
+  frame.append(pixelCanvas(doc, grid, gridBitmap(grid), vignetteScale(section.clientWidth || 360), 'vignette-art'));
   if (old) old.replaceWith(frame);
   else section.querySelector(':scope > .screen-heading')?.after(frame);
 }

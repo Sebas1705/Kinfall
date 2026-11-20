@@ -8,7 +8,7 @@ import type { RunPhase } from '@kinfall/core/sim/run/types';
 import { buildEndModel } from '@kinfall/core/models/end';
 import { buildEventModel } from '@kinfall/core/models/event';
 import { buildMapModel } from '@kinfall/core/models/map';
-import { installScreenArt, logoScale } from '../../src/art/screenArt';
+import { installScreenArt, logoScale, vignetteScale } from '../../src/art/screenArt';
 import { sceneCount } from '../../src/art/scenePlayer';
 import { renderEnd } from '../../src/view/screens/end';
 import { renderEvent } from '../../src/view/screens/event';
@@ -65,6 +65,10 @@ describe('screen art', () => {
     await settle();
     expect(section('title').querySelectorAll('.title-hero')).toHaveLength(1);
     expect(section('title').querySelector('.title-logo')!.getAttribute('aria-label')).toBe('Kinfall');
+  });
+
+  it('vignettes scale by whole numbers with the width (2x to 6x)', () => {
+    expect([200, 328, 560, 900].map(vignetteScale)).toEqual([2, 3, 6, 6]);
   });
 
   it('logo scale is whole, at least the phone scale and at most 6', () => {

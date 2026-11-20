@@ -55,6 +55,8 @@ export interface BattleView extends BattleScene {
 const AMBIENT_FPS = 30;
 /** Sky rows hidden on narrow views (the enemy's head is at row 52, the victory title at 40). */
 const NARROW_SKY_CROP = 26;
+/** Windows shorter than this (landscape phones) crop the sky as well. */
+const SHORT_WINDOW_PX = 560;
 
 /** Tiny status icons (shape and colour differ; the status name is always shown next to them). */
 const STATUS_SHAPES: Record<StatusId, { color: string; rows: string[] }> = {
@@ -442,9 +444,11 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     const px = (v: string) => parseFloat(v) || 0;
     const extra = -px(cs.marginLeft) - px(cs.marginRight) - px(cs.borderLeftWidth) - px(cs.borderRightWidth);
     const W = Math.max(1, Math.floor((host.clientWidth || 320) + extra));
-    // Phones (a view narrower than the scene) trim the top of the sky so the menu stays close.
+    // Phones (a view narrower than the scene, or a short landscape window) trim the top of the sky
+    // so the menu stays close.
     const full = stageFrame(W);
-    frame = full.viewWidth < SCENE_WIDTH ? stageFrame(W, NARROW_SKY_CROP) : full;
+    const short = (doc.defaultView?.innerHeight ?? 1000) < SHORT_WINDOW_PX;
+    frame = full.viewWidth < SCENE_WIDTH || short ? stageFrame(W, NARROW_SKY_CROP) : full;
     const H = frame.viewHeight * frame.scale;
     app.renderer.resize(W, H);
     world.scale.set(frame.scale);
