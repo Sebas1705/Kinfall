@@ -6,6 +6,7 @@
 // A battle's final turn moves the run on at once (it is applied and saved before its animation), so
 // the battle screen stays up until that turn has played; then the next phase shows, with the run log
 // lines of the battle's end (souls, losses) as its fresh lines.
+import { zoneIdOf } from '@kinfall/core/art/scene';
 import { t } from '@kinfall/core/platform/i18n';
 import type { RunState } from '@kinfall/core/sim/run/types';
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
@@ -16,6 +17,7 @@ import type { RunView } from '../run/session';
 import { useRunSession } from '../run/useRunSession';
 import { useTheme } from '../theme';
 import { ConfirmPanel } from '../ui/ConfirmPanel';
+import { ArtZoneContext } from '../ui/frames';
 import { RunLogPanel } from '../ui/RunLogPanel';
 import { SaveBanner } from '../ui/SaveBanner';
 import { Screen } from '../ui/Screen';
@@ -115,19 +117,23 @@ export function RunScreen({ onExit }: RunScreenProps) {
 
   // The battle draws its own screen (its layout may pin the choices at the bottom) and its own
   // log; the run log comes back with the next phase.
+  // The frames' gems take the accent of the run's zone.
+  const zone = zoneIdOf(run.zone);
   if (battleRun) {
     return (
-      <BattleView
-        run={battleRun}
-        onEnd={onBattleEnd}
-        onAbandon={askAbandon}
-        confirming={confirming}
-        confirmPanel={confirmPanel}
-        header={<SaveBanner />}
-        trailer={seedLine}
-        scrollRef={scroll}
-        testID="run-battle"
-      />
+      <ArtZoneContext.Provider value={zone}>
+        <BattleView
+          run={battleRun}
+          onEnd={onBattleEnd}
+          onAbandon={askAbandon}
+          confirming={confirming}
+          confirmPanel={confirmPanel}
+          header={<SaveBanner />}
+          trailer={seedLine}
+          scrollRef={scroll}
+          testID="run-battle"
+        />
+      </ArtZoneContext.Provider>
     );
   }
 
@@ -151,11 +157,13 @@ export function RunScreen({ onExit }: RunScreenProps) {
   }
 
   return (
-    <Screen ref={scroll} testID={`run-${shownView}`}>
-      <SaveBanner />
-      {body}
-      {seedLine}
-    </Screen>
+    <ArtZoneContext.Provider value={zone}>
+      <Screen ref={scroll} testID={`run-${shownView}`}>
+        <SaveBanner />
+        {body}
+        {seedLine}
+      </Screen>
+    </ArtZoneContext.Provider>
   );
 }
 

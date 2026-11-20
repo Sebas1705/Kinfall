@@ -23,38 +23,48 @@ export interface Theme {
   /** HP bar fill. */
   good: string;
   disabledText: string;
+  /** Body of the pixel plates (UI_PALETTES plate). */
+  plate: string;
+  /** Body of the raised pixel buttons (UI_PALETTES button). */
+  button: string;
 }
 
+// The page palette follows the scene art's UI palettes (parchment light, dusk dark; see
+// packages/core/src/art/scene/palettes.ts), like the web tokens in apps/web/src/styles.css.
 export const LIGHT: Theme = {
-  bg: '#f6f6fa',
-  surface: '#ffffff',
-  surface2: '#ececf3',
-  text: '#16161d',
-  muted: '#4c4f60',
-  border: '#c9cad6',
-  outline: '#767a8c',
-  accent: '#3a5bd9',
-  accentText: '#ffffff',
-  focus: '#1f46c4',
-  danger: '#b3261e',
-  good: '#1e7a34',
-  disabledText: '#5f6271',
+  bg: '#f3ead6',
+  surface: '#fbf4e4',
+  surface2: '#e9dfc8',
+  text: '#2a1c18',
+  muted: '#5a463c',
+  border: '#9c7a4c',
+  outline: '#7a5a34',
+  accent: '#7a2e10',
+  accentText: '#fff8e6',
+  focus: '#7a2e10',
+  danger: '#8c2016',
+  good: '#2b6a25',
+  disabledText: '#6a5a4e',
+  plate: '#efe2c4',
+  button: '#e2cfa6',
 };
 
 export const DARK: Theme = {
-  bg: '#0e0e13',
-  surface: '#181922',
-  surface2: '#232532',
-  text: '#f1f1f6',
-  muted: '#b6b9c9',
-  border: '#3a3d4f',
-  outline: '#7d8196',
-  accent: '#8ea8ff',
-  accentText: '#0e0e13',
-  focus: '#b6c6ff',
-  danger: '#ff8a80',
-  good: '#74d68a',
-  disabledText: '#9a9db0',
+  bg: '#0e0c16',
+  surface: '#1d1829',
+  surface2: '#262036',
+  text: '#f6eedf',
+  muted: '#cbc1d8',
+  border: '#6e5d92',
+  outline: '#8f7fb6',
+  accent: '#ffb35c',
+  accentText: '#1d1829',
+  focus: '#ffd36b',
+  danger: '#ff8f84',
+  good: '#86d67e',
+  disabledText: '#a39bb2',
+  plate: '#1d1829',
+  button: '#2f2643',
 };
 
 /** Minimum touch target (dp). */
@@ -110,4 +120,12 @@ export const CONTRAST_PAIRS: ReadonlyArray<{ fg: Key; bg: Key; min: number; use:
   { fg: 'good', bg: 'surface2', min: 3, use: 'HP meter fill on its track' },
   { fg: 'accent', bg: 'surface2', min: 3, use: 'focus meter fill on its track' },
   { fg: 'text', bg: 'bg', min: 3, use: 'current map node border' },
+  { fg: 'text', bg: 'plate', min: 4.5, use: 'text on pixel plates' },
+  { fg: 'muted', bg: 'plate', min: 4.5, use: 'details on pixel plates' },
+  { fg: 'text', bg: 'button', min: 4.5, use: 'text on pixel buttons' },
+  { fg: 'muted', bg: 'button', min: 4.5, use: 'details on pixel buttons' },
+  { fg: 'danger', bg: 'button', min: 4.5, use: 'destructive button labels' },
+  { fg: 'danger', bg: 'plate', min: 4.5, use: 'status chips and warnings on plates' },
+  { fg: 'good', bg: 'plate', min: 4.5, use: '"Run won" on the end plate' },
+  { fg: 'danger', bg: 'bg', min: 4.5, use: 'warning stripe text' },
 ];

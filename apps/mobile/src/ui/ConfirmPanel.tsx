@@ -4,6 +4,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useAnnounce } from '../platform/announce';
 import { useTheme } from '../theme';
 import { Button } from './Button';
+import { Plate, usePlateText } from './PixelFrame';
 import { useReveal } from './Screen';
 
 export interface ConfirmPanelProps {
@@ -25,6 +26,7 @@ export interface ConfirmPanelProps {
  */
 export function ConfirmPanel({ question, yes, no, onYes, onNo, testID }: ConfirmPanelProps) {
   const theme = useTheme();
+  const ink = usePlateText();
   const reveal = useReveal();
   const panel = useRef<ComponentRef<typeof View>>(null);
   // iOS has no live regions: the question is announced once when the panel opens.
@@ -33,25 +35,23 @@ export function ConfirmPanel({ question, yes, no, onYes, onNo, testID }: Confirm
   // Side by side at default text size; stacked when large text would squeeze them.
   const basis = { flexBasis: 140 * Math.max(1, useWindowDimensions().fontScale) };
   return (
-    <View
-      ref={panel}
-      style={[styles.panel, { borderColor: theme.danger, backgroundColor: theme.surface }]}
-      onLayout={() => reveal(panel.current)}
-      testID={testID}
-    >
-      <Text style={[styles.question, { color: theme.text }]} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+    <Plate ref={panel} style={styles.panel} onLayout={() => reveal(panel.current)} testID={testID}>
+      {/* Warning stripe; the question says what is at stake. */}
+      <View style={[styles.stripe, { backgroundColor: theme.danger }]} />
+      <Text style={[styles.question, { color: ink.text }]} accessibilityRole="alert" accessibilityLiveRegion="assertive">
         {question}
       </Text>
       <View style={styles.row}>
         <Button label={no} onPress={onNo} testID={`${testID}-no`} style={[styles.choice, basis]} />
         <Button label={yes} onPress={onYes} variant="danger" testID={`${testID}-yes`} style={[styles.choice, basis]} />
       </View>
-    </View>
+    </Plate>
   );
 }
 
 const styles = StyleSheet.create({
-  panel: { borderWidth: 2, borderRadius: 10, padding: 12, gap: 12 },
+  panel: { gap: 12, paddingLeft: 22 },
+  stripe: { position: 'absolute', left: 12, top: 12, bottom: 12, width: 5 },
   question: { fontSize: 16, fontWeight: '600' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   choice: { flexGrow: 1 },

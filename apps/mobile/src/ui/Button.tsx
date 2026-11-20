@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 
-import { TOUCH, useTheme } from '../theme';
+import { useTheme } from '../theme';
+import { FramePressable } from './PixelFrame';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
@@ -15,44 +16,41 @@ export interface ButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** A text button at least 48dp tall; the label wraps instead of clipping at large font scales. */
+/**
+ * A text button in a pixel frame, at least 48dp tall; the label wraps instead of clipping at large
+ * font scales. The main action ('primary') wears the ornate plate, the others the raised button;
+ * a destructive one ('danger') writes its label in the danger colour (the words say it too).
+ */
 export function Button({ label, onPress, variant = 'secondary', disabled = false, testID, accessibilityLabel, accessibilityHint, style }: ButtonProps) {
   const theme = useTheme();
-  const filled = variant === 'primary' || variant === 'danger';
-  const bg = disabled ? theme.surface2 : variant === 'primary' ? theme.accent : variant === 'danger' ? theme.danger : theme.surface;
-  const fg = disabled ? theme.disabledText : filled ? theme.accentText : theme.text;
   return (
-    <Pressable
-      onPress={disabled ? undefined : onPress}
+    <FramePressable
+      onPress={onPress}
       disabled={disabled}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
+      kind={variant === 'primary' ? 'plate' : 'button'}
+      testID={testID}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      testID={testID}
-      style={({ pressed }) => [
-        styles.button,
-        { backgroundColor: bg, borderColor: pressed && !disabled ? theme.focus : filled && !disabled ? bg : disabled ? theme.border : theme.outline },
-        pressed && !disabled && styles.pressed,
-        style,
-      ]}
+      style={[styles.button, style]}
+      padX={8}
     >
-      <Text style={[styles.text, { color: fg }]}>{label}</Text>
-    </Pressable>
+      {({ pressed, textColor }) => (
+        <Text
+          style={[
+            styles.text,
+            variant === 'primary' && styles.primary,
+            { color: variant === 'danger' && !disabled && !pressed ? theme.danger : textColor },
+          ]}
+        >
+          {label}
+        </Text>
+      )}
+    </FramePressable>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
-    minHeight: TOUCH,
-    minWidth: TOUCH,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: { opacity: 0.85 },
+  button: { alignItems: 'center' },
   text: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  primary: { fontSize: 17, fontWeight: '700' },
 });

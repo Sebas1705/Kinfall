@@ -6,7 +6,7 @@ import { useAnnounce } from '../platform/announce';
 import { useLang } from '../platform/LangContext';
 import { runLogContext, runLogLines } from '../run/session';
 import { useRunSession } from '../run/useRunSession';
-import { useTheme } from '../theme';
+import { Plate, usePlateText } from './PixelFrame';
 
 /** Lines shown on screen; the session keeps up to RUN_LOG_MAX. */
 export const RUN_LOG_VISIBLE = 8;
@@ -18,7 +18,7 @@ export const RUN_LOG_VISIBLE = 8;
  */
 export function RunLogPanel() {
   const { snapshot } = useRunSession();
-  const theme = useTheme();
+  const ink = usePlateText();
   useLang();
   // The session keeps only events that have a line, so lines and events line up one to one.
   const lines = runLogLines(snapshot.log, runLogContext(CONTENT, snapshot.run));
@@ -28,14 +28,14 @@ export function RunLogPanel() {
   // iOS: the fresh lines once per action (the log array is new only when an action added lines).
   useAnnounce(fresh > 0 ? snapshot.log : null, latest.join(' '));
   if (lines.length === 0) return null;
-  const lineStyle = [styles.line, { color: theme.text }];
+  const lineStyle = [styles.line, { color: ink.text }];
   return (
-    <View style={[styles.panel, { borderColor: theme.border, backgroundColor: theme.surface }]} testID="run-log">
-      <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header">
+    <Plate style={styles.panel} testID="run-log">
+      <Text style={[styles.heading, { color: ink.text }]} accessibilityRole="header">
         {t('map.log')}
       </Text>
       {older.map((line, i) => (
-        <Text key={`o${i}`} style={[lineStyle, { color: theme.muted }]} testID="run-log-line">
+        <Text key={`o${i}`} style={[lineStyle, { color: ink.muted }]} testID="run-log-line">
           {line}
         </Text>
       ))}
@@ -46,12 +46,12 @@ export function RunLogPanel() {
           </Text>
         ))}
       </View>
-    </View>
+    </Plate>
   );
 }
 
 const styles = StyleSheet.create({
-  panel: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 4 },
+  panel: { gap: 4 },
   heading: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
   line: { fontSize: 15 },
 });

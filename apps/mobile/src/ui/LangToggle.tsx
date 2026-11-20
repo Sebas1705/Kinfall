@@ -1,8 +1,9 @@
 import { setLang, t, type Lang } from '@kinfall/core/platform/i18n';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useLang } from '../platform/LangContext';
-import { TOUCH, useTheme } from '../theme';
+import { useTheme } from '../theme';
+import { FramePressable } from './PixelFrame';
 
 const LANGS: Array<{ code: Lang; name: string }> = [
   { code: 'es', name: 'Español' },
@@ -21,23 +22,20 @@ export function LangToggle() {
       {LANGS.map(({ code, name }) => {
         const on = code === lang;
         return (
-          <Pressable
+          // The chosen language wears the plate (and its state is the radio's "checked").
+          <FramePressable
             key={code}
             onPress={() => setLang(code)}
+            kind={on ? 'plate' : 'button'}
             accessibilityRole="radio"
             accessibilityState={{ checked: on }}
             accessibilityLabel={name}
             testID={`language-${code}`}
-            style={({ pressed }) => [
-              styles.option,
-              {
-                backgroundColor: on ? theme.accent : theme.surface,
-                borderColor: pressed ? theme.focus : on ? theme.accent : theme.outline,
-              },
-            ]}
+            padX={2}
+            style={styles.option}
           >
-            <Text style={[styles.code, { color: on ? theme.accentText : theme.text }]}>{code.toUpperCase()}</Text>
-          </Pressable>
+            {({ textColor }) => <Text style={[styles.code, { color: textColor }, on && styles.on]}>{code.toUpperCase()}</Text>}
+          </FramePressable>
         );
       })}
     </View>
@@ -48,14 +46,7 @@ const styles = StyleSheet.create({
   // Never wraps inside: the whole toggle moves to its own line when the heading needs the room.
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   label: { fontSize: 15 },
-  option: {
-    minHeight: TOUCH,
-    minWidth: TOUCH,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  code: { fontSize: 16, fontWeight: '700' },
+  option: { alignItems: 'center' },
+  code: { fontSize: 16, fontWeight: '600' },
+  on: { fontWeight: '800', textDecorationLine: 'underline' },
 });
