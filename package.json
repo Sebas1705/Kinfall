@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && npm run typecheck --workspaces",
     "golden:update": "node packages/core/scripts/run-ts.mjs scripts/update-golden.ts",
     "golden:runs": "node packages/core/scripts/run-ts.mjs scripts/update-run-golden.ts",
+    "golden:art": "node packages/core/scripts/run-ts.mjs scripts/update-art-golden.ts",
     "bots": "node packages/core/scripts/run-ts.mjs scripts/run-bots.ts",
     "art:preview": "node packages/core/scripts/run-ts.mjs scripts/preview-art.ts"
   },

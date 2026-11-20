@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
     "golden:update": "node scripts/run-ts.mjs scripts/update-golden.ts",
     "golden:runs": "node scripts/run-ts.mjs scripts/update-run-golden.ts",
+    "golden:art": "node scripts/run-ts.mjs scripts/update-art-golden.ts",
     "bots": "node scripts/run-ts.mjs scripts/run-bots.ts",
     "art:preview": "node scripts/run-ts.mjs scripts/preview-art.ts"
   }
