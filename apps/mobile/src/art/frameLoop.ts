@@ -42,7 +42,9 @@ export interface FrameLoop {
 
 export function createFrameLoop(opts: FrameLoopOptions): FrameLoop {
   const sched = opts.scheduler ?? rafScheduler;
-  const minGap = 1000 / (opts.idleFps ?? IDLE_FPS) - 1;
+  // 80% of the frame period: display frames arrive with jitter (a 33.3 ms gap measured as 31.9 ms
+  // would otherwise skip to the next frame and drop the rate to 20 fps).
+  const minGap = (1000 / (opts.idleFps ?? IDLE_FPS)) * 0.8;
   let id = 0;
   let visible = true;
   let disposed = false;

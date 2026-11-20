@@ -101,7 +101,7 @@ export function ArtScene({ zone, seed, reducedMotion, creatures, director, maxHe
         const took = Date.now() - begin;
         slow.current = took > SLOW_FRAME_MS ? Math.min(10, slow.current + 1) : Math.max(0, slow.current - 1);
         surface.current?.show(pic);
-        recordFrame(testID ?? 'scene', now, took);
+        recordFrame(testID ?? 'scene', now, took, l.director ? l.director.turnBusy || l.director.fx.busy(l.director.now()) : false);
       },
       moving() {
         const l = live.current;
