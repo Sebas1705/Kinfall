@@ -37,7 +37,9 @@ function Clock({ sched, onDraw, enabled = true }: { sched: FrameScheduler; onDra
   return null;
 }
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe('useFrameLoop', () => {
   it('stops drawing while the app is in the background and resumes when active', async () => {
