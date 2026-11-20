@@ -94,6 +94,26 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 |---|---|
 | Spanish and English on every screen (Spanish is the longer one) | verified: matrix rows in both |
 
+## Scene art (visual style phase C)
+
+The pixel scene art, frames and effects added in phase C ([README](README.md#scene-art)). Checked with Jest (`__tests__/art/*`, `__tests__/ui/PixelFrame.test.tsx`, `__tests__/platform/motionSetting.test.tsx`, `__tests__/screens/Art.test.tsx`) and on the emulator (same AVD, Expo Go, Metro). The scripted driver of the matrix above ran every screen at 411x914 (en, light) and at 360x640 (es dark at 200%, and en light at 100%: title, map, battle and its confirmations, every event, the zone 2 battle; the driver then lost the title in both runs, a harness problem), plus scripted captures in landscape 914x411 (en, dark) and on a 1280x800 tablet (en, light): title, map, battle, an event and an end screen. The emulator crashed once and its launcher stopped responding after many window-size changes, so the full matrix of Task 8 was not repeated.
+
+| Case | Status |
+|---|---|
+| Every canvas (battle stage, title hero, map banner, end scene), frame picture, bar, icon and vignette is hidden from screen readers (`no-hide-descendants` + `accessibilityElementsHidden`) and never touchable | verified: Jest (`Art.test.tsx` checks each scene box and that nothing inside is accessible or clickable); emulator hierarchy: no extra clickable or named node |
+| The logo is the one labelled image: role image, name "Kinfall" in both languages | verified: Jest; emulator content description |
+| Text stays real text: HUD summaries, HP and focus values, choices, node labels, event text, results and the battle log are unchanged; the art only repeats them | verified: Jest (all earlier label and role tests pass unchanged); emulator screenshots |
+| Reading order in battle: rival HUD, (stage hidden), your HUD, then the choices | verified: Jest |
+| Text contrast on the frames: every button state and the plate, parchment and dusk, all zones (AA 4.5:1); new theme pairs for text, details, danger and "Run won" on plates and buttons | verified numerically (`PixelFrame.test.tsx`, `theme.test.ts`); the core also checks `uiContrastPairs` |
+| 48dp targets with the frames | verified: Jest sweep (`Layout.test.tsx`) and the emulator matrix (no target under 48dp) |
+| Pressed, disabled and focus states: pressed sinks (shade on top, content one cell lower), disabled is flat with its own AA text colour, keyboard / D-pad focus draws the focus frame outside the box without moving the layout | pressed and disabled verified on the emulator and in Jest; focus verified in Jest only (no hardware keyboard / D-pad navigation was driven on the emulator) |
+| Reduced motion: system setting (Android "Remove animations") OR the app's **Reduce motion** switch (a `switch` with its checked state, saved): no sway, cloud drift, shake or flashes, frozen particles, still effect frames; battle turns settle at once | verified: Jest (frame loop draws one still frame, still effect samples, no shake or flash, the app switch makes a turn settle without animations); emulator: the title scene gives identical screenshots 4 s apart with animator scale 0 and with the app switch on, and different ones with motion on |
+| Flashes at most 2 per second, never full-screen white; shake at most 3 art px | verified by the core descriptors and `stageDirector.test.ts` (500 ms flash gap); **not reviewed by people with photosensitivity or vestibular needs** |
+| Window sizes and 200% text with the art: compact battle (shorter stage, choices pinned), two panes with the stage on the left, tablets with the whole scene | verified: Jest (stage height share per layout) and the emulator matrix |
+| Light (parchment) and dark (dusk) frames; the battle scene keeps its zone palette in both | verified: emulator screenshots |
+| TalkBack walk-through with the art | not done: same limitation as above (adb gestures do not drive TalkBack on API 36); the hierarchy shows no art nodes |
+| Real phone and low-end GPU | not tested: emulator only |
+
 ## Fixes made from the emulator runs
 
 - The abandon confirmation could open cut off at the bottom when it was the last thing on the screen: the scroll ran before the scroll view knew the new content height and was clamped. `Screen` now reveals it again after the frame and on the next content size change, and never assumes a clamped scroll landed (commits "reveal a confirmation again once the content height caught up" and "retry the reveal and never assume a clamped scroll landed").

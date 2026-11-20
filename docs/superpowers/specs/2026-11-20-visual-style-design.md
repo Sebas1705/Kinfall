@@ -203,7 +203,16 @@ Rules for both renderers: whole-number scales only, never smooth, never tint the
 - **Frames** (`apps/web/src/art/frames.ts`, `art.css`): border-image custom properties for the current scheme (dusk/parchment) and zone; buttons raised, pressed on `:active`, flat when disabled, and the focus frame drawn outside the box (border-image outset) so focus never shifts layout; the main action wears the plate. The page palette follows the UI palettes.
 - **Motion**: ambient frames at 30 fps, effects at the display rate; measured in Edge at 1280x800 with a 6x CPU throttle: 30 scene fps idle, about 46 during a turn, worst frame 33 ms.
 
-## 14. Not done in phase A
+## 14. Phase C (mobile) as built
+
+- **Renderer** (`apps/mobile/src/art/`): one Skia canvas per scene. Each frame is recorded into an `SkPicture` in device pixels (`skia.ts` `recordPicture`) and handed to one native `SkiaPictureView` (`ArtScene.tsx`); only that view re-renders per frame, never the screen. Every grid is baked once into a nearest-neighbour `SkImage` (cached per grid); particle masks are tinted with a `SrcIn` colour-filter paint; flashes and tints are tinted silhouettes of the creature image. `androidWarmup` is on for every canvas.
+- **Framing** (`stageLayout.ts`): whole device pixels per art pixel; boxes narrower than 560dp (phones) keep x 46..212 as large as the width allows and crop 26 sky rows (on a 411dp phone at 2.625: 6 px per art px, creatures 288 px = 110dp); wider boxes show the whole scene; a share of the window height caps the stage (42% stacked, 28% in the compact battle, 50% in two panes, 36% for the title hero, 32% for the end scene). The compact battle (large text or a short window, choices pinned) lists both HUD plates first and crops its stage to a band from row 50, so HP and focus stay on the first screen. The stage, title hero, map banner and end scene run edge to edge on phones.
+- **Clock** (`frameLoop.ts`): `requestAnimationFrame`, 30 fps while only ambient life moves (the gap test allows display jitter), every frame while effects or a turn play, paused in the background and on a blurred screen; one still frame with reduced motion.
+- **Battle**: `useBattleScene` hands each event to `stageDirector.startEventEffects` as it starts (all at once, flagged reduced, when the turn plays with reduced motion); `fx.ts` mirrors the web bookkeeping. The animator's creature values run on the JS driver and become the creatures' pose on the stage; HP bars and status chips keep the native driver. Controller timings and contracts are unchanged.
+- **Frames** (`apps/mobile/src/ui/PixelFrame.tsx`): a React Native view with a nine-slice picture behind it (about 2dp per cell, whole device pixels), the frame body as the view background, the frame's `textColor` passed to the real text. The focus frame is drawn 3 cells outside the box. Bars are plain views at frame cells. An app **Reduce motion** switch (AsyncStorage) adds to the system setting.
+- **Measured** on the Android emulator (API 36, 1080x2400 @ 420 dpi, Expo Go, production bundle with `EXPO_PUBLIC_ART_STATS=1`): see the phase C report and `apps/mobile/README.md#scene-art`. The emulator's display path delivered about 28 frames per second at best, so the numbers show the cost per frame (about 1.1 ms of JS to record a frame) more than a real phone's frame rate.
+
+## 15. Not done in phase A
 
 - No change to the game screens in phase A (phase B above; phase C is mobile).
 - No sound.
