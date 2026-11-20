@@ -1,30 +1,34 @@
 // Event screens of a run (recruit, shrine, cache, mystery): the pure event model (buildEventModel,
-// in @kinfall/core) drawn with React Native, like the web's screens/event.ts. The choices are
-// exactly the legal run actions, plus evolve entries that are disabled with their reason in text
-// when souls are short. A pick goes through the run session (applied, logged, autosaved).
+// in @kinfall/core) drawn with React Native, like the web's screens/event.ts, with the event's
+// little pixel scene (vignette) on top. The choices are exactly the legal run actions, plus evolve
+// entries that are disabled with their reason in text when souls are short. A pick goes through
+// the run session (applied, logged, autosaved).
 //
 // On arrival, screen-reader focus goes to the model's initial choice: the first enabled one, or
 // "Let it go" when a full party would make a stray activation replace a member.
+import { eventVignette, VIGNETTE_WIDTH, zoneIdOf } from '@kinfall/core/art/scene';
 import { CONTENT } from '@kinfall/core/content';
 import { lookup } from '@kinfall/core/content/lookup';
 import { buildEventModel, type EventChoice, type EventModel } from '@kinfall/core/models/event';
 import { t } from '@kinfall/core/platform/i18n';
 import type { RunAction, RunState } from '@kinfall/core/sim/run/types';
-import { useEffect, useRef, type ComponentRef, type Ref } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, type ComponentRef, type Ref } from 'react';
+import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { CreatureSprite } from '../art/CreatureSprite';
 import { ElementIcon } from '../art/ElementIcon';
+import { GridImage } from '../art/GridImage';
 import { useLang } from '../platform/LangContext';
 import { useRunSession } from '../run/useRunSession';
 import { TOUCH, useTheme, type Theme } from '../theme';
 import { PartyPanel } from '../ui/PartyPanel';
+import { FramePressable, Plate, usePlateText } from '../ui/PixelFrame';
 import { useLayout } from '../ui/windowSize';
 import type { PhaseViewProps } from './RunScreen';
 
-type PressableRef = ComponentRef<typeof Pressable>;
+type PressableRef = ComponentRef<typeof View>;
 
-/** True for a choice that replaces a party member (shown with the warning border). */
+/** True for a choice that replaces a party member (shown with the warning stripe). */
 export function isReplace(action: RunAction): boolean {
   return action.type === 'recruit' && action.take && action.replaceIndex !== undefined;
 }
@@ -34,30 +38,43 @@ export function choiceLabel(choice: EventChoice): string {
   return choice.detail ? `${choice.label}, ${choice.detail}` : choice.label;
 }
 
-function OfferCard({ offer, theme }: { offer: NonNullable<EventModel['offer']>; theme: Theme }) {
+/** Vignette cell size (dp) for the available width: the 64-cell scene at a whole size, 2 to 5. */
+export function vignetteCell(width: number): number {
+  return Math.max(2, Math.min(5, Math.floor(width / VIGNETTE_WIDTH)));
+}
+
+/** The event's little scene (shrine, cache, mystery, recruit camp) in a plate; decorative. */
+function Vignette({ kind, zone, seed, width }: { kind: EventModel['kind']; zone: number; seed: string; width: number }) {
+  const grid = useMemo(() => eventVignette(kind, zoneIdOf(zone), seed), [kind, zone, seed]);
+  return (
+    <Plate style={styles.vignette} pad={0} testID="event-vignette">
+      <GridImage grid={grid} cellDp={vignetteCell(width)} />
+    </Plate>
+  );
+}
+
+function OfferCard({ offer }: { offer: NonNullable<EventModel['offer']> }) {
+  const ink = usePlateText();
   const elements = lookup(CONTENT).species(offer.speciesId).elements;
   const hp = `${t('hud.hp')} ${offer.hp}/${offer.maxHp}`;
   return (
-    <View
-      style={[styles.offer, { borderColor: theme.border, backgroundColor: theme.surface }]}
-      accessible
-      accessibilityLabel={`${offer.name}, ${offer.elements}, ${hp}`}
-      testID="event-offer"
-    >
-      <CreatureSprite species={offer.speciesId} scale={3} />
-      <View style={styles.offerText}>
-        <Text style={[styles.offerName, { color: theme.text }]}>{offer.name}</Text>
-        <View style={styles.elementRow}>
-          {elements.map((e) => (
-            <ElementIcon key={e} element={e} scale={2} />
-          ))}
-          <Text style={[styles.detail, { color: theme.muted }]}>{offer.elements}</Text>
+    <Plate accessible accessibilityLabel={`${offer.name}, ${offer.elements}, ${hp}`} testID="event-offer">
+      <View style={styles.offer} testID="event-offer-row">
+        <CreatureSprite species={offer.speciesId} scale={3} />
+        <View style={styles.offerText}>
+          <Text style={[styles.offerName, { color: ink.text }]}>{offer.name}</Text>
+          <View style={styles.elementRow}>
+            {elements.map((e) => (
+              <ElementIcon key={e} element={e} scale={2} />
+            ))}
+            <Text style={[styles.detail, { color: ink.muted }]}>{offer.elements}</Text>
+          </View>
+          <Text style={[styles.detail, { color: ink.muted }]} testID="event-offer-hp">
+            {hp}
+          </Text>
         </View>
-        <Text style={[styles.detail, { color: theme.muted }]} testID="event-offer-hp">
-          {hp}
-        </Text>
       </View>
-    </View>
+    </Plate>
   );
 }
 
@@ -69,36 +86,33 @@ function ChoiceButton({ choice, index, onPress, theme, ref }: {
   ref?: Ref<PressableRef>;
 }) {
   const { disabled } = choice;
-  const border = disabled ? theme.border : isReplace(choice.action) ? theme.danger : theme.accent;
+  const replace = isReplace(choice.action);
   return (
-    <Pressable
+    <FramePressable
       ref={ref}
-      onPress={disabled ? undefined : onPress}
+      onPress={onPress}
       disabled={disabled}
-      accessibilityRole="button"
       accessibilityLabel={choiceLabel(choice)}
-      accessibilityState={{ disabled }}
       testID={`event-choice-${index}`}
-      style={({ pressed }) => [
-        styles.choice,
-        {
-          backgroundColor: disabled ? theme.surface2 : theme.surface,
-          borderColor: pressed && !disabled ? theme.focus : border,
-          borderStyle: disabled ? 'dashed' : 'solid',
-        },
-      ]}
+      style={styles.choice}
+      padX={replace ? 14 : 6}
     >
-      <Text style={[styles.choiceLabel, { color: disabled ? theme.disabledText : theme.text }]}>{choice.label}</Text>
-      {choice.detail ? (
-        <Text style={[styles.detail, { color: disabled ? theme.disabledText : theme.muted }]}>{choice.detail}</Text>
-      ) : null}
-    </Pressable>
+      {({ textColor }) => (
+        <View style={styles.choiceBody}>
+          {/* A replace choice carries a warning stripe; its label says "Replace" in words. */}
+          {replace ? <View style={[styles.stripe, { backgroundColor: theme.danger }]} testID={`event-choice-${index}-warning`} /> : null}
+          <Text style={[styles.choiceLabel, { color: textColor }]}>{choice.label}</Text>
+          {choice.detail ? <Text style={[styles.detail, { color: textColor }]}>{choice.detail}</Text> : null}
+        </View>
+      )}
+    </FramePressable>
   );
 }
 
 export function EventView({ run, confirming, confirmPanel, log }: PhaseViewProps) {
   const theme = useTheme();
   const { twoPane } = useLayout();
+  const { width } = useWindowDimensions();
   useLang();
   const { session } = useRunSession();
   const model = buildEventModel(run, CONTENT);
@@ -121,16 +135,19 @@ export function EventView({ run, confirming, confirmPanel, log }: PhaseViewProps
     if (session.act(action).ok) acted.current = run;
   };
 
+  // The vignette fills the column at a whole cell size (inside the plate's frame).
+  const column = twoPane ? Math.min(width, 1200) * 0.6 - 72 : Math.min(width, 720) - 72;
   const party = <PartyPanel party={model.party} speciesIds={run.party.map((m) => m.speciesId)} souls={model.souls} />;
   const main = (
     <>
       <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="event-heading">
         {model.title}
       </Text>
+      <Vignette kind={model.kind} zone={run.zone} seed={run.seed} width={column} />
       <Text style={[styles.desc, { color: theme.text }]} testID="event-desc">
         {model.description}
       </Text>
-      {model.offer ? <OfferCard offer={model.offer} theme={theme} /> : null}
+      {model.offer ? <OfferCard offer={model.offer} /> : null}
       {model.note ? (
         <Text style={[styles.note, { color: theme.text, borderColor: theme.danger }]} testID="event-note">
           {model.note}
@@ -182,12 +199,15 @@ const styles = StyleSheet.create({
   heading: { fontSize: 24, fontWeight: '700' },
   desc: { fontSize: 16 },
   note: { fontSize: 16, fontWeight: '600', borderLeftWidth: 4, paddingLeft: 10 },
-  offer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderRadius: 12 },
+  vignette: { alignSelf: 'center' },
+  offer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   offerText: { flexGrow: 1, flexShrink: 1, flexBasis: 160, gap: 4 },
   offerName: { fontSize: 18, fontWeight: '700' },
   elementRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   choices: { gap: 10 },
-  choice: { minHeight: TOUCH, justifyContent: 'center', gap: 2, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 2 },
+  choice: { minHeight: TOUCH },
+  choiceBody: { gap: 2 },
+  stripe: { position: 'absolute', left: -12, top: 2, bottom: 2, width: 5 },
   choiceLabel: { fontSize: 17, fontWeight: '600' },
   detail: { fontSize: 15 },
 });

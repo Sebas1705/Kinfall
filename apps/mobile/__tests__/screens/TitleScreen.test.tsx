@@ -36,12 +36,12 @@ beforeEach(() => {
 });
 
 describe('title screen', () => {
-  it('shows the game name above the heading in both languages', async () => {
+  it('shows the game name as the wordmark image, named Kinfall in both languages', async () => {
     await renderTitle(makeSession(memoryStorage()));
-    expect(screen.getByTestId('app-name')).toHaveTextContent('Kinfall');
+    expect(screen.getByRole('image', { name: 'Kinfall' }).props.testID).toBe('app-name');
     setLang('es');
     await renderTitle(makeSession(memoryStorage()));
-    expect(screen.getAllByTestId('app-name').at(-1)).toHaveTextContent('Kinfall');
+    expect(screen.getAllByRole('image', { name: 'Kinfall' }).at(-1)!.props.testID).toBe('app-name');
   });
 
   it('keeps Continue disabled without a save and enables it for an ok save', async () => {

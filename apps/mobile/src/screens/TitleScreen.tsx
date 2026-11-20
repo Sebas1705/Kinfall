@@ -5,17 +5,21 @@ import { lookup } from '@kinfall/core/content/lookup';
 import { speciesName, t, type StringKey } from '@kinfall/core/platform/i18n';
 import { SEED_MAX, cleanSeed } from '@kinfall/core/platform/seed';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { CreatureSprite } from '../art/CreatureSprite';
 import { ElementIcon } from '../art/ElementIcon';
+import { TitleHero } from '../art/TitleHero';
 import { useLang } from '../platform/LangContext';
+import { useReducedMotion } from '../platform/motionSetting';
 import { randomSeed as defaultRandomSeed } from '../platform/random';
 import { useRunSession } from '../run/useRunSession';
-import { TOUCH, useTheme, type Theme } from '../theme';
+import { TOUCH, useTheme } from '../theme';
 import { Button } from '../ui/Button';
 import { ConfirmPanel } from '../ui/ConfirmPanel';
 import { LangToggle } from '../ui/LangToggle';
+import { MotionToggle } from '../ui/MotionToggle';
+import { FramePressable } from '../ui/PixelFrame';
 import { Screen } from '../ui/Screen';
 import { useLayout } from '../ui/windowSize';
 
@@ -32,43 +36,42 @@ function hintKey(element: string | undefined): StringKey | null {
   return element === 'ember' || element === 'thorn' || element === 'tide' ? `title.starterHint.${element}` : null;
 }
 
-function StarterCard({ id, checked, onSelect, theme }: { id: string; checked: boolean; onSelect: () => void; theme: Theme }) {
+function StarterCard({ id, checked, onSelect }: { id: string; checked: boolean; onSelect: () => void }) {
   const sp = lookup(CONTENT).species(id);
   const name = speciesName(sp);
   const elements = sp.elements.map((e) => t(`element.${e}` as StringKey)).join(' / ');
   const key = hintKey(sp.elements[0]);
   const hint = key ? t(key) : '';
   return (
-    <Pressable
+    // The chosen starter wears the ornate plate; the dot in the name says it in text too.
+    <FramePressable
       onPress={onSelect}
+      kind={checked ? 'plate' : 'button'}
       accessibilityRole="radio"
       accessibilityState={{ checked }}
       accessibilityLabel={hint ? `${name}, ${elements}. ${hint}` : `${name}, ${elements}`}
       testID={`starter-${id}`}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: theme.surface,
-          borderColor: checked ? theme.accent : pressed ? theme.focus : theme.outline,
-          borderWidth: checked ? 3 : 2,
-        },
-      ]}
+      padY={6}
     >
-      <CreatureSprite species={sp} scale={3} />
-      <View style={styles.cardText}>
-        <Text style={[styles.cardName, { color: theme.text }]}>
-          {checked ? '● ' : '○ '}
-          {name}
-        </Text>
-        <View style={styles.elementRow}>
-          {sp.elements.map((e) => (
-            <ElementIcon key={e} element={e} scale={2} />
-          ))}
-          <Text style={[styles.elementText, { color: theme.muted }]}>{elements}</Text>
+      {({ textColor }) => (
+        <View style={styles.card}>
+          <CreatureSprite species={sp} scale={3} />
+          <View style={styles.cardText}>
+            <Text style={[styles.cardName, { color: textColor }]}>
+              {checked ? '● ' : '○ '}
+              {name}
+            </Text>
+            <View style={styles.elementRow}>
+              {sp.elements.map((e) => (
+                <ElementIcon key={e} element={e} scale={2} />
+              ))}
+              <Text style={[styles.elementText, { color: textColor }]}>{elements}</Text>
+            </View>
+            {hint ? <Text style={[styles.hint, { color: textColor }]}>{hint}</Text> : null}
+          </View>
         </View>
-        {hint ? <Text style={[styles.hint, { color: theme.muted }]}>{hint}</Text> : null}
-      </View>
-    </Pressable>
+      )}
+    </FramePressable>
   );
 }
 
@@ -76,6 +79,8 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
   const { session, snapshot } = useRunSession();
   const theme = useTheme();
   const { twoPane } = useLayout();
+  const { width } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
   useLang();
   const starters = CONTENT.starters;
   const [seed, setSeed] = useState(snapshot.titleSeed);
@@ -118,18 +123,24 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
     await session.discardSave();
   };
 
+  const hero = (
+    <TitleHero
+      starter={starter}
+      reducedMotion={reduceMotion}
+      initialWidth={twoPane ? width / 2 - 40 : width}
+      style={twoPane ? null : styles.bleed}
+    />
+  );
   const intro = (
     <>
       <View style={styles.topRow}>
-        <View style={styles.titleBlock}>
-          <Text style={[styles.appName, { color: theme.text }]} testID="app-name">
-            {t('app.title')}
-          </Text>
-          <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header">
-            {t('screen.title')}
-          </Text>
+        <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header">
+          {t('screen.title')}
+        </Text>
+        <View style={styles.settings}>
+          <LangToggle />
+          <MotionToggle />
         </View>
-        <LangToggle />
       </View>
 
       {saved?.kind === 'unavailable' ? (
@@ -173,7 +184,7 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
           accessibilityLabelledBy="title-seed-label"
           accessibilityHint={t('title.seedHint')}
           testID="seed-input"
-          style={[styles.input, { color: theme.text, borderColor: theme.outline, backgroundColor: theme.surface }]}
+          style={[styles.input, { color: theme.text, borderTopColor: theme.text, borderLeftColor: theme.text, borderRightColor: theme.outline, borderBottomColor: theme.outline, backgroundColor: theme.surface }]}
         />
         {/* Read once, as the field's hint; hidden here so screen readers do not repeat it. */}
         <Text style={[styles.hint, { color: theme.muted }]} importantForAccessibility="no" accessibilityElementsHidden>
@@ -189,7 +200,7 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
           {t('title.starter')}
         </Text>
         {starters.map((id) => (
-          <StarterCard key={id} id={id} checked={id === starter} onSelect={() => setStarter(id)} theme={theme} />
+          <StarterCard key={id} id={id} checked={id === starter} onSelect={() => setStarter(id)} />
         ))}
       </View>
 
@@ -217,6 +228,7 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
       <Screen testID="title-screen">
         <View style={styles.panes} testID="title-two-pane">
           <View style={styles.pane}>
+            {hero}
             {intro}
             {notes}
           </View>
@@ -227,6 +239,7 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
   }
   return (
     <Screen testID="title-screen">
+      {hero}
       {intro}
       {pickAndStart}
       {notes}
@@ -238,18 +251,19 @@ const styles = StyleSheet.create({
   panes: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
   pane: { flex: 1, gap: 16, minWidth: 0 },
   topRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  titleBlock: { gap: 2 },
-  appName: { fontSize: 18, fontWeight: '700', letterSpacing: 1 },
+  settings: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  bleed: { marginHorizontal: -16, marginTop: -16 },
   heading: { fontSize: 28, fontWeight: '700' },
-  notice: { fontSize: 16, borderWidth: 1, borderRadius: 10, padding: 12 },
-  warn: { borderWidth: 2, borderRadius: 10, padding: 12, gap: 12 },
+  notice: { fontSize: 16, borderWidth: 2, padding: 12 },
+  warn: { borderWidth: 2, borderLeftWidth: 6, padding: 12, gap: 12 },
   noticeText: { fontSize: 16 },
   field: { gap: 6 },
   label: { fontSize: 18, fontWeight: '700' },
-  input: { minHeight: TOUCH, borderWidth: 2, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 18 },
+  // A sunken pixel well: dark top-left edge, light bottom-right edge.
+  input: { minHeight: TOUCH, borderWidth: 3, borderRadius: 2, paddingHorizontal: 12, paddingVertical: 8, fontSize: 18 },
   hint: { fontSize: 15 },
   starters: { gap: 10 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, minHeight: TOUCH },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   cardText: { flex: 1, gap: 4 },
   cardName: { fontSize: 18, fontWeight: '700' },
   elementRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },

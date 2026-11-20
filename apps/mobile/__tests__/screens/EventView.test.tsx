@@ -273,7 +273,8 @@ describe('event screen layout and language', () => {
       expect(node.props.numberOfLines).toBeUndefined();
     }
     const flat = (style: unknown) => Object.assign({}, ...[style].flat(3).filter(Boolean)) as { flexWrap?: string };
-    expect(flat(screen.getByTestId('event-offer').props.style).flexWrap).toBe('wrap');
+    // The card is a plate; its sprite and text row wraps.
+    expect(flat(screen.getByTestId('event-offer-row').props.style).flexWrap).toBe('wrap');
   });
 
   it('Android back on an event asks to abandon (no silent exit)', async () => {

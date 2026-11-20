@@ -6,18 +6,25 @@ import { CONTENT } from '@kinfall/core/content';
 import { buildEndModel } from '@kinfall/core/models/end';
 import { t } from '@kinfall/core/platform/i18n';
 import { useEffect, useRef, type ComponentRef } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+
+import { EndScene } from '../art/EndScene';
 
 import { useLang } from '../platform/LangContext';
+import { useReducedMotion } from '../platform/motionSetting';
 import { useRunSession } from '../run/useRunSession';
 import { useTheme } from '../theme';
 import { Button } from '../ui/Button';
+import { Plate, usePlateText } from '../ui/PixelFrame';
 import { useLayout } from '../ui/windowSize';
 import type { PhaseViewProps } from './RunScreen';
 
 export function EndView({ run, onToTitle, log }: PhaseViewProps) {
   const theme = useTheme();
-  const { twoPane } = useLayout();
+  const { twoPane, width: widthClass } = useLayout();
+  const { width, height } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+  const ink = usePlateText();
   useLang();
   const { session } = useRunSession();
   const model = buildEndModel(run, CONTENT);
@@ -39,6 +46,19 @@ export function EndView({ run, onToTitle, log }: PhaseViewProps) {
     fn();
   };
 
+  const scene = (
+    <EndScene
+      zone={run.zone}
+      seed={run.seed}
+      won={won}
+      title={t(won ? 'result.victory' : 'result.defeat')}
+      lead={run.party[0]?.speciesId ?? null}
+      reducedMotion={reduceMotion}
+      maxHeight={Math.max(140, height * 0.32)}
+      initialWidth={twoPane ? width / 2 - 40 : width}
+      style={!twoPane && widthClass === 'compact' ? styles.bleed : null}
+    />
+  );
   const result = (
     <>
       <Text
@@ -50,28 +70,25 @@ export function EndView({ run, onToTitle, log }: PhaseViewProps) {
         {model.title}
       </Text>
       <Text style={[styles.note, { color: theme.text }]}>{t('end.canRestart')}</Text>
-      <View
-        style={[styles.score, { borderColor: theme.border, backgroundColor: theme.surface }]}
-        accessible
-        accessibilityLabel={`${t('end.score')}: ${model.score}`}
-        testID="end-score"
-      >
-        <Text style={[styles.scoreLabel, { color: theme.text }]}>{t('end.score')}</Text>
-        <Text style={[styles.scoreValue, { color: theme.text }]} testID="end-score-value">
-          {String(model.score)}
-        </Text>
-      </View>
+      <Plate accessible accessibilityLabel={`${t('end.score')}: ${model.score}`} testID="end-score">
+        <View style={styles.score}>
+          <Text style={[styles.scoreLabel, { color: ink.text }]}>{t('end.score')}</Text>
+          <Text style={[styles.scoreValue, { color: ink.text }]} testID="end-score-value">
+            {String(model.score)}
+          </Text>
+        </View>
+      </Plate>
     </>
   );
   const stats = (
-      <View style={[styles.stats, { borderColor: theme.border, backgroundColor: theme.surface }]} testID="end-stats">
+      <Plate style={styles.stats} testID="end-stats">
         {model.stats.map((s, i) => (
           <View key={i} style={styles.stat} accessible accessibilityLabel={`${s.label}: ${s.value}`} testID={`end-stat-${i}`}>
-            <Text style={[styles.statLabel, { color: theme.muted }]}>{s.label}</Text>
-            <Text style={[styles.statValue, { color: theme.text }]}>{String(s.value)}</Text>
+            <Text style={[styles.statLabel, { color: ink.muted }]}>{s.label}</Text>
+            <Text style={[styles.statValue, { color: ink.text }]}>{String(s.value)}</Text>
           </View>
         ))}
-      </View>
+      </Plate>
   );
   const buttons = (
     <>
@@ -84,6 +101,7 @@ export function EndView({ run, onToTitle, log }: PhaseViewProps) {
     return (
       <View style={[styles.end, styles.panes]} testID="end-screen">
         <View style={[styles.pane, styles.paneMain]}>
+          {scene}
           {result}
           {buttons}
         </View>
@@ -96,6 +114,7 @@ export function EndView({ run, onToTitle, log }: PhaseViewProps) {
   }
   return (
     <View style={styles.end} testID="end-screen">
+      {scene}
       {result}
       {stats}
       {buttons}
@@ -112,10 +131,11 @@ const styles = StyleSheet.create({
   paneSide: { flex: 1 },
   heading: { fontSize: 28, fontWeight: '700' },
   note: { fontSize: 16 },
-  score: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderRadius: 10 },
+  bleed: { marginHorizontal: -16 },
+  score: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   scoreLabel: { fontSize: 18, fontWeight: '700', flex: 1 },
   scoreValue: { fontSize: 28, fontWeight: '700' },
-  stats: { borderWidth: 1, borderRadius: 10, padding: 12, gap: 8 },
+  stats: { gap: 8 },
   // The label wraps inside its own column at large text; the value stays on the right of its row.
   stat: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   statLabel: { fontSize: 16, flex: 1 },
