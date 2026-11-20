@@ -8,7 +8,7 @@ The repository is an npm workspaces monorepo:
 
 | Path | Package | Contents |
 |---|---|---|
-| `packages/core` | `@kinfall/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu, and the battle turn controller). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@kinfall/core/sim/run/run`. |
+| `packages/core` | `@kinfall/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data; `src/art/scene` holds the scene art of the "dusk-lit pixel fantasy" style: zone backdrops, platforms, effects, HUD frames, icons and the logo, see the [visual style spec](docs/superpowers/specs/2026-11-20-visual-style-design.md)), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu, and the battle turn controller). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@kinfall/core/sim/run/run`. |
 | `apps/web` | `@kinfall/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@kinfall/core/...`. |
 | `apps/mobile` | `@kinfall/mobile` | The React Native app (Expo, TypeScript): a whole run by touch over an autosaved run session, plus dev tools (a "hello core" screen, a sprite gallery and a device determinism self test). Jest tests (`jest-expo`) live in `__tests__`. See [apps/mobile/README.md](apps/mobile/README.md). |
 
@@ -36,6 +36,8 @@ The same seed and the same choices always give the same battle and the same run,
 
 Golden workflow: a change that moves a golden file is a change in game behaviour. Run `npm run golden:update` (battles) and/or `npm run golden:runs` (runs), review the diff, and commit the new files together with the change that caused them and a note saying why. Never update the goldens to hide a failure on another engine: that is a determinism bug in core.
 
+The scene art has its own golden, `packages/core/tests/golden/art.golden.json` (`npm run golden:art`). It changes only when the art changes, never with game behaviour: art uses a separate cosmetic random generator and never the simulation's. To look at the art, run `npm run dev` and open `/art-preview.html` (a dev-only page, not part of the production build).
+
 ## Development
 
 All commands run from the repository root.
@@ -52,6 +54,7 @@ npm run test:e2e   # end-to-end, determinism and accessibility specs (Playwright
 npm run bots       # bot statistics over many runs (npm run bots -- 300: 300 seeds x 3 starters)
 npm run golden:update # regenerate packages/core/tests/golden/battle.golden.json (review the diff before committing it)
 npm run golden:runs   # regenerate packages/core/tests/golden/run.golden.json (review the diff before committing it)
+npm run golden:art    # regenerate packages/core/tests/golden/art.golden.json (scene art hashes; review the preview first)
 npm run art:preview   # write packages/core/art-preview.html with every sprite (git-ignored)
 ```
 
