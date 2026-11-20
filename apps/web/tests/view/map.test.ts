@@ -170,18 +170,16 @@ describe('renderMap', () => {
     expect(host.querySelectorAll('[aria-current]')).toHaveLength(1);
   });
 
-  it('shows the type as an aria-hidden icon glyph plus the label text', () => {
+  // The pixel icon itself is drawn into the slot by the lazy scene art (tests/view/screenArt.test.ts).
+  it('gives every node an aria-hidden icon slot, its type, and the label text', () => {
     const { host } = rendered(fresh());
     for (const button of host.querySelectorAll<HTMLButtonElement>('button[data-node]')) {
       const icon = button.querySelector('.map-node-icon')!;
       expect(icon.getAttribute('aria-hidden')).toBe('true');
-      expect(icon.textContent!.trim().length).toBeGreaterThan(0);
+      expect(button.dataset.type).toBeTruthy();
       expect(button.querySelector('.map-node-label')!.textContent!.length).toBeGreaterThan(0);
       expect(button.getAttribute('aria-label')!.startsWith(button.querySelector('.map-node-label')!.textContent!)).toBe(true);
     }
-    const glyphs = new Set([...host.querySelectorAll('button[data-type="boss"] .map-node-icon')].map((e) => e.textContent));
-    const wild = new Set([...host.querySelectorAll('button[data-type="wild"] .map-node-icon')].map((e) => e.textContent));
-    expect([...glyphs][0]).not.toBe([...wild][0]);
   });
 
   it('shows the party with HP and the souls count above the map', () => {

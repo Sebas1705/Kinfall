@@ -143,6 +143,8 @@ export function createRunController(deps: RunControllerDeps): RunController {
   const showPhase = (focus = true) => {
     if (!run) return;
     ui.showSeed(run.seed);
+    // The lazy scene art reads the zone, run seed and phase (event kind) from here (decorative only).
+    Object.assign(document.body.dataset, { zone: run.zone, seed: run.seed, phase: run.phase.kind });
     render();
     const phase = run.phase;
     if (phase.kind === 'battle') {

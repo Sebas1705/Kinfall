@@ -2,19 +2,8 @@
 // Layers stack vertically, step 1 first and the boss last, so the map reads well at 320 px.
 import type { MapModel } from '@kinfall/core/models/map';
 import { t } from '@kinfall/core/platform/i18n';
-import type { NodeType } from '@kinfall/core/sim/run/types';
 import { confirmInline, el } from './dom';
 import { partyPanel } from './party';
-
-/** Type glyphs (text presentation): the label text always accompanies them. */
-const GLYPH: Record<NodeType, string> = {
-  wild: '⚔︎',
-  elite: '✦',
-  shrine: '✚',
-  cache: '◈',
-  mystery: '?',
-  boss: '♛',
-};
 
 function stateText(node: MapModel['layers'][number]['nodes'][number]): string {
   const base = t(`map.${node.state}`);
@@ -34,7 +23,8 @@ function nodeButton(node: MapModel['layers'][number]['nodes'][number], onPick: (
       'aria-current': node.current ? 'location' : undefined,
       disabled: node.state !== 'available',
     },
-    el('span', { class: 'map-node-icon', 'aria-hidden': 'true' }, GLYPH[node.type]),
+    // Icon slot: the lazy scene art draws the type's pixel icon here (src/art/screenArt.ts).
+    el('span', { class: 'map-node-icon', 'aria-hidden': 'true' }),
     el('span', { class: 'map-node-text' }, el('span', { class: 'map-node-label' }, node.label), el('span', { class: 'map-node-state' }, state)),
   );
   if (node.state === 'available') button.addEventListener('click', () => onPick(node.id));

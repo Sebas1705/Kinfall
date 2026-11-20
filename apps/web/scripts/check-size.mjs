@@ -1,11 +1,16 @@
-// Size budget: the gzipped JS and CSS that index.html loads up front (scripts, stylesheets and
-// modulepreload links) must stay at or under BUDGET bytes. Run after `npm run build`.
-import { readFileSync, existsSync } from 'node:fs';
+// Size budgets, run after `npm run build`:
+// 1. Initial load: the gzipped JS and CSS that index.html loads up front (scripts, stylesheets and
+//    modulepreload links) must stay at or under BUDGET bytes.
+// 2. Scene art: the lazy chunk of the run screens' art (screenArt-*.js) plus every chunk it
+//    imports that is not already part of the initial load must stay at or under ART_BUDGET.
+// The battle chunk (PixiJS + the battle scene) is reported for information.
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { dirname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BUDGET = 2_000_000;
+const BUDGET = 30_546;
+const ART_BUDGET = 60_000;
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const indexPath = join(dist, 'index.html');
 
@@ -13,6 +18,8 @@ if (!existsSync(indexPath)) {
   console.error('dist/index.html not found; run `npm run build` first');
   process.exit(2);
 }
+
+const gz = (file) => gzipSync(readFileSync(file), { level: 9 }).length;
 
 const html = readFileSync(indexPath, 'utf8');
 const refs = new Set();
@@ -34,16 +41,61 @@ if (refs.size === 0) {
   process.exit(2);
 }
 
+let failed = false;
 let total = 0;
+const initial = new Set();
 for (const ref of [...refs].sort()) {
   const file = normalize(join(dist, ref.replace(/^\.?\//, '')));
-  const gz = gzipSync(readFileSync(file), { level: 9 }).length;
-  total += gz;
-  console.log(`${String(gz).padStart(10)}  ${ref}`);
+  initial.add(file);
+  const size = gz(file);
+  total += size;
+  console.log(`${String(size).padStart(10)}  ${ref}`);
 }
-console.log(`${String(total).padStart(10)}  total gzipped (budget ${BUDGET})`);
+console.log(`${String(total).padStart(10)}  initial load, gzipped (budget ${BUDGET})`);
 if (total > BUDGET) {
-  console.error(`over budget by ${total - BUDGET} bytes`);
-  process.exit(1);
+  console.error(`initial load over budget by ${total - BUDGET} bytes`);
+  failed = true;
 }
+
+/** A lazy chunk and the chunks it imports statically, minus the initial load. */
+function closure(entry) {
+  const seen = new Set();
+  const stack = [entry];
+  while (stack.length > 0) {
+    const file = stack.pop();
+    if (seen.has(file) || initial.has(file)) continue;
+    seen.add(file);
+    const code = readFileSync(file, 'utf8');
+    for (const m of code.matchAll(/(?:import|from)\s*["'`](\.\/[^"'`]+\.js)["'`]/g)) {
+      stack.push(normalize(join(dirname(file), m[1])));
+    }
+  }
+  return [...seen];
+}
+
+const assets = join(dist, 'assets');
+const chunk = (prefix) => {
+  const name = readdirSync(assets).find((f) => f.startsWith(`${prefix}-`) && f.endsWith('.js'));
+  return name ? join(assets, name) : null;
+};
+
+const report = (label, entry, budget) => {
+  if (!entry) {
+    console.error(`${label}: chunk not found`);
+    failed = true;
+    return;
+  }
+  const files = closure(entry);
+  const size = files.reduce((sum, f) => sum + gz(f), 0);
+  console.log(`${String(size).padStart(10)}  ${label}, lazy, gzipped (${files.length} files${budget ? `, budget ${budget}` : ''})`);
+  if (budget && size > budget) {
+    console.error(`${label} over budget by ${size - budget} bytes`);
+    failed = true;
+  }
+};
+
+report('scene art (run screens)', chunk('screenArt'), ART_BUDGET);
+report('battle scene (PixiJS + art)', chunk('battleView'), 0);
+
+if (failed) process.exit(1);
 console.log('within budget');

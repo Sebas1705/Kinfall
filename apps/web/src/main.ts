@@ -10,4 +10,7 @@ if (new URLSearchParams(location.search).get('mode') === 'battle') {
   void import('./view/battlePage').then((page) => page.startBattlePage());
 } else {
   startRunPage();
+  // Scene art for the run screens (hero, banners, icons, vignettes, pixel frames): its own chunk,
+  // which installs itself. Without it the screens work the same, only plainer.
+  import('./art/screenArt').catch(() => {});
 }
