@@ -122,6 +122,11 @@ describe('compact battle (large text on a small phone)', () => {
     const stage = screen.getByTestId('battle-stage', { includeHiddenElements: true });
     expect(stageHeight()).toBeLessThanOrEqual(SMALL_BIG_TEXT.height * STAGE_HEIGHT_SHARE.compact);
     expect(stage.props.importantForAccessibility).toBe('no-hide-descendants');
+    // Both plates come before the stage, so HP and focus are on the first screen.
+    const order = hostElements(screen.root as unknown as El)
+      .map((e) => e.props.testID)
+      .filter((id) => id === 'hud-enemy' || id === 'hud-player' || id === 'battle-stage');
+    expect(order).toEqual(['hud-enemy', 'hud-player', 'battle-stage']);
     const hpLine = screen.getByTestId('hud-player-hp');
     expect(screen.getByTestId('hud-player-focus')).toBeTruthy();
     // Nested in one line of text (no own style), not a separate row per value.

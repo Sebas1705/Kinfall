@@ -12,6 +12,7 @@ import { ArtScene } from './ArtScene';
 import type { SceneCreature } from './paintScene';
 import { creatureGrid } from './sceneCache';
 import type { StageDirector } from './stageDirector';
+import type { FrameOptions } from './stageLayout';
 
 /** Size of a 24x24 creature on the stage, in scene px (STAGE.spriteScale 2): the lunge's unit. */
 export const STAGE_SPRITE_SIZE = 48;
@@ -25,10 +26,12 @@ export interface BattleStageProps {
   reducedMotion: boolean;
   maxHeight: number;
   initialWidth: number;
+  /** Framing options (the compact battle crops more sky). */
+  frame?: FrameOptions;
   style?: StyleProp<ViewStyle>;
 }
 
-export function BattleStage({ zone, seed, shown, motion, director, reducedMotion, maxHeight, initialWidth, style }: BattleStageProps) {
+export function BattleStage({ zone, seed, shown, motion, director, reducedMotion, maxHeight, initialWidth, frame, style }: BattleStageProps) {
   const enemyId = shown.enemy?.speciesId ?? null;
   const playerId = shown.player?.speciesId ?? null;
   const creatures = useMemo<Partial<Record<Side, SceneCreature | null>>>(
@@ -68,6 +71,7 @@ export function BattleStage({ zone, seed, shown, motion, director, reducedMotion
       director={director}
       maxHeight={maxHeight}
       initialWidth={initialWidth}
+      {...(frame ? { frame } : {})}
       style={style}
       testID="battle-stage"
     />

@@ -46,6 +46,9 @@ import { useLayout } from '../ui/windowSize';
 /** Turns of the battle log kept on screen (the latest one is the live region). */
 export const BATTLE_LOG_VISIBLE = 4;
 
+/** Sky rows the compact battle crops (the band keeps both creatures and their platforms). */
+export const COMPACT_CROP_TOP = 50;
+
 /** Share of the window height the stage may take: stacked, compact and two-pane layouts. */
 export const STAGE_HEIGHT_SHARE = { stacked: 0.42, compact: 0.28, twoPane: 0.5 } as const;
 
@@ -317,14 +320,26 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
       reducedMotion={reduceMotion}
       maxHeight={Math.max(120, height * share)}
       initialWidth={paneWidth}
+      // Compact: a short band from the far creature's head down to the platforms.
+      frame={compact ? { cropTop: COMPACT_CROP_TOP } : undefined}
       style={bleed ? styles.bleed : styles.framed}
     />
   );
-  const sceneView = (
+  const enemyHud = shown.enemy ? <Hud side="enemy" c={shown.enemy} motion={motion.enemy} intent={model?.intent ?? null} theme={theme} compact={compact} /> : null;
+  const playerHud = shown.player ? <Hud side="player" c={shown.player} motion={motion.player} intent={null} theme={theme} compact={compact} /> : null;
+  // The stage sits between the two plates; in the compact layout (little room above the pinned
+  // choices) both plates come first, so HP and focus are on the first screen and the stage after.
+  const sceneView = compact ? (
     <View style={styles.scene}>
-      {shown.enemy ? <Hud side="enemy" c={shown.enemy} motion={motion.enemy} intent={model?.intent ?? null} theme={theme} compact={compact} /> : null}
+      {enemyHud}
+      {playerHud}
       {stage}
-      {shown.player ? <Hud side="player" c={shown.player} motion={motion.player} intent={null} theme={theme} compact={compact} /> : null}
+    </View>
+  ) : (
+    <View style={styles.scene}>
+      {enemyHud}
+      {stage}
+      {playerHud}
     </View>
   );
   const actions = (
