@@ -9,7 +9,7 @@ The repository is an npm workspaces monorepo:
 | Path | Package | Contents |
 |---|---|---|
 | `packages/core` | `@kinfall/core` | The deterministic engine and everything that does not need a page: `src/sim` (battle and run simulation), `src/content`, `src/art` (sprite generator and palettes, as data; `src/art/scene` holds the scene art of the "dusk-lit pixel fantasy" style: zone backdrops, platforms, effects, HUD frames, icons and the logo, see the [visual style spec](docs/superpowers/specs/2026-11-20-visual-style-design.md)), `src/platform` (strings, i18n, run saves) and `src/models` (the pure screen models: map, event, end, battle menu, and the battle turn controller). Its tests, the golden replays (`packages/core/tests/golden/*.golden.json`) and the owner scripts (goldens, bots, art preview) live here too. TypeScript source is consumed directly, without a build step: imports look like `@kinfall/core/sim/run/run`. |
-| `apps/web` | `@kinfall/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@kinfall/core/...`. |
+| `apps/web` | `@kinfall/web` | The browser game: `index.html`, `src/main.ts`, the DOM and Pixi views (`src/view`), the scene-art layer (`src/art`: pixel frames, the title hero, map banner and icons, event vignettes, end scenes and the battle stage's effects, all loaded lazily), keyboard/gamepad input, the Vite and Playwright configs, view unit tests and the end-to-end specs (`tests/e2e`). It imports the engine only through `@kinfall/core/...`. |
 | `apps/mobile` | `@kinfall/mobile` | The React Native app (Expo, TypeScript): a whole run by touch over an autosaved run session, plus dev tools (a "hello core" screen, a sprite gallery and a device determinism self test). Jest tests (`jest-expo`) live in `__tests__`. See [apps/mobile/README.md](apps/mobile/README.md). |
 
 Why it is one repository with a shared core and two app shells: [ADR 0001](docs/adr/0001-shared-core-two-shells.md).
@@ -38,6 +38,8 @@ Golden workflow: a change that moves a golden file is a change in game behaviour
 
 The scene art has its own golden, `packages/core/tests/golden/art.golden.json` (`npm run golden:art`). It changes only when the art changes, never with game behaviour: art uses a separate cosmetic random generator and never the simulation's. To look at the art, run `npm run dev` and open `/art-preview.html` (a dev-only page, not part of the production build).
 
+In the web app the art is decoration on top of the same accessible DOM: the battle stage (Pixi) draws the zone backdrop, creatures and effects, and the HUD plates, buttons and panels are CSS border-images built from the core's nine-slices. None of it enters the main bundle: the run screens' art is one lazy chunk (`src/art/screenArt.ts`) and the battle's ships with the Pixi chunk. Canvases and plates are `aria-hidden` (the summary, log, menu and labels say the same in text), the logo is an image named "Kinfall", and reduced motion (system or the page's toggle) turns every scene still. The run page tells the art its zone, run seed and phase through `data-*` attributes on `<body>`; battles derive them from the battle seed.
+
 ## Development
 
 All commands run from the repository root.
@@ -49,7 +51,7 @@ npm test           # unit tests of core and web (Vitest projects)
 npm run test:mobile # unit tests of apps/mobile (Jest with jest-expo, runs on Node)
 npm run typecheck  # strict TypeScript check of the root config and every workspace (core src without DOM, core tests, mobile, web)
 npm run build      # production build into apps/web/dist/
-npm run size       # gzipped initial JS+CSS of apps/web/dist/ must be <= 2,000,000 bytes
+npm run size       # gzipped initial JS+CSS of apps/web/dist/ <= 30,546 bytes; lazy scene-art chunk <= 60,000
 npm run test:e2e   # end-to-end, determinism and accessibility specs (Playwright, apps/web/tests/e2e)
 npm run bots       # bot statistics over many runs (npm run bots -- 300: 300 seeds x 3 starters)
 npm run golden:update # regenerate packages/core/tests/golden/battle.golden.json (review the diff before committing it)
@@ -114,6 +116,7 @@ Caches: npm through `actions/setup-node`, Gradle through `gradle/actions/setup-g
 - `determinism.spec.ts`: the battle and run golden replays (`packages/core/tests/golden/*.golden.json`) run inside the page (loading the core modules from the dev server) and are compared with the stored hashes, results and scores.
 - `battle.spec.ts`: the `?mode=battle` flows (keyboard, click, reduced motion, hidden tab).
 - `run.spec.ts`: a whole run by keyboard; a reload in the middle of a battle (Continue resumes the same battle and the run ends exactly as without the reload); a corrupted save; blocked storage; abandoning a run; crafted saves for the recruit, shrine, cache, mystery and won screens in English and Spanish.
+- `art.spec.ts`: the scene art stays decorative (battle canvas and HUD plates hidden from assistive technology, nothing focusable), the title logo is an image named "Kinfall", reduced motion (system or the page's toggle) stills the art and stops the battle ticker, and a full battle plays to its result with motion on.
 - `a11y.spec.ts` and `run-a11y.spec.ts`: axe (WCAG 2.2 AA and best practice) on the battle, title, map, event and end screens in light/dark, en/es, 320 and 1000 px at text size 150%. They also check horizontal overflow, 44x44 px targets at 320 px, node types named in text and focus after each screen change.
 
 Notes:

@@ -196,9 +196,16 @@ Rules for both renderers: whole-number scales only, never smooth, never tint the
 
 `npm run dev`, then open `/art-preview.html` (dev only: it is not a Vite build input, so the production bundle is unchanged). It shows every zone scene with parallax sway, platforms, ambient life and all effects cycling, an effect gallery, the frames as real DOM buttons and plates, icons at 1x-3x, vignettes, floating numbers and the logo, on dusk and parchment. Query parameters: `seed`, `scale`, `zone`, `only` (`scenes`, `effects`, `frames`, `icons`, `vignettes`, `logo`, `numbers`) and `at` (freeze the clock in ms, for screenshots). The page's own reduce-motion checkbox follows `prefers-reduced-motion`.
 
-## 13. Not done in phase A
+## 13. Phase B (web) as built
 
-- No change to the game screens yet (phases B and C).
+- **Battle** (`apps/web/src/view/battleView.ts`, Pixi): one `TilingSprite` per tiled backdrop layer, sprites for the light, platforms, shadows and creatures, pooled tinted sprites for particles, Pixi text for numbers and the result title. Effects are started by the battle events inside the existing animator but never lengthen it: they run on the scene clock and may outlive the turn (the turn timings and the e2e contracts are unchanged). Hit flashes keep the 500 ms gap. The HUD is two DOM plates (`aria-hidden`), stacked above and below the scene on phones and floating over the sky from 48rem. Scale: the largest whole number that shows the whole scene, or (on phones) at least x 46..212 centred on the creatures, with the top 26 sky rows cropped on narrow or short windows; the canvas runs edge to edge on phones.
+- **Screens** (`apps/web/src/art/screenArt.ts`, one lazy chunk that installs itself): title hero (zone 0 with the chosen starter on the near platform and an unknown silhouette on the far one) with the wordmark as `role="img"` named by `app.title`, map banner and node icons (into the map's icon slot), event vignettes, end scene with the victory/defeat flourish. Canvas 2D through `apps/web/src/art/canvas2d.ts` (shared with the dev preview); one 30 fps loop for all visible scenes, paused when hidden, off with reduced motion.
+- **Frames** (`apps/web/src/art/frames.ts`, `art.css`): border-image custom properties for the current scheme (dusk/parchment) and zone; buttons raised, pressed on `:active`, flat when disabled, and the focus frame drawn outside the box (border-image outset) so focus never shifts layout; the main action wears the plate. The page palette follows the UI palettes.
+- **Motion**: ambient frames at 30 fps, effects at the display rate; measured in Edge at 1280x800 with a 6x CPU throttle: 30 scene fps idle, about 46 during a turn, worst frame 33 ms.
+
+## 14. Not done in phase A
+
+- No change to the game screens in phase A (phase B above; phase C is mobile).
 - No sound.
 - Contrast is checked numerically; the effects have not been reviewed by someone with photosensitivity or vestibular needs.
 - Hermes equality of the art is designed (exact maths only) but not run on a device; the art golden runs in Node.
