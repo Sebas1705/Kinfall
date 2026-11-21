@@ -20,7 +20,8 @@ export default defineConfig({
   // Page loads and dynamic imports on a cold dev server can take longer than the 5 s default.
   expect: { timeout: 15_000 },
   reporter: ci ? [['list'], ['html', { open: 'never' }]] : 'list',
-  timeout: 60_000,
+  // Full animated battles are slower on a CI runner with software rendering.
+  timeout: ci ? 120_000 : 60_000,
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',

@@ -65,7 +65,10 @@ jobs:
         include:
           - name: Chromium
             install: chromium
-            projects: --project=chromium --project=mobile
+            projects: --project=chromium
+          - name: Mobile viewport
+            install: chromium
+            projects: --project=mobile
           - name: Firefox
             install: firefox
             projects: --project=firefox
@@ -136,10 +139,14 @@ jobs:
         working-directory: .
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          swapon --show
+          free -m
+          # The image already has a /swapfile in use, so add a second one.
+          sudo fallocate -l 8G /swapfile2
+          sudo chmod 600 /swapfile2
+          sudo mkswap /swapfile2
+          sudo swapon /swapfile2
+          swapon --show
           free -m
       - name: Assemble the debug APK
         working-directory: apps/mobile/android
