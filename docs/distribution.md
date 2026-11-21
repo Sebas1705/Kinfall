@@ -50,7 +50,7 @@ Options: `--config <doppler config>` (default `prd`), `--groups a,b` (default `t
 
 ## Versioning
 
-- **versionName** is `expo.version` in `apps/mobile/app.json` (`0.2.0` now). Bump it by hand for a user-visible change, SemVer while 0.x (breaking or notable is minor, fixes are patch). A tag `vX.Y.Z` on the commit that was distributed marks a release and becomes the start of the next release notes; once the remote exists, pushing such a tag is what distributes it (see [GitHub Actions](#github-actions-automatic-on-version-tags)).
+- **versionName** is `expo.version` in `apps/mobile/app.json` (`0.2.1` now). Bump it by hand for a user-visible change, SemVer while 0.x (breaking or notable is minor, fixes are patch). A tag `vX.Y.Z` on the commit that was distributed marks a release and becomes the start of the next release notes; once the remote exists, pushing such a tag is what distributes it (see [GitHub Actions](#github-actions-automatic-on-version-tags)).
 - **versionCode** is the number of commits on `HEAD` (`git rev-list --count HEAD`), passed as `-PappVersionCode`. It grows with every commit, so a later build always updates an earlier one. It needs the full history: the script refuses a shallow clone, and the workflow checks out with `fetch-depth: 0`. A local Gradle build without the property uses `android.versionCode` from `app.json` (1).
 - Never distribute two different builds with the same versionCode: commit first (the notes header says `(uncommitted changes)` when the tree is dirty).
 
