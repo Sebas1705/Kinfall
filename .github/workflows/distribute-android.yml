@@ -81,8 +81,12 @@ jobs:
       - name: Add swap and cap Gradle
         run: |
           set -euo pipefail
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
-          sudo fallocate -l 8G /swapfile2
+          df -h /
+          # The runner is ephemeral: drop toolchains this build never uses (a four-ABI release needs the disk).
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/.ghcup /usr/share/swift /usr/local/lib/heroku /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/PyPy /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/go
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          df -h /
+          sudo fallocate -l 4G /swapfile2
           sudo chmod 600 /swapfile2
           sudo mkswap /swapfile2
           sudo swapon /swapfile2
@@ -99,6 +103,7 @@ jobs:
           DIST_GROUPS: ${{ inputs.groups || 'testers' }}
         run: |
           set -euo pipefail
+          (while true; do echo "[monitor] $(date +%T) $(df -h / | tail -1 | tr -s " ") $(free -m | sed -n 2p | tr -s " ")"; sleep 30; done) &
           test -n "$DOPPLER_TOKEN" || { echo "::error::Repository secret DOPPLER_TOKEN is not set (see docs/distribution.md)"; exit 1; }
           args=(--config prd --groups "$DIST_GROUPS")
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
