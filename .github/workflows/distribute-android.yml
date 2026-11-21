@@ -88,9 +88,8 @@ jobs:
           sudo swapon /swapfile2
           swapon --show
           mkdir -p "$HOME/.gradle"
-          printf 'org.gradle.workers.max=2
-org.gradle.parallel=false
-' >> "$HOME/.gradle/gradle.properties"
+          echo "org.gradle.workers.max=2" >> "$HOME/.gradle/gradle.properties"
+          echo "org.gradle.parallel=false" >> "$HOME/.gradle/gradle.properties"
           cat "$HOME/.gradle/gradle.properties"
       - name: Build, sign and upload
         env:
