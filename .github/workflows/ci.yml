@@ -129,10 +129,22 @@ jobs:
         run: npx expo prebuild --platform android --no-install
       # Debug variant only: signed with the SDK's throwaway debug key, never a release key. One ABI
       # (the emulator's) keeps the native build of Skia and Hermes within the time limit.
+      # The runner has 7.9 GB of RAM and the native build (Skia, Hermes, codegen) used all of it: the monitor
+      # below showed "available" memory falling to about 190 MB before the runner was shut down. Free disk
+      # for a swap file, and cap Gradle at two workers without project parallelism.
+      - name: Add swap
+        working-directory: .
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -m
       - name: Assemble the debug APK
         working-directory: apps/mobile/android
         # The monitor prints memory, disk and load every 20 s: the runner was shut down mid-build three
         # times, and this shows in the log what ran out.
         run: |
           (while true; do echo "[monitor] $(date +%T) $(free -m | sed -n 2p | tr -s " ") | $(df -h / | tail -1 | tr -s " ") | $(cut -d" " -f1-3 /proc/loadavg)"; sleep 20; done) &
-          ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=x86_64
+          ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.parallel=false -PreactNativeArchitectures=x86_64

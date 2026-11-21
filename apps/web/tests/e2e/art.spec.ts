@@ -87,11 +87,16 @@ test.describe('scene art', () => {
   });
 
   test('with motion on, a full battle plays to its result over the live stage', async ({ page }) => {
+    // A full animated battle: slower on a CI runner with software rendering, so the 60 s default is tripled.
+    test.slow();
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.goto('/?mode=battle&seed=e2e');
     await expect(firstEnabled(page)).toBeVisible();
     const scene = page.locator('#scene');
     await expect(scene).toHaveAttribute('data-motion', 'full');
+    // The ticker only runs while the stage is on screen; on a 320 px viewport with a CI font the stage can
+    // start below the fold, so bring it into view first.
+    await scene.scrollIntoViewIfNeeded();
     await expect(scene).toHaveAttribute('data-ticker', 'running');
     // Pixel frames are on the buttons, and the focused choice wears the focus ring frame.
     await expect(page.locator('html')).toHaveClass(/art-frames/);

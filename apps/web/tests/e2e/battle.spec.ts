@@ -40,6 +40,7 @@ async function expectResultWord(page: Page): Promise<void> {
 
 test.describe('battle flow', () => {
   test('keyboard only: reaches a result, then New battle clears the log', async ({ page }) => {
+    test.slow(); // full animated battles: slower on a CI runner with software rendering
     await page.goto(`/?mode=battle&seed=${SEED}`);
     const turns = await playToResult(page, 'keyboard');
     expect(turns).toBeLessThan(MAX_TURNS);
@@ -54,6 +55,7 @@ test.describe('battle flow', () => {
   });
 
   test('keyboard and clicking give the same final log for the same seed', async ({ page }) => {
+    test.slow(); // full animated battles: slower on a CI runner with software rendering
     await page.goto(`/?mode=battle&seed=${SEED}`);
     await playToResult(page, 'keyboard');
     const viaKeyboard = await logText(page);
