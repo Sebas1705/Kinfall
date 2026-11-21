@@ -134,3 +134,7 @@ App Distribution has no "promote" or "roll back" button; testers install whichev
 ## Not covered
 
 No Play Store, App Store or iOS build is set up. Before any store listing: a Play Console app for `es.sebas1705.kinfall` (the id is fixed now), Play App Signing (upload this key), an AAB instead of an APK (`bundleRelease`), a privacy policy and the store texts.
+
+### Runner memory (CI builds)
+
+The GitHub runner has 7.9 GB of RAM. The native build (Skia, Hermes, React Native codegen, four ABIs in a release) used all of it: the debug job and the first `v0.2.0` run were shut down mid-CMake ("The runner has received a shutdown signal") with available memory down to about 190 MB. Both workflows now add an 8 GB `/swapfile2` (the image already uses `/swapfile`) after freeing disk, and the Gradle build is capped at two workers without project parallelism. A resource monitor in `ci.yml` prints memory, disk and load every 20 s during the debug build, to diagnose any future shutdown.

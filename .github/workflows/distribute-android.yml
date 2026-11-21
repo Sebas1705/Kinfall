@@ -75,6 +75,23 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - uses: dopplerhq/cli-action@v3
       - run: npm ci
+      # The four-ABI native build (Skia, Hermes, codegen) exhausts the runner's 7.9 GB of RAM and the runner is
+      # shut down mid-build (see docs/distribution.md). Add swap and cap Gradle through the user-level
+      # properties, which win over the generated project's gradle.properties.
+      - name: Add swap and cap Gradle
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          sudo fallocate -l 8G /swapfile2
+          sudo chmod 600 /swapfile2
+          sudo mkswap /swapfile2
+          sudo swapon /swapfile2
+          swapon --show
+          mkdir -p "$HOME/.gradle"
+          printf 'org.gradle.workers.max=2
+org.gradle.parallel=false
+' >> "$HOME/.gradle/gradle.properties"
+          cat "$HOME/.gradle/gradle.properties"
       - name: Build, sign and upload
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
