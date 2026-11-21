@@ -8,7 +8,12 @@
     "scheme": "kinfall",
     "android": {
       "package": "es.sebas1705.kinfall",
-      "versionCode": 1
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#1f0d28"
+      }
     },
     "ios": {
       "bundleIdentifier": "es.sebas1705.kinfall"
@@ -18,6 +23,7 @@
       "expo-system-ui",
       "./plugins/withReleaseSigning",
       "./plugins/withWindowsCmakePaths"
-    ]
+    ],
+    "icon": "./assets/icon.png"
   }
 }
