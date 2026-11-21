@@ -53,10 +53,25 @@ jobs:
       - run: npm run size
 
   web-e2e:
-    name: Web e2e (Chromium, Firefox, WebKit)
+    name: Web e2e (${{ matrix.name }})
     needs: web
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # One job per engine: a single job ran all three in about 25 minutes and hit the limit once the
+    # art tests were added.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Chromium
+            install: chromium
+            projects: --project=chromium --project=mobile
+          - name: Firefox
+            install: firefox
+            projects: --project=firefox
+          - name: WebKit
+            install: webkit
+            projects: --project=webkit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -64,12 +79,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium firefox webkit
-      - run: npm run test:e2e
+      - run: npx playwright install --with-deps ${{ matrix.install }}
+      - run: npm run test:e2e -- ${{ matrix.projects }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.name }}
           path: apps/web/playwright-report/
           retention-days: 7
 
@@ -116,4 +131,8 @@ jobs:
       # (the emulator's) keeps the native build of Skia and Hermes within the time limit.
       - name: Assemble the debug APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=x86_64
+        # The monitor prints memory, disk and load every 20 s: the runner was shut down mid-build three
+        # times, and this shows in the log what ran out.
+        run: |
+          (while true; do echo "[monitor] $(date +%T) $(free -m | sed -n 2p | tr -s " ") | $(df -h / | tail -1 | tr -s " ") | $(cut -d" " -f1-3 /proc/loadavg)"; sleep 20; done) &
+          ./gradlew assembleDebug --no-daemon -PreactNativeArchitectures=x86_64
