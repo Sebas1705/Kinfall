@@ -38,9 +38,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Chooses where the build runs: this PC (self-hosted runner, see Sebas1705/ci-runner) when its heartbeat
+  # variable is under 3 minutes old, otherwise a GitHub-hosted runner. Pull requests never use the PC.
+  pick-runner:
+    name: Pick the runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        env:
+          HEARTBEAT: ${{ vars.PC_RUNNER_HEARTBEAT }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          runner='"ubuntu-latest"'
+          if { [ "$EVENT" = push ] || [ "$EVENT" = workflow_dispatch ]; } && [ -n "${HEARTBEAT:-}" ]; then
+            age=$(( $(date +%s) - HEARTBEAT ))
+            if [ "$age" -ge 0 ] && [ "$age" -lt 180 ]; then runner='["self-hosted","pc"]'; fi
+          fi
+          echo "Runner: $runner"
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+
   distribute:
     name: Build the release APK and distribute
-    runs-on: ubuntu-latest
+    needs: pick-runner
+    runs-on: ${{ fromJSON(needs.pick-runner.outputs.runner) }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -79,6 +102,8 @@ jobs:
       # shut down mid-build (see docs/distribution.md). Add swap and cap Gradle through the user-level
       # properties, which win over the generated project's gradle.properties.
       - name: Add swap and cap Gradle
+        # Only on a GitHub-hosted runner: the PC runner has its own memory limit and disk.
+        if: runner.environment == 'github-hosted'
         run: |
           set -euo pipefail
           df -h /
