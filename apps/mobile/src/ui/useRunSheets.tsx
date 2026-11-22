@@ -7,7 +7,8 @@
 // cancels it. Callers render both sheets as SIBLINGS of the Screen and spread `backdrop` on it (see
 // Sheet.tsx).
 import { t } from '@kinfall/core/platform/i18n';
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react';
+import type { View } from 'react-native';
 
 import { useLang } from '../platform/LangContext';
 import { Button } from './Button';
@@ -33,7 +34,7 @@ export interface RunSheets {
   openDetails: () => void;
   closeDetails: () => void;
   /** Attach to the HUD button that opens the details: it gets the focus back on close. */
-  detailsRef: RefObject<unknown>;
+  detailsRef: RefObject<ComponentRef<typeof View> | null>;
   /** Spread on the Screen's `backdrop`. */
   backdrop: ReturnType<typeof useSheetBackdropProps>;
   /** A sheet is open (focus moves wait for it to close). */
@@ -43,7 +44,7 @@ export interface RunSheets {
 export function useRunSheets({ confirming, confirmPanel, trailer, onAbandon, onCancelAbandon }: RunSheetsOptions): RunSheets {
   const lang = useLang();
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const detailsRef = useRef<unknown>(null);
+  const detailsRef = useRef<ComponentRef<typeof View>>(null);
   const autoOpened = useRef(false);
   const confirmingRef = useRef(confirming);
   confirmingRef.current = confirming;

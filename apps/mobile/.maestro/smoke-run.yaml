@@ -32,7 +32,7 @@ env:
       id: "map-screen"
     timeout: 10000
 - tapOn:
-    id: "node-.*"
+    id: "node-z.*"
     enabled: true
     index: 0
 

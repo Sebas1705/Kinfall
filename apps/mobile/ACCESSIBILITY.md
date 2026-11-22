@@ -12,25 +12,27 @@ Legend: **verified** (checked on the Android emulator and/or by Jest, as stated)
 
 ## Device matrix (Android emulator)
 
+> Every row below describes the earlier scrolling layouts (page scroll, two panes, the compact battle). The console layout replaced them (fixed regions, sheets, a pinned fallback at 200% text), so those rows are marked superseded and need a new emulator pass. What the console layout has is proved in Jest (`Layout.test.tsx`, `runMetrics.test.ts`, `hudMetrics.test.ts`, `battleMetrics.test.ts`). Known text-size exceptions: the map board is 7 columns of 48 to 64 dp, so its node names follow the text size only while they fit and then shrink (down to 60 percent); the full name and state are in the rail readout and in the accessible name. The HUD shows full party chips only when they fit, else one compact chip or none (the Run sheet always lists the party). The save-failure banner floats over the top of the primary region until dismissed.
+
 Screens per configuration: title, map (+ confirmation), battle (+ one played turn, + confirmation when the battle lasted), recruit with a full party, shrine, shrine without souls, cache, mystery (each + confirmation from Android back), run won, run lost.
 
 | Window (dp) | Font | Language / theme | Result |
 |---|---|---|---|
-| 360x640 (small phone) | 200% | es / dark | 17 screens, no issue; compact battle (choices pinned) |
-| 360x640 | 200% | en / light | first run: the map confirmation was cut at the bottom of the screen (fixed: the reveal now retries after the frame and on the content size change, see Fixes); rerun: 19 screens, no issue, including the confirmation in the pinned battle footer |
-| 360x640 | 100% | en / dark | 17 screens, no issue |
-| 360x640 | 100% | es / light | title, map, battle and both confirmations: no issue |
-| 411x914 (phone) | 100% | en / light | 17 screens, no issue |
-| 411x914 | 100% | es / light | 18 screens, no issue |
-| 411x914 | 200% | en / dark | 17 screens, no issue; compact battle |
-| 411x914 | 200% | es / dark | title, map, battle and both confirmations: no issue |
-| 914x411 (landscape) | 100% | es / dark | 18 screens, no issue; two panes everywhere |
-| 914x411 | 200% | en / light | 18 screens; the map confirmation was cut in the first run (same fix, rerun clean). The battle confirmation after a played turn was not opened by the driver's tap in two runs (the tap landed while the column was still scrolling); opened by hand afterwards it shows whole next to the choices |
-| 800x1280 (tablet portrait) | 100% | en / light | 17 screens, no issue; one column capped at 720dp |
-| 1280x800 (tablet landscape) | 200% | es / dark | 17 screens, no issue; two panes |
-| 1280x800 | 100% | en / light | title, map, battle: no issue |
-| 600x800 (foldable-like window) | 200% | es / light | 17 screens, no issue; compact battle |
-| 600x800 | 100% | en / dark | title, map, battle: no issue |
+| 360x640 (small phone) | 200% | es / dark | 17 screens, no issue; compact battle (choices pinned)  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 360x640 | 200% | en / light | first run: the map confirmation was cut at the bottom of the screen (fixed: the reveal now retries after the frame and on the content size change, see Fixes); rerun: 19 screens, no issue, including the confirmation in the pinned battle footer  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 360x640 | 100% | en / dark | 17 screens, no issue  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 360x640 | 100% | es / light | title, map, battle and both confirmations: no issue  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 411x914 (phone) | 100% | en / light | 17 screens, no issue  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 411x914 | 100% | es / light | 18 screens, no issue  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 411x914 | 200% | en / dark | 17 screens, no issue; compact battle  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 411x914 | 200% | es / dark | title, map, battle and both confirmations: no issue  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 914x411 (landscape) | 100% | es / dark | 18 screens, no issue; two panes everywhere  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 914x411 | 200% | en / light | 18 screens; the map confirmation was cut in the first run (same fix, rerun clean). The battle confirmation after a played turn was not opened by the driver's tap in two runs (the tap landed while the column was still scrolling); opened by hand afterwards it shows whole next to the choices  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 800x1280 (tablet portrait) | 100% | en / light | 17 screens, no issue; one column capped at 720dp  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 1280x800 (tablet landscape) | 200% | es / dark | 17 screens, no issue; two panes  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 1280x800 | 100% | en / light | title, map, battle: no issue  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 600x800 (foldable-like window) | 200% | es / light | 17 screens, no issue; compact battle  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| 600x800 | 100% | en / dark | title, map, battle: no issue  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 
 ## Checklist
 
@@ -44,7 +46,7 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 | Battle: new turn lines in a polite live region (Android), focus moves to the prompt after each settled turn, not while the confirmation is open | verified: Jest |
 | Run log: only the newest lines are live; nothing is re-announced after a resume or a language change | verified: Jest |
 | iOS announcements (no live regions there): new log lines, the save warning and the confirmation question are announced once through `announceForAccessibility`, keyed so re-renders and language changes do not repeat them; Android never calls it (no double reading) | unit-tested only (no iOS device) |
-| Focus order follows reading order; in two panes the left pane is read before the right | verified by the view order (Jest and the uiautomator hierarchy), not by a TalkBack walk |
+| Focus order follows reading order; in two panes the left pane is read before the right | verified by the view order (Jest and the uiautomator hierarchy), not by a TalkBack walk  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | TalkBack walk-through | partly: TalkBack 16 was enabled on the emulator and its first focus landed on the screen heading ("Start"), but swipes, taps and keyboard shortcuts injected through adb never moved its focus on API 36, so the traversal and spoken output could not be inspected. What TalkBack reads is what the hierarchy exposes (content descriptions, roles, states), which the matrix checked. A walk-through on a real phone is still to do |
 | VoiceOver (iOS) | not testable here: no Mac or iOS device |
 
@@ -56,8 +58,8 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 ### Text size up to 200%
 | Case | Status |
 |---|---|
-| No clipped or truncated text, rows wrap instead of scrolling sideways | verified: emulator screenshots at 200% (360x640, 411x914, 600x800, landscape, tablet); no horizontal overflow in the hierarchy |
-| Battle choices reachable without scrolling the scene away: compact layout (smaller creatures, HP and focus on one line, choices and Abandon pinned at the bottom) when height / font scale < 600dp | verified: emulator at 360x640 and 411x914 @200% (the first choice is on the first screen; the scene scrolls above); Jest |
+| No clipped or truncated text, rows wrap instead of scrolling sideways | verified: emulator screenshots at 200% (360x640, 411x914, 600x800, landscape, tablet); no horizontal overflow in the hierarchy  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| Battle choices reachable without scrolling the scene away: compact layout (smaller creatures, HP and focus on one line, choices and Abandon pinned at the bottom) when height / font scale < 600dp | verified: emulator at 360x640 and 411x914 @200% (the first choice is on the first screen; the scene scrolls above); Jest  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | Abandon confirmation next to its trigger (in place of the button, or after the event choices) and scrolled fully into view | verified: emulator in every configuration (see the matrix); Jest for the placement |
 
 ### Motion
@@ -78,11 +80,11 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 | Case | Status |
 |---|---|
 | Size classes and layout decisions (core's pure `layoutSpec`) | unit-tested in core: every device of the matrix and the boundaries |
-| Small phone 360x640 | verified (emulator) |
-| Phone 411x914 | verified (emulator) |
-| Phone in landscape (914x411): two panes on every screen, display cutout inset respected | verified (emulator); the app is no longer locked to portrait |
-| Tablet portrait 800x1280: one column capped at 720dp, centred | verified (emulator) |
-| Tablet landscape 1280x800: two panes | verified (emulator) |
+| Small phone 360x640 | verified (emulator)  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| Phone 411x914 | verified (emulator)  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| Phone in landscape (914x411): two panes on every screen, display cutout inset respected | verified (emulator); the app is no longer locked to portrait  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| Tablet portrait 800x1280: one column capped at 720dp, centred | verified (emulator)  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
+| Tablet landscape 1280x800: two panes | verified (emulator)  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | Foldable inner screen ~600x800 | verified as a resized emulator window, not a real foldable |
 | Real foldable (hinge, posture changes, unfold while running) | not testable here: no foldable device or foldable AVD in this setup |
 | Split screen / freeform windows | not tested |
@@ -109,7 +111,7 @@ The pixel scene art, frames and effects added in phase C ([README](README.md#sce
 | Pressed, disabled and focus states: pressed sinks (shade on top, content one cell lower), disabled is flat with its own AA text colour, keyboard / D-pad focus draws the focus frame outside the box without moving the layout | pressed and disabled verified on the emulator and in Jest; focus verified in Jest only (no hardware keyboard / D-pad navigation was driven on the emulator) |
 | Reduced motion: system setting (Android "Remove animations") OR the app's **Reduce motion** switch (a `switch` with its checked state, saved): no sway, cloud drift, shake or flashes, frozen particles, still effect frames; battle turns settle at once | verified: Jest (frame loop draws one still frame, still effect samples, no shake or flash, the app switch makes a turn settle without animations); emulator: the title scene gives identical screenshots 4 s apart with animator scale 0 and with the app switch on, and different ones with motion on |
 | Flashes at most 2 per second, never full-screen white; shake at most 3 art px | verified by the core descriptors and `stageDirector.test.ts` (500 ms flash gap); **not reviewed by people with photosensitivity or vestibular needs** |
-| Window sizes and 200% text with the art: compact battle (shorter stage, choices pinned), two panes with the stage on the left, tablets with the whole scene | verified: Jest (stage height share per layout) and the emulator matrix |
+| Window sizes and 200% text with the art: compact battle (shorter stage, choices pinned), two panes with the stage on the left, tablets with the whole scene | verified: Jest (stage height share per layout) and the emulator matrix  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | Light (parchment) and dark (dusk) frames; the battle scene keeps its zone palette in both | verified: emulator screenshots |
 | TalkBack walk-through with the art | not done: same limitation as above (adb gestures do not drive TalkBack on API 36); the hierarchy shows no art nodes |
 | Real phone and low-end GPU | not tested: emulator only |

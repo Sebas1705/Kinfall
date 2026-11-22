@@ -1,17 +1,25 @@
-// The console layout's top bar: the zone and node (or the app title), the party as chips with an
-// HP cue written out as text, and the Settings button (48dp). The sheet behind the button belongs
-// to the caller (`onSettings`). In console mode it is exactly the contract's HUD height; in the
-// fallback it grows with the text instead of clipping.
+// The console layout's top bar: the heading (zone, screen title or the app title), the party as chips
+// with an HP cue written out as text, an optional extra button (the battle's Log, a run screen's
+// Run details, the title's Options) and the Settings button (48dp). The sheets behind the buttons
+// belong to the caller. In console mode the bar is exactly the contract's HUD height, so what it
+// holds is planned by hudMetrics.hudPlan (proved by arithmetic): full chips when they fit, else one
+// compact chip with a low-HP cue, else none (the Run sheet always lists the party), and a heading
+// of one or two lines. In the fallback it grows with the text instead of clipping.
 import type { PartyRow } from '@kinfall/core/models/party';
 import type { ScreenId } from '@kinfall/core/layout/spec';
+import { effectiveTextScale } from '@kinfall/core/layout/spec';
 import { t } from '@kinfall/core/platform/i18n';
 import type { ComponentRef, Ref } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useLang } from '../platform/LangContext';
+import { useTextSize } from '../platform/textSizeSetting';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
+import { BUTTON_SIZE, CHIP_SIZE, HUD_GAP, HUD_PAD, TITLE_SIZE, TITLE_SIZE_2, hudPlan } from './hudMetrics';
 import { useLayoutSpec } from './useLayoutSpec';
+
+type ViewRef = Ref<ComponentRef<typeof View>>;
 
 export interface HudProps {
   screen: ScreenId;
@@ -20,61 +28,95 @@ export interface HudProps {
   party?: PartyRow[];
   /** Zone and node, e.g. "Ashen Marsh 3/7"; the app title when omitted. */
   zoneLabel?: string;
-  /** Shows a Log button before Settings (the battle's full log sheet). */
-  onLog?: () => void;
+  /** Shows an extra button before Settings (the battle's Log, a run screen's details, the title's options). */
+  onExtra?: () => void;
   /** Refs of the two buttons: the sheets they open give them the focus back on close. */
-  logRef?: Ref<ComponentRef<typeof View>>;
-  settingsRef?: Ref<ComponentRef<typeof View>>;
-  /** Text and name of the extra button (the battle's Log, a run screen's details, the title's options). */
-  logLabel?: string;
+  extraRef?: ViewRef;
+  settingsRef?: ViewRef;
+  /** Text and name of the extra button (the battle's Log by default). */
+  extraLabel?: string;
   /** testID of the extra button ('hud-log' by default). */
-  logTestID?: string;
+  extraTestID?: string;
   /** Focus handle and testID of the heading: a run screen's heading is focused on arrival. */
   titleRef?: Ref<ComponentRef<typeof AppText>>;
   titleTestID?: string;
 }
 
-export function Hud({ screen, onSettings, party, zoneLabel, onLog, logRef, settingsRef, logLabel, logTestID = 'hud-log', titleRef, titleTestID = 'hud-title' }: HudProps) {
+/** The compact chip's text: a heart, the party size and a "!" when a member is at a quarter of its HP or less. */
+export function compactChip(party: PartyRow[]): string {
+  const low = party.some((p) => p.hp * 4 <= p.maxHp);
+  return `♥ ${party.length}${low ? ' !' : ''}`;
+}
+
+export function Hud({ screen, onSettings, party = [], zoneLabel, onExtra, extraRef, settingsRef, extraLabel, extraTestID = 'hud-log', titleRef, titleTestID = 'hud-title' }: HudProps) {
   useLang();
   const theme = useTheme();
   const spec = useLayoutSpec(screen);
+  const { fontScale } = useWindowDimensions();
+  const appSize = useTextSize();
+  const scale = effectiveTextScale(fontScale, appSize / 100);
   const height = spec.regions.hud.height;
   const fixed = spec.mode === 'console';
+  const title = zoneLabel ?? t('app.title');
+  const extra = extraLabel ?? t('battle.openLog');
+  const compact = compactChip(party);
+  const plan = hudPlan({
+    width: spec.regions.content.width,
+    scale,
+    title,
+    chips: party.map((p) => `${p.name} ${p.hp}/${p.maxHp}`),
+    compact,
+    buttons: [...(onExtra ? [extra] : []), t('hud.settings')],
+  });
+  const mode = fixed ? plan.chips : 'full';
+  const lines = fixed ? plan.titleLines : undefined;
+  const chip = (key: string, text: string, label: string, bad: boolean, testID: string) => (
+    <View key={key} style={[styles.chip, { borderColor: bad ? theme.danger : theme.border }]} accessible accessibilityRole="text" accessibilityLabel={label} testID={testID}>
+      <AppText style={[styles.chipText, { color: bad ? theme.danger : theme.text }]} numberOfLines={1}>
+        {text}
+      </AppText>
+    </View>
+  );
   return (
     <View
       style={[styles.bar, fixed ? { height } : { minHeight: height }, { borderColor: theme.border, backgroundColor: theme.surface }]}
       testID="hud"
     >
-      <AppText ref={titleRef} style={[styles.title, { color: theme.text }]} numberOfLines={fixed ? 1 : undefined} accessibilityRole="header" testID={titleTestID}>
-        {zoneLabel ?? t('app.title')}
+      <AppText
+        ref={titleRef}
+        style={[styles.title, { color: theme.text, fontSize: lines === 2 ? TITLE_SIZE_2 : TITLE_SIZE }]}
+        numberOfLines={lines}
+        accessibilityRole="header"
+        testID={titleTestID}
+      >
+        {title}
       </AppText>
-      <View style={styles.party}>
-        {(party ?? []).map((p, i) => (
-          <View
-            key={i}
-            style={[styles.chip, { borderColor: p.hp <= 0 ? theme.danger : theme.border }]}
-            accessible
-            accessibilityRole="text"
-            accessibilityLabel={t('map.partyMember', { species: p.name, hp: p.hp, max: p.maxHp })}
-            testID={`hud-chip-${i}`}
-          >
-            <AppText style={[styles.chipText, { color: p.hp <= 0 ? theme.danger : theme.text }]} numberOfLines={1}>
-              {`${p.name} ${p.hp}/${p.maxHp}`}
-            </AppText>
-          </View>
-        ))}
+      <View style={[styles.party, mode === 'full' && !fixed ? styles.partyWrap : null]}>
+        {mode === 'full'
+          ? party.map((p, i) =>
+              chip(String(i), `${p.name} ${p.hp}/${p.maxHp}`, t('map.partyMember', { species: p.name, hp: p.hp, max: p.maxHp }), p.hp <= 0, `hud-chip-${i}`),
+            )
+          : mode === 'compact'
+            ? chip(
+                'all',
+                compact,
+                party.map((p) => t('map.partyMember', { species: p.name, hp: p.hp, max: p.maxHp })).join(', '),
+                party.some((p) => p.hp <= 0),
+                'hud-chip-all',
+              )
+            : null}
       </View>
-      {onLog ? (
+      {onExtra ? (
         <Pressable
-          ref={logRef}
-          onPress={onLog}
+          ref={extraRef}
+          onPress={onExtra}
           accessibilityRole="button"
-          accessibilityLabel={logLabel ?? t('battle.openLog')}
+          accessibilityLabel={extra}
           style={({ pressed }) => [styles.settings, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}
-          testID={logTestID}
+          testID={extraTestID}
         >
           <AppText style={[styles.settingsText, { color: theme.text }]} numberOfLines={1}>
-            {logLabel ?? t('battle.openLog')}
+            {extra}
           </AppText>
         </Pressable>
       ) : null}
@@ -95,11 +137,12 @@ export function Hud({ screen, onSettings, party, zoneLabel, onLog, logRef, setti
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, borderBottomWidth: 2, width: '100%' },
-  title: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
-  party: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4, justifyContent: 'flex-end' },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: HUD_GAP, paddingHorizontal: HUD_PAD, borderBottomWidth: 2, width: '100%' },
+  title: { fontWeight: '700', flexShrink: 1 },
+  party: { flex: 1, flexDirection: 'row', gap: 4, justifyContent: 'flex-end' },
+  partyWrap: { flexWrap: 'wrap' },
   chip: { borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, flexShrink: 1 },
-  chipText: { fontSize: 13 },
-  settings: { minHeight: 48, minWidth: 48, paddingHorizontal: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  settingsText: { fontSize: 14, fontWeight: '600' },
+  chipText: { fontSize: CHIP_SIZE },
+  settings: { minHeight: 48, minWidth: 48, paddingHorizontal: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  settingsText: { fontSize: BUTTON_SIZE, fontWeight: '600' },
 });

@@ -39,23 +39,30 @@ export function heroHeight(primaryHeight: number, scale: number): number {
 export const BUTTON_CHROME = 16;
 export const BUTTON_SIZE = 17;
 export const NOTICE_SIZE = 14;
-/** Lines of the save notice: the rail is narrow in landscape, wide in portrait. */
-export const NOTICE_LINES_LANDSCAPE = 5;
-export const NOTICE_LINES_PORTRAIT = 3;
+export type NoticeKind = 'unavailable' | 'corrupt';
+/**
+ * Lines of the save notice: the rail is narrow in landscape, wide in portrait, and a damaged save also
+ * has the Discard button under its notice. A longer notice is cut visually only for a damaged save's
+ * reason; its full text is also in the Discard sheet.
+ */
+export function noticeLinesCap(kind: NoticeKind, landscape: boolean): number {
+  if (landscape) return kind === 'corrupt' ? 5 : 6;
+  return 4;
+}
 
 /** A rail button: one line (shrinking to fit), at least 48 dp. */
 export function buttonHeight(scale: number): number {
   return Math.max(48, BUTTON_CHROME + lineHeight(BUTTON_SIZE, scale));
 }
 
-export function noticeHeight(scale: number, landscape: boolean): number {
-  return (landscape ? NOTICE_LINES_LANDSCAPE : NOTICE_LINES_PORTRAIT) * lineHeight(NOTICE_SIZE, scale);
+export function noticeHeight(scale: number, kind: NoticeKind, landscape: boolean): number {
+  return noticeLinesCap(kind, landscape) * lineHeight(NOTICE_SIZE, scale);
 }
 
-/** Total height of the rail: Continue and New run always, a notice and Discard when the save needs them. */
-export function railHeight(scale: number, show: { notice: boolean; discard: boolean }, landscape: boolean): number {
+/** Total height of the rail: Continue and New run always, a notice (and Discard for a damaged save) when the save needs them. */
+export function railHeight(scale: number, notice: NoticeKind | null, landscape: boolean): number {
   const parts = [buttonHeight(scale), buttonHeight(scale)];
-  if (show.discard) parts.push(buttonHeight(scale));
-  if (show.notice) parts.unshift(noticeHeight(scale, landscape));
+  if (notice === 'corrupt') parts.push(buttonHeight(scale));
+  if (notice) parts.unshift(noticeHeight(scale, notice, landscape));
   return 2 * RAIL_PAD + parts.reduce((a, b) => a + b, 0) + (parts.length - 1) * RAIL_GAP;
 }

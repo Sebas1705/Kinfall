@@ -18,13 +18,15 @@ export const STEP_SIZE = 12;
 export const STEP_GAP = 2;
 export const NODE_GAP = 2;
 /**
- * The short type name under a node's frame (the first word of its label). Fixed size on purpose: the
- * board's columns are 48 to 64 dp wide, so the name cannot grow with the text; the full label and
- * the state are in the rail's readout (which does scale) and in the node's accessible name.
+ * The short type name under a node's frame (the first word of its label): one line that follows the
+ * text size and shrinks to fit the 48 to 64 dp column (down to NAME_MIN_SCALE) instead of clipping;
+ * its box has a fixed height. The full label and the state are in the rail's readout and in the
+ * node's accessible name.
  */
-export const NAME_SIZE = 10;
+export const NAME_SIZE = 11;
 export const NAME_GAP = 1;
-export const NAME_LINE = Math.ceil(NAME_SIZE * 1.25);
+/** The name shrinks to this share of its size before it would clip. */
+export const NAME_MIN_SCALE = 0.6;
 
 /** Width of one layer's column on a primary region `primaryWidth` dp wide. */
 export function columnWidth(primaryWidth: number): number {
@@ -37,13 +39,18 @@ export function nodeWidth(column: number): number {
 }
 
 /** Height of one node cell: the 48 dp frame and the short name under it. */
-export function nodeCellHeight(): number {
-  return NODE_MIN + NAME_GAP + NAME_LINE;
+export function nodeCellHeight(scale: number): number {
+  return NODE_MIN + NAME_GAP + nameHeight(scale);
+}
+
+/** Height of the name's box: one line at the text scale. */
+export function nameHeight(scale: number): number {
+  return lineHeight(NAME_SIZE, scale);
 }
 
 /** Height of one layer's column with `nodes` nodes. */
 export function columnHeight(scale: number, nodes = MAP_MAX_NODES): number {
-  return lineHeight(STEP_SIZE, scale) + STEP_GAP + nodes * nodeCellHeight() + (nodes - 1) * NODE_GAP;
+  return lineHeight(STEP_SIZE, scale) + STEP_GAP + nodes * nodeCellHeight(scale) + (nodes - 1) * NODE_GAP;
 }
 
 /** Height of the whole board (padding included) for the tallest column. */

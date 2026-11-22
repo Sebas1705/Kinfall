@@ -138,12 +138,12 @@ export function EndView({ run, onToTitle, confirmPanel, confirming, header, trai
       zoneLabel={model.title}
       titleRef={heading}
       titleTestID="end-heading"
-      onLog={sheets.openDetails}
-      logRef={sheets.detailsRef as never}
-      logLabel={t('run.open')}
-      logTestID="hud-run"
+      onExtra={sheets.openDetails}
+      extraRef={sheets.detailsRef}
+      extraLabel={t('run.open')}
+      extraTestID="hud-run"
       onSettings={sheets.settings.open}
-      settingsRef={sheets.settings.openerRef as never}
+      settingsRef={sheets.settings.openerRef}
     />
   );
   return (

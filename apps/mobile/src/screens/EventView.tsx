@@ -49,13 +49,12 @@ import {
   CHOICE_LABEL_SIZE,
   CHOICE_PAD,
   COLUMNS_PORTRAIT,
-  DESC_LINES,
   DESC_SIZE,
-  DETAIL_LINES_LANDSCAPE,
-  DETAIL_LINES_PORTRAIT,
+  cellWidth,
+  detailLines as detailLinesOf,
+  labelLines as labelLinesOf,
   MAIN_GAP,
   MAIN_PAD,
-  NOTE_LINES,
   NOTE_SIZE,
   OFFER_DETAIL_SIZE,
   OFFER_NAME_SIZE,
@@ -115,7 +114,7 @@ function OfferCard({ offer, fixed }: { offer: NonNullable<EventModel['offer']>; 
   );
 }
 
-function ChoiceButton({ choice, index, onPress, theme, height, detailLines, fixed, ref }: {
+function ChoiceButton({ choice, index, onPress, theme, height, detailLines, labelLines, fixed, ref }: {
   choice: EventChoice;
   index: number;
   onPress: () => void;
@@ -123,6 +122,7 @@ function ChoiceButton({ choice, index, onPress, theme, height, detailLines, fixe
   /** The cell's fixed height (console); the fallback sizes it by its text. */
   height: number;
   detailLines: number;
+  labelLines: number;
   fixed: boolean;
   ref?: Ref<PressableRef>;
 }) {
@@ -143,7 +143,7 @@ function ChoiceButton({ choice, index, onPress, theme, height, detailLines, fixe
         <View style={styles.choiceBody}>
           {/* A replace choice carries a warning stripe; its label says "Replace" in words. */}
           {replace ? <View style={[styles.stripe, { backgroundColor: theme.danger }]} testID={`event-choice-${index}-warning`} /> : null}
-          <AppText style={[styles.choiceLabel, { color: textColor }]} {...fitText(fixed, 1, 0.7)}>
+          <AppText style={[styles.choiceLabel, { color: textColor }]} {...fitText(fixed, labelLines, 0.7)}>
             {choice.label}
           </AppText>
           {choice.detail ? (
@@ -194,19 +194,22 @@ export function EventView({ run, confirming, confirmPanel, header, trailer, onCa
   const reserve = consoleMode && landscape ? messageHeight(scale, 1) : 0;
   const bodyWidth = consoleMode ? (landscape ? spec.regions.content.width - rail : spec.regions.primary.width) : spec.regions.primary.width - 32;
   const plan = consoleMode
-    ? bodyPlan(bodyWidth, spec.regions.primary.height - reserve, scale, { offer: model.offer !== undefined, note: model.note !== undefined })
-    : { cell: 2, height: 0 };
-  const detailLines = landscape ? DETAIL_LINES_LANDSCAPE : DETAIL_LINES_PORTRAIT;
-  const cell = (c: EventChoice) => choiceHeight(scale, c.detail ? detailLines : 0);
+    ? bodyPlan(bodyWidth, spec.regions.primary.height - reserve, scale, { desc: model.description, offer: model.offer !== undefined, note: model.note })
+    : { cell: 2, descLines: 0, noteLines: 0, height: 0 };
+  // Lines of each choice's detail, from the same estimate the fit tests prove (the cell's fixed height follows).
+  const cellW = cellWidth(landscape, landscape ? rail : spec.regions.content.width);
+  const linesOf = (c: EventChoice) => Math.max(1, detailLinesOf(c, cellW, scale));
+  const labelsOf = (c: EventChoice) => labelLinesOf(c, cellW, scale);
+  const cell = (c: EventChoice) => choiceHeight(scale, c.detail ? linesOf(c) : 0, labelsOf(c));
 
   const text = (
     <View style={styles.text}>
-      <AppText style={[styles.desc, { color: theme.text }]} numberOfLines={consoleMode ? DESC_LINES : undefined} testID="event-desc">
+      <AppText style={[styles.desc, { color: theme.text }]} numberOfLines={consoleMode ? plan.descLines : undefined} testID="event-desc">
         {model.description}
       </AppText>
       {model.offer ? <OfferCard offer={model.offer} fixed={consoleMode} /> : null}
       {model.note ? (
-        <AppText style={[styles.note, { color: theme.text, borderColor: theme.danger }]} numberOfLines={consoleMode ? NOTE_LINES : undefined} testID="event-note">
+        <AppText style={[styles.note, { color: theme.text, borderColor: theme.danger }]} numberOfLines={consoleMode ? plan.noteLines : undefined} testID="event-note">
           {model.note}
         </AppText>
       ) : null}
@@ -238,7 +241,8 @@ export function EventView({ run, confirming, confirmPanel, header, trailer, onCa
       onPress={() => pick(c.action)}
       theme={theme}
       height={height}
-      detailLines={detailLines}
+      detailLines={linesOf(c)}
+      labelLines={labelsOf(c)}
       fixed={consoleMode}
     />
   );
@@ -272,12 +276,12 @@ export function EventView({ run, confirming, confirmPanel, header, trailer, onCa
       zoneLabel={model.title}
       titleTestID="event-heading"
       party={model.party}
-      onLog={sheets.openDetails}
-      logRef={sheets.detailsRef as never}
-      logLabel={t('run.open')}
-      logTestID="hud-run"
+      onExtra={sheets.openDetails}
+      extraRef={sheets.detailsRef}
+      extraLabel={t('run.open')}
+      extraTestID="hud-run"
       onSettings={sheets.settings.open}
-      settingsRef={sheets.settings.openerRef as never}
+      settingsRef={sheets.settings.openerRef}
     />
   );
   return (

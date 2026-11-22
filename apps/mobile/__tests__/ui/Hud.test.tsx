@@ -40,26 +40,51 @@ describe('Hud', () => {
     const onLog = jest.fn();
     await render(<Hud screen="battle" onSettings={() => {}} />);
     expect(screen.queryByTestId('hud-log')).toBeNull();
-    await screen.rerender(<Hud screen="battle" onSettings={() => {}} onLog={onLog} />);
+    await screen.rerender(<Hud screen="battle" onSettings={() => {}} onExtra={onLog} />);
     await fireEvent.press(screen.getByRole('button', { name: 'Log' }));
     expect(onLog).toHaveBeenCalledTimes(1);
     const style = screen.getByTestId('hud-log').props.style as unknown;
     const flat = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : (style as object));
     expect(flat.minHeight).toBeGreaterThanOrEqual(48);
     setLang('es');
-    await screen.rerender(<Hud screen="battle" onSettings={() => {}} onLog={onLog} />);
+    await screen.rerender(<Hud screen="battle" onSettings={() => {}} onExtra={onLog} />);
     expect(screen.getByRole('button', { name: 'Registro' })).toBeTruthy();
   });
 
   it('lets a screen name the extra button and the heading (the run details, the title options)', async () => {
     const onLog = jest.fn();
-    await render(<Hud screen="map" onSettings={() => {}} onLog={onLog} logLabel="Run" logTestID="hud-run" zoneLabel="Zone 1" titleTestID="map-heading" />);
+    await render(<Hud screen="map" onSettings={() => {}} onExtra={onLog} extraLabel="Run" extraTestID="hud-run" zoneLabel="Zone 1" titleTestID="map-heading" />);
     await fireEvent.press(screen.getByRole('button', { name: 'Run' }));
     expect(onLog).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('hud-run')).toBeTruthy();
     expect(screen.queryByTestId('hud-log')).toBeNull();
     expect(screen.getByTestId('map-heading').props.accessibilityRole).toBe('header');
     expect(screen.queryByTestId('hud-title')).toBeNull();
+  });
+
+  it('shows full chips when they fit', async () => {
+    const three = [
+      { name: 'Bramblewarden', hp: 120, maxHp: 120 },
+      { name: 'Cindermite', hp: 20, maxHp: 120 },
+      { name: 'Tidewisp', hp: 90, maxHp: 120 },
+    ];
+    windowIs(914, 411);
+    await render(<Hud screen="map" onSettings={() => {}} onExtra={() => {}} extraLabel="Run" party={three} zoneLabel="Zone 2: Thornwood Hollow" />);
+    expect(screen.getAllByTestId(/^hud-chip-[0-9]/)).toHaveLength(3);
+  });
+
+  it('shows one compact chip (a low-HP cue, every member in its name) when the full chips do not fit', async () => {
+    const three = [
+      { name: 'Bramblewarden', hp: 120, maxHp: 120 },
+      { name: 'Cindermite', hp: 20, maxHp: 120 },
+      { name: 'Tidewisp', hp: 90, maxHp: 120 },
+    ];
+    windowIs(360, 640, 1.3);
+    await render(<Hud screen="map" onSettings={() => {}} onExtra={() => {}} extraLabel="Run" party={three} zoneLabel="Zone 2" />);
+    expect(screen.queryByTestId('hud-chip-0')).toBeNull();
+    const all = screen.getByTestId('hud-chip-all');
+    expect(all.props.accessibilityLabel).toBe('Bramblewarden 120/120, Cindermite 20/120, Tidewisp 90/120');
+    expect(screen.getByText('♥ 3 !')).toBeTruthy();
   });
 
   it('falls back to the app title and writes the Settings label in Spanish', async () => {

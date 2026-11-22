@@ -42,8 +42,9 @@ import { messageHeight } from './battleMetrics';
 import {
   BOARD_PAD,
   NAME_GAP,
-  NAME_LINE,
+  NAME_MIN_SCALE,
   NAME_SIZE,
+  nameHeight,
   NODE_GAP,
   NODE_MIN,
   LEGEND_SIZE,
@@ -77,10 +78,11 @@ interface NodeCellProps {
   node: MapNodeModel;
   onPick: (id: string) => void;
   width: number;
+  scale: number;
   onFocusChange: (id: string, focused: boolean) => void;
 }
 
-function NodeCell({ node, onPick, width, onFocusChange }: NodeCellProps) {
+function NodeCell({ node, onPick, width, scale, onFocusChange }: NodeCellProps) {
   const theme = useTheme();
   const state = stateText(node);
   const available = node.state === 'available';
@@ -118,18 +120,17 @@ function NodeCell({ node, onPick, width, onFocusChange }: NodeCellProps) {
           </View>
         )}
       </FramePressable>
-      {/* Fixed size on purpose (see mapMetrics NAME_SIZE); hidden from readers, the node's name has it. */}
-      <Text
-        style={[styles.name, { color: available || node.current ? theme.text : theme.muted }]}
-        numberOfLines={1}
-        ellipsizeMode="clip"
-        allowFontScaling={false}
-        importantForAccessibility="no"
-        accessibilityElementsHidden
-        testID={`node-name-${node.id}`}
-      >
-        {shortName(node)}
-      </Text>
+      {/* One line that follows the text size and shrinks to fit; hidden from readers, the node's name has it. */}
+      <View style={[styles.nameBox, { height: nameHeight(scale) }]} importantForAccessibility="no" accessibilityElementsHidden>
+        <AppText
+          style={[styles.name, { color: available || node.current ? theme.text : theme.muted }]}
+          {...fitText(true, 1, NAME_MIN_SCALE)}
+          ellipsizeMode="clip"
+          testID={`node-name-${node.id}`}
+        >
+          {shortName(node)}
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -193,14 +194,14 @@ export function MapView({ run, trail, onPick, onAbandon, onCancelAbandon, confir
   const shown = nodes.find((n) => n.id === focused) ?? nodes.find((n) => n.state === 'available') ?? nodes.find((n) => n.current) ?? nodes[0] ?? null;
   const onFocusChange = (id: string, on: boolean) => setFocused((prev) => (on ? id : prev === id ? null : prev));
 
-  // In the fallback the board sits in the scrolling area, inside its 16 dp side padding.
-  const boardWidth = spec.regions.primary.width - (consoleMode ? 0 : 32);
-  const column = columnWidth(boardWidth);
+  // In the fallback the board sits in the scrolling area, whose 16 dp side padding it cancels with a
+  // negative margin, so the columns keep the width the console has (48 dp targets at 360 dp wide).
+  const column = columnWidth(spec.regions.primary.width);
   const nodeW = nodeWidth(column);
 
   const board = (
     <View
-      style={[consoleMode ? styles.boardFill : styles.board, { paddingBottom: BOARD_PAD + (consoleMode && landscape ? messageHeight(scale, 1) : 0) }]}
+      style={[consoleMode ? styles.boardFill : [styles.board, styles.boardBleed], { paddingBottom: BOARD_PAD + (consoleMode && landscape ? messageHeight(scale, 1) : 0) }]}
       testID="map-screen"
     >
       {model.layers.map((layer) => (
@@ -214,7 +215,7 @@ export function MapView({ run, trail, onPick, onAbandon, onCancelAbandon, confir
           </AppText>
           <View style={styles.nodes}>
             {layer.nodes.map((n) => (
-              <NodeCell key={n.id} node={n} onPick={onPick} width={nodeW} onFocusChange={onFocusChange} />
+              <NodeCell key={n.id} node={n} onPick={onPick} width={nodeW} scale={scale} onFocusChange={onFocusChange} />
             ))}
           </View>
         </View>
@@ -240,12 +241,12 @@ export function MapView({ run, trail, onPick, onAbandon, onCancelAbandon, confir
       zoneLabel={t('map.zone', { n: model.zoneNo, name: model.zoneName })}
       titleTestID="map-heading"
       party={model.party}
-      onLog={sheets.openDetails}
-      logRef={sheets.detailsRef as never}
-      logLabel={t('run.open')}
-      logTestID="hud-run"
+      onExtra={sheets.openDetails}
+      extraRef={sheets.detailsRef}
+      extraLabel={t('run.open')}
+      extraTestID="hud-run"
       onSettings={sheets.settings.open}
-      settingsRef={sheets.settings.openerRef as never}
+      settingsRef={sheets.settings.openerRef}
     />
   );
 
@@ -274,6 +275,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   board: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: BOARD_PAD },
   boardFill: { flex: 1, minHeight: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: BOARD_PAD },
+  boardBleed: { marginHorizontal: -16 },
   banner: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 },
   column: { alignItems: 'center', justifyContent: 'center', gap: STEP_GAP },
   step: { fontSize: STEP_SIZE, fontWeight: '700', textAlign: 'center' },
@@ -284,7 +286,8 @@ const styles = StyleSheet.create({
   mark: { position: 'absolute', fontSize: 11, lineHeight: 11, fontWeight: '700' },
   markTop: { top: -4, right: -4 },
   markBottom: { bottom: -4, left: -4 },
-  name: { fontSize: NAME_SIZE, lineHeight: NAME_LINE, fontWeight: '600', textAlign: 'center', alignSelf: 'stretch' },
+  nameBox: { alignSelf: 'stretch', overflow: 'hidden' },
+  name: { fontSize: NAME_SIZE, fontWeight: '600', textAlign: 'center' },
   rail: { padding: RAIL_PAD, gap: RAIL_GAP },
   readout: { gap: 0 },
   readoutLabel: { fontSize: READOUT_LABEL_SIZE, fontWeight: '700', textAlign: 'center' },

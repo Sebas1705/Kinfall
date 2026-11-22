@@ -318,7 +318,7 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
 
   // Sheets: the Settings sheet (with Abandon) and the Log sheet.
   const [logOpen, setLogOpen] = useState(false);
-  const logRef = useRef<unknown>(null);
+  const logRef = useRef<ComponentRef<typeof View>>(null);
   const autoOpened = useRef(false);
   const confirmingRef = useRef(confirming);
   confirmingRef.current = confirming;
@@ -511,10 +511,10 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
       screen="battle"
       zoneLabel={phaseHeading(opened)}
       party={party}
-      onLog={() => setLogOpen(true)}
-      logRef={logRef as never}
+      onExtra={() => setLogOpen(true)}
+      extraRef={logRef}
       onSettings={settings.open}
-      settingsRef={settings.openerRef as never}
+      settingsRef={settings.openerRef}
     />
   );
 

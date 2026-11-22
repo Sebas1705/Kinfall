@@ -121,7 +121,7 @@ describe('map screen', () => {
     await renderRun(session);
     const max = maxHpOf('tidewisp', CONTENT);
     // The HUD shows the chips; the details are in the Run sheet.
-    expect(screen.getByTestId('hud-chip-0').props.accessibilityLabel).toBe(`Tidewisp ${max}/${max}`);
+    expect(screen.getByTestId(/^hud-chip-/).props.accessibilityLabel).toBe(`Tidewisp ${max}/${max}`);
     await user.press(screen.getByTestId('hud-run'));
     expect(screen.getByTestId('party-member-0').props.accessibilityLabel).toBe(`Tidewisp ${max}/${max}`);
     expect(screen.getByTestId('party-hp-0').props.children).toBe(`${max}/${max}`);

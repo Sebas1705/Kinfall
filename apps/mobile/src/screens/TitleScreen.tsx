@@ -11,7 +11,7 @@ import { lookup } from '@kinfall/core/content/lookup';
 import { effectiveTextScale } from '@kinfall/core/layout/spec';
 import { speciesName, t, type StringKey } from '@kinfall/core/platform/i18n';
 import { SEED_MAX, cleanSeed } from '@kinfall/core/platform/seed';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { CreatureSprite } from '../art/CreatureSprite';
@@ -39,8 +39,7 @@ import {
   MAIN_GAP,
   MAIN_PAD,
   NAME_SIZE,
-  NOTICE_LINES_LANDSCAPE,
-  NOTICE_LINES_PORTRAIT,
+  noticeLinesCap,
   NOTICE_SIZE,
   RAIL_PAD,
   SPRITE_DP,
@@ -115,7 +114,7 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
   const [starter, setStarter] = useState(starters[0] ?? '');
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const optionsRef = useRef<unknown>(null);
+  const optionsRef = useRef<ComponentRef<typeof View>>(null);
   const busy = useRef(false);
 
   const settings = useSettingsSheet();
@@ -200,17 +199,17 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
   );
 
   const buttonStyle = consoleMode ? { height: buttonHeight(scale) } : { minHeight: buttonHeight(scale) };
-  const noticeLines = consoleMode ? (landscape ? NOTICE_LINES_LANDSCAPE : NOTICE_LINES_PORTRAIT) : undefined;
+  const noticeLines = (kind: 'unavailable' | 'corrupt') => (consoleMode ? noticeLinesCap(kind, landscape) : undefined);
   const actions = (
     <View style={styles.rail} testID="title-actions">
       {saved?.kind === 'unavailable' ? (
-        <AppText style={[styles.notice, { color: theme.text, borderColor: theme.border }]} numberOfLines={noticeLines} testID="saves-unavailable">
+        <AppText style={[styles.notice, { color: theme.text, borderColor: theme.border }]} numberOfLines={noticeLines('unavailable')} testID="saves-unavailable">
           {t('title.savesUnavailableDevice')}
         </AppText>
       ) : null}
       {saved?.kind === 'corrupt' ? (
         <View style={styles.warn} testID="corrupt-notice">
-          <AppText style={[styles.notice, { color: theme.text, borderColor: theme.danger }]} numberOfLines={noticeLines}>
+          <AppText style={[styles.notice, { color: theme.text, borderColor: theme.danger }]} numberOfLines={noticeLines('corrupt')}>
             {t('title.corrupt', { reason: saved.error })}
           </AppText>
           <Button label={t('title.discard')} onPress={() => setConfirmDiscard(true)} testID="discard" style={buttonStyle} fit={consoleMode} />
@@ -225,12 +224,12 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
     <Hud
       screen="title"
       zoneLabel={t('screen.title')}
-      onLog={() => setOptionsOpen(true)}
-      logRef={optionsRef as never}
-      logLabel={t('title.optionsOpen')}
-      logTestID="hud-options"
+      onExtra={() => setOptionsOpen(true)}
+      extraRef={optionsRef}
+      extraLabel={t('title.optionsOpen')}
+      extraTestID="hud-options"
       onSettings={settings.open}
-      settingsRef={settings.openerRef as never}
+      settingsRef={settings.openerRef}
     />
   );
 
@@ -278,6 +277,8 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
         ) : null}
       </Sheet>
       <Sheet visible={confirmDiscard} onClose={() => setConfirmDiscard(false)} title={t('title.discard')} testID="discard-sheet">
+        {/* The notice is cut to a few lines in the rail: its full text is here. */}
+        {saved?.kind === 'corrupt' ? <AppText style={[styles.sheetHint, { color: theme.text }]}>{t('title.corrupt', { reason: saved.error })}</AppText> : null}
         <ConfirmPanel
           question={t('title.discardConfirm')}
           yes={t('title.discard')}

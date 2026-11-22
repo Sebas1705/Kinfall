@@ -4,37 +4,57 @@
 // lines.
 import { VIGNETTE_HEIGHT, VIGNETTE_WIDTH } from '@kinfall/core/art/scene';
 import { lineHeight } from './battleMetrics';
+import { textLines } from './textFit';
 
 // ---- the choices ----
-export const CHOICE_LABEL_SIZE = 15;
-export const CHOICE_DETAIL_SIZE = 12;
+export const CHOICE_LABEL_SIZE = 14;
+export const CHOICE_DETAIL_SIZE = 10;
 /** Vertical room the button frame takes (its content insets and ring) around the text. */
-export const CHOICE_CHROME = 16;
-export const CHOICE_PAD = 2;
-export const CHOICE_GAP = 2;
-/** Detail lines of a choice: one in the wide landscape rail, two in the half-width portrait cells. */
-export const DETAIL_LINES_LANDSCAPE = 1;
-export const DETAIL_LINES_PORTRAIT = 2;
+export const CHOICE_CHROME = 14;
+/** Horizontal room a choice cell takes around its text: the frame (16) and the widest padding (a replace choice's stripe, 10 + 2). */
+export const CHOICE_INSET = 28;
+export const CHOICE_PAD = 1;
+export const CHOICE_GAP = 1;
 export const COLUMNS_PORTRAIT = 2;
-/** Share of the content width the landscape rail takes at least (details stay on one line). */
-export const RAIL_SHARE = 0.55;
+/** Share of the content width the landscape rail takes at least (details stay on few lines). */
+export const RAIL_SHARE = 0.6;
 /** Widest the landscape rail gets. */
 export const RAIL_MAX = 360;
+
+/** The text of a choice as the screen shows it. */
+export interface ChoiceText {
+  label: string;
+  detail?: string;
+}
 
 /** Width of the landscape rail: the contract's, or wider so that five choices with details fit. */
 export function railWidth(contentWidth: number, contractWidth: number): number {
   return Math.min(RAIL_MAX, Math.max(contractWidth, Math.round(RAIL_SHARE * contentWidth)));
 }
 
-/** Fixed height of a choice cell with `detailLines` lines of detail (48 at least). */
-export function choiceHeight(scale: number, detailLines: number): number {
-  return Math.max(48, CHOICE_CHROME + lineHeight(CHOICE_LABEL_SIZE, scale) + detailLines * lineHeight(CHOICE_DETAIL_SIZE, scale));
+/** Width of one choice cell: the whole rail in landscape, half the band in portrait. */
+export function cellWidth(landscape: boolean, railOrContentWidth: number): number {
+  return landscape ? railOrContentWidth - 2 * CHOICE_PAD : Math.floor((railOrContentWidth - 2 * CHOICE_PAD - CHOICE_GAP) / COLUMNS_PORTRAIT);
+}
+
+/** Lines the detail of a choice takes in a cell `width` dp wide (0 without a detail). */
+export function detailLines(c: ChoiceText, width: number, scale: number): number {
+  return c.detail ? textLines(c.detail, width - CHOICE_INSET, CHOICE_DETAIL_SIZE, scale) : 0;
+}
+
+/** Lines the label of a choice takes in a cell `width` dp wide: one in the wide landscape rail, two at most when it needs them. */
+export function labelLines(c: ChoiceText, width: number, scale: number): number {
+  return textLines(c.label, width - CHOICE_INSET, CHOICE_LABEL_SIZE, scale);
+}
+
+/** Fixed height of a choice cell with `labels` lines of label and `lines` lines of detail (48 at least). */
+export function choiceHeight(scale: number, lines: number, labels = 1): number {
+  return Math.max(48, CHOICE_CHROME + labels * lineHeight(CHOICE_LABEL_SIZE, scale) + lines * lineHeight(CHOICE_DETAIL_SIZE, scale));
 }
 
 /** Total height of the rail for `choices`; in portrait the cells sit in two columns (a row is as tall as its tallest cell). */
-export function railHeight(scale: number, choices: Array<{ detail: boolean }>, landscape: boolean): number {
-  const lines = landscape ? DETAIL_LINES_LANDSCAPE : DETAIL_LINES_PORTRAIT;
-  const cell = (c: { detail: boolean }) => choiceHeight(scale, c.detail ? lines : 0);
+export function railHeight(scale: number, choices: ChoiceText[], width: number, landscape: boolean): number {
+  const cell = (c: ChoiceText) => choiceHeight(scale, detailLines(c, width, scale), labelLines(c, width, scale));
   const rows: number[] = [];
   if (landscape) for (const c of choices) rows.push(cell(c));
   else for (let i = 0; i < choices.length; i += COLUMNS_PORTRAIT) rows.push(Math.max(...choices.slice(i, i + COLUMNS_PORTRAIT).map(cell)));
@@ -45,9 +65,7 @@ export function railHeight(scale: number, choices: Array<{ detail: boolean }>, l
 export const MAIN_PAD = 4;
 export const MAIN_GAP = 8;
 export const DESC_SIZE = 15;
-export const DESC_LINES = 3;
 export const NOTE_SIZE = 14;
-export const NOTE_LINES = 3;
 export const OFFER_NAME_SIZE = 16;
 export const OFFER_DETAIL_SIZE = 13;
 /** The offer card's sprite: 24 cells at 2 dp. */
@@ -69,34 +87,46 @@ export function offerHeight(scale: number): number {
   return OFFER_CHROME + Math.max(OFFER_SPRITE, lineHeight(OFFER_NAME_SIZE, scale) + lineHeight(OFFER_DETAIL_SIZE, scale));
 }
 
-/** Height of the text column: description, then the offer card and the note when there are any. */
-export function textHeight(scale: number, show: { offer: boolean; note: boolean }): number {
-  const parts = [DESC_LINES * lineHeight(DESC_SIZE, scale)];
-  if (show.offer) parts.push(offerHeight(scale));
-  if (show.note) parts.push(NOTE_LINES * lineHeight(NOTE_SIZE, scale));
-  return parts.reduce((a, b) => a + b, 0) + (parts.length - 1) * MAIN_GAP;
+/** The texts of the body: the description, whether there is an offer card, and the note. */
+export interface BodyText {
+  desc: string;
+  offer: boolean;
+  note?: string;
 }
 
 export interface BodyPlan {
   /** Cell size of the vignette beside the text, or 0 when it steps aside (it is decoration). */
   cell: number;
+  /** Lines the description and the note take in the text column (the screen shows exactly this many). */
+  descLines: number;
+  noteLines: number;
   /** Height of the tallest part of the body, padding included. */
   height: number;
 }
 
+function planFor(width: number, scale: number, text: BodyText, cell: number): BodyPlan {
+  const textWidthDp = width - 2 * MAIN_PAD - (cell > 0 ? vignetteBox(cell).width + MAIN_GAP : 0);
+  const descLines = textLines(text.desc, textWidthDp, DESC_SIZE, scale);
+  const noteLines = text.note ? textLines(text.note, textWidthDp - 14, NOTE_SIZE, scale) : 0;
+  const parts = [descLines * lineHeight(DESC_SIZE, scale)];
+  if (text.offer) parts.push(offerHeight(scale));
+  if (noteLines > 0) parts.push(noteLines * lineHeight(NOTE_SIZE, scale));
+  const textH = parts.reduce((a, b) => a + b, 0) + (parts.length - 1) * MAIN_GAP;
+  return { cell, descLines, noteLines, height: 2 * MAIN_PAD + Math.max(textH, cell > 0 ? vignetteBox(cell).height : 0) };
+}
+
 /**
  * The body of the primary region (`width` x `height` dp, the message line's room already taken
- * off): the largest vignette that still leaves the text column `TEXT_MIN_WIDTH` and fits the
- * height, else no vignette. The text column is bounded, so a plan that fits keeps fitting.
+ * off): the largest vignette that still leaves the text column TEXT_MIN_WIDTH and whose plan fits the
+ * height, else no vignette. Line counts come from the (conservative) estimate of the actual
+ * strings, so no text is ever cut: when even the full-width plan does not fit the height, the test
+ * says so (the text then belongs in the Run sheet).
  */
-export function bodyPlan(width: number, height: number, scale: number, show: { offer: boolean; note: boolean }): BodyPlan {
-  const text = textHeight(scale, show);
-  const inner = width - 2 * MAIN_PAD;
+export function bodyPlan(width: number, height: number, scale: number, text: BodyText): BodyPlan {
   for (const cell of [...VIGNETTE_CELLS].reverse()) {
-    const box = vignetteBox(cell);
-    if (inner - box.width - MAIN_GAP >= TEXT_MIN_WIDTH && Math.max(text, box.height) <= height - 2 * MAIN_PAD) {
-      return { cell, height: 2 * MAIN_PAD + Math.max(text, box.height) };
-    }
+    if (width - 2 * MAIN_PAD - vignetteBox(cell).width - MAIN_GAP < TEXT_MIN_WIDTH) continue;
+    const plan = planFor(width, scale, text, cell);
+    if (plan.height <= height) return plan;
   }
-  return { cell: 0, height: 2 * MAIN_PAD + text };
+  return planFor(width, scale, text, 0);
 }

@@ -78,6 +78,8 @@ describe('title screen', () => {
     // The confirmation needs more room than the rail has: it opens in a sheet.
     await user.press(screen.getByTestId('discard'));
     expect(within(screen.getByTestId('discard-sheet')).getByText('Discard your saved run? This cannot be undone.')).toBeTruthy();
+    // The rail cuts the notice to a few lines: its full text is here too.
+    expect(within(screen.getByTestId('discard-sheet')).getByText(/^Your saved run is damaged and cannot be loaded: /)).toBeTruthy();
     await user.press(screen.getByTestId('discard-confirm-no'));
     await waitFor(() => expect(screen.queryByTestId('discard-confirm')).toBeNull());
     expect(storage.data.has(RUN_KEY)).toBe(true);
@@ -163,6 +165,15 @@ describe('title screen', () => {
     await renderTitle(makeSession(memoryStorage()));
     await openTitleOptions();
     expect(screen.queryByTestId('dev-tools')).toBeNull();
+  });
+
+  it('shows the dev tools link in the options sheet when asked (development builds)', async () => {
+    const onOpenDevTools = jest.fn();
+    await renderTitle(makeSession(memoryStorage()), { onOpenDevTools });
+    expect(screen.queryByTestId('dev-tools')).toBeNull();
+    await openTitleOptions();
+    await userEvent.setup().press(screen.getByTestId('dev-tools'));
+    expect(onOpenDevTools).toHaveBeenCalledTimes(1);
   });
 
   it('has 48dp targets for its buttons and the seed field', async () => {
