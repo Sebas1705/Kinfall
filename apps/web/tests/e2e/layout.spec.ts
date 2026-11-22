@@ -150,6 +150,38 @@ test('battle: the Log button opens the full log in a sheet and returns it', asyn
   expect(h).toBeLessThan(44);
 });
 
+// A modal sheet owns the keys: battle keys pressed on its Close button (or anywhere while it is open)
+// must not play a move or move the menu behind it.
+test('battle: keys do not reach the battle while a sheet is open', async ({ page }, info) => {
+  test.skip(info.project.name === 'phone-landscape' || info.project.name === 'phone-portrait' || info.project.name === 'mobile', 'needs the HUD Log button (console, desktop window)');
+  await enterBattle(page, 'e2e-layout');
+  await page.locator('#hud-log').click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  const state = () =>
+    page.evaluate(() => ({
+      log: document.querySelector('#log')!.textContent,
+      turns: document.querySelectorAll('#log .log-turn').length,
+      hp: [...document.querySelectorAll('.hud-hp, .hud-bar, [data-hp]')].map((e) => e.textContent + (e.getAttribute('style') ?? '')).join('|'),
+      selected: document.querySelector('#choices [aria-selected="true"], #choices .selected, #choices button:focus')?.textContent ?? '',
+    }));
+  const before = await state();
+  await dialog.locator('[data-sheet-close]').focus();
+  for (const code of ['KeyZ', 'Enter', 'ArrowDown', 'KeyQ', 'KeyX', 'Backspace']) {
+    if (code === 'Enter') continue; // Enter on the Close button legitimately closes the sheet
+    await page.keyboard.press(code);
+  }
+  await expect(dialog).toBeVisible();
+  // A move played behind the sheet shows up as log turns and busy choices a moment later.
+  await page.waitForTimeout(1500);
+  expect(await state()).toEqual(before);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('#hud-log')).toBeFocused();
+  await expect(page.locator('#choices')).not.toHaveAttribute('aria-busy', 'true');
+  expect((await state()).turns).toBe(before.turns);
+});
+
 // Huge text: the page still does not scroll, only the primary area does, and the log is a plain panel.
 test('battle fallback: only the primary area scrolls and the log stays in the flow', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone-landscape', 'sized for the 640x360 project');

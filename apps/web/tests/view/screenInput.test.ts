@@ -4,6 +4,7 @@ import type { GameAction } from '../../src/platform/input';
 import { createRouter } from '../../src/view/router';
 import type { ScreenId } from '../../src/view/router';
 import { bindScreenInput } from '../../src/view/screenInput';
+import { openSheet } from '../../src/view/sheet';
 
 let dispose: () => void = () => {};
 afterEach(() => dispose());
@@ -54,5 +55,18 @@ describe('bindScreenInput (run page battle input)', () => {
     expect(press(heading, 'Space').defaultPrevented).toBe(true);
     expect(press(document.body, 'ArrowUp').defaultPrevented).toBe(true);
     expect(actions).toEqual(['down', 'confirm', 'up']);
+  });
+  it('ignores keys and the gamepad while a modal sheet is open', () => {
+    const { root, router, actions } = setup();
+    router.show('battle');
+    const opener = root.querySelector<HTMLElement>('[data-screen="battle"] button')!;
+    const handle = openSheet({ title: 'Log', content: document.createElement('div'), opener });
+    const close = document.querySelector<HTMLElement>('[data-sheet-close]')!;
+    for (const code of ['KeyZ', 'ArrowDown', 'KeyQ', 'KeyX', 'Backspace']) press(close, code);
+    press(document.body, 'ArrowDown');
+    expect(actions).toEqual([]);
+    handle.close();
+    press(document.body, 'ArrowDown');
+    expect(actions).toEqual(['down']);
   });
 });

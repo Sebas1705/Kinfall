@@ -21,6 +21,11 @@ const FOCUSABLE =
 let nextId = 0;
 let active: SheetHandle | null = null;
 
+/** True while a modal sheet is open: the screens behind it must not react to keys or the gamepad. */
+export function isSheetOpen(): boolean {
+  return active !== null;
+}
+
 export function openSheet(opts: SheetOptions): SheetHandle {
   active?.close();
 

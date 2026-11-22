@@ -130,6 +130,8 @@ export function createInput(
     if (el && typeof el.closest === 'function') {
       // A focused log region must stay keyboard-scrollable (WCAG 2.1.1).
       if (el.closest('[role="log"]')) return;
+      // A modal sheet owns its keys (Close, Escape, Tab): they never drive the screen behind it.
+      if (el.closest('[role="dialog"]')) return;
       // Form controls and links own every key.
       if (el.closest('input, textarea, select, a[href], [contenteditable]:not([contenteditable="false"])')) return;
       // Buttons keep native Enter/Space activation (their click is handled by delegation).
