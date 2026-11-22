@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { continueSavedRun, setTextSize, startRunWithKeyboard, writeCraftedSave } from './run-helpers';
+import { continueSavedRun, setLanguage, setTextSize, startRunWithKeyboard, writeCraftedSave } from './run-helpers';
 
 // The shell never scrolls the page: in the console layout and in the fallback only the primary
 // area (`.screens`) scrolls, so the HUD stays in view; in the fallback the rail (the choices, the
@@ -86,6 +86,9 @@ async function expectBattleFits(page: Page, landscape: boolean): Promise<void> {
         return { name: (b.getAttribute('aria-label') ?? b.textContent ?? '').trim().slice(0, 30), w: r.width, h: r.height };
       })
       .filter((b) => b.w < 44 || b.h < 44);
+    // The rail never scrolls inside itself in the console: all of its choices are in view.
+    const menu = document.querySelector<HTMLElement>('.menu-panel')!;
+    const menuScroll = menu.scrollHeight - menu.clientHeight;
     const stage = document.querySelector('#scene')!.getBoundingClientRect();
     const choices = document.querySelector('#choices')!.getBoundingClientRect();
     return {
@@ -94,6 +97,7 @@ async function expectBattleFits(page: Page, landscape: boolean): Promise<void> {
       scrollWidth: doc.scrollWidth,
       innerWidth: window.innerWidth,
       small,
+      menuScroll,
       stageRight: stage.right,
       choicesLeft: choices.left,
       choicesBottom: choices.bottom,
@@ -103,6 +107,7 @@ async function expectBattleFits(page: Page, landscape: boolean): Promise<void> {
   expect(m.scrollHeight).toBeLessThanOrEqual(m.innerHeight);
   expect(m.scrollWidth).toBeLessThanOrEqual(m.innerWidth);
   expect(m.small).toEqual([]);
+  expect(m.menuScroll).toBeLessThanOrEqual(1);
   if (landscape) expect(m.choicesLeft).toBeGreaterThanOrEqual(m.stageRight - 1);
   else expect(m.choicesBottom).toBeGreaterThan(m.stageBottom);
 }
@@ -114,6 +119,21 @@ for (const size of [100, 130]) {
   test(`battle: fits the window without scrolling, rail beside the stage (text ${size}%)`, async ({ page }, info) => {
     const landscape = info.project.name === 'phone-landscape' || info.project.name === 'chromium';
     await startRunWithKeyboard(page, 'e2e-layout');
+    if (size !== 100) await setTextSize(page, size);
+    await page.locator('#screen-map button.map-node:not([disabled])').first().click();
+    await expect(page.locator('#screen-battle')).toBeVisible();
+    await expect(page.locator('#choices button').first()).toBeVisible();
+    await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
+    await expectBattleFits(page, landscape);
+  });
+}
+
+// The same promises in Spanish (longer strings), at the largest text that is still a console here.
+for (const size of [100, 130]) {
+  test(`battle in Spanish: fits the window without scrolling (text ${size}%)`, async ({ page }, info) => {
+    const landscape = info.project.name === 'phone-landscape' || info.project.name === 'chromium';
+    await startRunWithKeyboard(page, 'e2e-layout');
+    await setLanguage(page, 'es');
     if (size !== 100) await setTextSize(page, size);
     await page.locator('#screen-map button.map-node:not([disabled])').first().click();
     await expect(page.locator('#screen-battle')).toBeVisible();
@@ -365,6 +385,19 @@ async function showRunScreen(page: Page, screen: RunScreen): Promise<void> {
     await continueSavedRun(page);
   }
   await expect(page.locator(`#screen-${screen}`)).toBeVisible();
+}
+
+// A run screen in Spanish too: the event with the longest choices (a recruit offer with Replace entries).
+for (const size of [100, 130]) {
+  test(`event in Spanish: fits the window without scrolling in the console (text ${size}%)`, async ({ page }, info) => {
+    const landscape = info.project.name === 'phone-landscape' || info.project.name === 'chromium';
+    await showRunScreen(page, 'event');
+    await setLanguage(page, 'es');
+    if (size !== 100) await setTextSize(page, size);
+    await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
+    await expect(page.locator('#screen-event')).toBeVisible();
+    await expectScreenFits(page, 'event', landscape);
+  });
 }
 
 for (const screen of ['title', 'map', 'event', 'end'] as const) {

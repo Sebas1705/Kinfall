@@ -82,6 +82,16 @@ describe('createRouter', () => {
     expect(live.textContent).toBe('Start');
   });
 
+  it('puts the created live region in the app shell, outside the screens a sheet makes inert', () => {
+    document.body.innerHTML = '<div class="app" id="app"><main id="r"><section data-screen="title"><h2>T</h2></section></main></div>';
+    const root = document.getElementById('r')!;
+    createRouter(root).show('title');
+    const live = document.querySelector('[data-announcer]')!;
+    expect(live.parentElement).toBe(document.getElementById('app'));
+    expect(root.contains(live)).toBe(false);
+    expect(live.textContent).toBe('Start');
+  });
+
   it('refreshTitle re-renders the title and announcement in the current language', () => {
     const root = setup();
     const router = createRouter(root);

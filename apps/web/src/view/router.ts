@@ -48,7 +48,8 @@ function announcer(root: HTMLElement): HTMLElement {
   live.dataset.announcer = '';
   live.setAttribute('aria-live', 'polite');
   live.setAttribute('aria-atomic', 'true');
-  root.prepend(live);
+  // Beside the screens, not inside them: a sheet makes the screens inert, and the live region must not be.
+  (root.closest<HTMLElement>('.app') ?? root).prepend(live);
   return live;
 }
 
