@@ -43,7 +43,8 @@
 }
 
 html {
-  scrollbar-gutter: stable;
+  /* No `scrollbar-gutter`: the shell never scrolls the page (only `.screens` does), and a reserved
+     gutter would take 15px of a desktop window that the layout contract and fixed overlays count on. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }

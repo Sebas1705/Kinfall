@@ -446,3 +446,270 @@ test('fallback: the run details are inline and the HUD button is hidden', async 
   expect(m.page).toBeLessThanOrEqual(m.inner);
   expect(m.w).toBeLessThanOrEqual(m.iw);
 });
+
+// ---- rotation and fullscreen resilience ----
+
+const PORTRAIT = { width: 360, height: 640 } as const;
+const LANDSCAPE = { width: 640, height: 360 } as const;
+
+const pageFits = (page: Page): Promise<boolean> =>
+  page.evaluate(() => {
+    const doc = document.scrollingElement!;
+    return doc.scrollHeight <= window.innerHeight && doc.scrollWidth <= window.innerWidth;
+  });
+
+const orientationOf = (page: Page): Promise<string | undefined> =>
+  page.locator('#app').evaluate((el) => (el as HTMLElement).dataset.orientation);
+
+async function rotateTo(page: Page, size: { width: number; height: number }): Promise<void> {
+  await page.setViewportSize(size);
+  await expect(page.locator('#app')).toHaveAttribute('data-orientation', size.width > size.height ? 'landscape' : 'portrait');
+  await expect.poll(() => pageFits(page)).toBe(true);
+}
+
+/** Collects every uncaught page error, so a test can assert that nothing threw. */
+function trackErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  return errors;
+}
+
+const battleState = (page: Page) =>
+  page.evaluate(() => ({
+    log: [...document.querySelectorAll('#log .log-turn p')].map((p) => p.textContent ?? ''),
+    summary: document.querySelector('#summary')?.textContent ?? '',
+    plates: [...document.querySelectorAll('#screen-battle .plate')].map((p) => (p.textContent ?? '').replace(/\s+/g, ' ').trim()),
+  }));
+
+test.describe('rotation', () => {
+  test.beforeEach(async ({}, info) => {
+    test.skip(info.project.name !== 'chromium' && info.project.name !== 'phone-portrait', 'sets its own window sizes; one touch and one desktop project are enough');
+  });
+
+  test('battle: the log, the HP and the canvas survive a rotation and back', async ({ page }) => {
+    const errors = trackErrors(page);
+    await page.setViewportSize(PORTRAIT);
+    await enterBattle(page, 'e2e-layout');
+    await page.locator('#choices button:not([disabled])').first().click();
+    await expect.poll(() => page.locator('#log .log-turn').count()).toBeGreaterThan(0);
+    await expect(page.locator('#choices')).not.toHaveAttribute('aria-busy', 'true');
+    await expect(page.locator('#scene canvas.scene-canvas')).toBeVisible();
+    await page.evaluate(() => {
+      (window as unknown as { __canvas: Element }).__canvas = document.querySelector('#scene canvas.scene-canvas')!;
+    });
+    const before = await battleState(page);
+    expect(before.log.length).toBeGreaterThan(0);
+    expect(before.summary).toMatch(/HP/);
+
+    for (const size of [LANDSCAPE, PORTRAIT, LANDSCAPE, PORTRAIT]) {
+      await rotateTo(page, size);
+      await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
+      expect(await battleState(page)).toEqual(before);
+      const same = await page.evaluate(() => {
+        const now = document.querySelector('#scene canvas.scene-canvas');
+        return now === (window as unknown as { __canvas: Element }).__canvas && now!.isConnected;
+      });
+      expect(same).toBe(true);
+      await expectBattleFits(page, size === LANDSCAPE);
+      // The canvas keeps room in the stage (it may bleed sideways into the page padding on phones,
+      // so only its height is bounded).
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const stage = document.querySelector('.stage')!.getBoundingClientRect();
+            const c = document.querySelector('#scene canvas.scene-canvas')!.getBoundingClientRect();
+            return c.width > 40 && c.height > 40 && c.bottom <= stage.bottom + 0.5;
+          }),
+        )
+        .toBe(true);
+    }
+    expect(errors).toEqual([]);
+  });
+
+  test('battle: the log sheet stays open with the same lines through a rotation and returns the log', async ({ page }) => {
+    const errors = trackErrors(page);
+    await page.setViewportSize(PORTRAIT);
+    await enterBattle(page, 'e2e-layout');
+    await page.locator('#choices button:not([disabled])').first().click();
+    await expect.poll(() => page.locator('#log .log-turn').count()).toBeGreaterThan(0);
+    await expect(page.locator('#choices')).not.toHaveAttribute('aria-busy', 'true');
+    const lines = (await battleState(page)).log;
+    await page.locator('#hud-log').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('#log')).toHaveCount(1);
+    for (const size of [LANDSCAPE, PORTRAIT]) {
+      await rotateTo(page, size);
+      await expect(dialog).toHaveCount(1);
+      await expect(dialog.locator('#log')).toHaveCount(1);
+      expect((await battleState(page)).log).toEqual(lines);
+      await expect(dialog).toHaveAttribute('data-orientation', size.width > size.height ? 'landscape' : 'portrait');
+      expect(await page.evaluate(() => !!document.activeElement!.closest('[role="dialog"]'))).toBe(true);
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('.log-panel #log')).toHaveCount(1);
+    await expect(page.locator('#hud-log')).toBeFocused();
+    expect(errors).toEqual([]);
+  });
+
+  test('settings sheet: swaps between bottom sheet and side drawer, stays on screen with focus inside', async ({ page }) => {
+    await page.setViewportSize(PORTRAIT);
+    await page.goto('/');
+    await page.locator('#hud-settings').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('#lang').focus();
+    for (const size of [LANDSCAPE, PORTRAIT, LANDSCAPE]) {
+      await rotateTo(page, size);
+      const landscape = size.width > size.height;
+      await expect(dialog).toHaveCount(1);
+      await expect(dialog).toHaveAttribute('data-orientation', landscape ? 'landscape' : 'portrait');
+      // A bottom sheet spans the width at the bottom; a drawer hugs the right edge and spans the height.
+      await expect
+        .poll(() =>
+          page.evaluate((land) => {
+            const r = document.querySelector('.sheet')!.getBoundingClientRect();
+            const close = document.querySelector('.sheet__close')!.getBoundingClientRect();
+            const inside = r.left >= -0.5 && r.top >= -0.5 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight + 0.5;
+            const shape = land ? r.right >= innerWidth - 0.5 && r.width < innerWidth : r.bottom >= innerHeight - 0.5 && r.width >= innerWidth - 0.5;
+            const closeVisible = close.bottom <= innerHeight + 0.5 && close.height > 0;
+            return inside && shape && closeVisible;
+          }, landscape),
+        )
+        .toBe(true);
+      // Focus stays on the control that had it.
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe('lang');
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('#hud-settings')).toBeFocused();
+  });
+
+  test('map: the board, the party chips and the focused node survive a rotation', async ({ page }) => {
+    await page.setViewportSize(PORTRAIT);
+    await startRunWithKeyboard(page, 'e2e-layout');
+    const node = page.locator('#screen-map button.map-node:not([disabled])').nth(1);
+    await node.focus();
+    const id = await node.getAttribute('data-node');
+    const snap = () =>
+      page.evaluate(() => ({
+        board: document.querySelector('#screen-map .map-layers')!.innerHTML,
+        party: document.querySelector('#hud-party')!.textContent,
+        focus: (document.activeElement as HTMLElement | null)?.dataset.node ?? '',
+      }));
+    const before = await snap();
+    expect(before.focus).toBe(id);
+    for (const size of [LANDSCAPE, PORTRAIT]) {
+      await rotateTo(page, size);
+      expect(await snap()).toEqual(before);
+      await expectScreenFits(page, 'map', size === LANDSCAPE);
+    }
+  });
+
+  test('event: the choices, the party chips and the focused control survive a rotation', async ({ page }) => {
+    await page.setViewportSize(PORTRAIT);
+    await page.goto('/');
+    await writeCraftedSave(page, 'recruit');
+    await continueSavedRun(page);
+    const choice = page.locator('#screen-event button[data-choice]:not([disabled])').nth(1);
+    await choice.focus();
+    const key = await choice.getAttribute('data-choice');
+    const snap = () =>
+      page.evaluate(() => ({
+        event: document.querySelector('#screen-event')!.innerHTML,
+        party: document.querySelector('#hud-party')!.textContent,
+        focus: (document.activeElement as HTMLElement | null)?.dataset.choice ?? '',
+      }));
+    const before = await snap();
+    expect(before.focus).toBe(key);
+    for (const size of [LANDSCAPE, PORTRAIT]) {
+      await rotateTo(page, size);
+      expect(await snap()).toEqual(before);
+      await expectScreenFits(page, 'event', size === LANDSCAPE);
+    }
+  });
+
+  test('fullscreen: fullscreenchange alone re-reads the window; the HUD label flips through the API', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { __fs: Element | null; __block: boolean };
+      w.__fs = null;
+      w.__block = false;
+      Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, get: () => true });
+      Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => w.__fs });
+      Element.prototype.requestFullscreen = async function (this: Element) {
+        w.__fs = this;
+        document.dispatchEvent(new Event('fullscreenchange'));
+      };
+      document.exitFullscreen = async () => {
+        w.__fs = null;
+        document.dispatchEvent(new Event('fullscreenchange'));
+      };
+      // Registered first and in capture, so the app's own resize listeners never run while blocked:
+      // only `fullscreenchange` can tell the layout about the new window.
+      const block = (e: Event) => {
+        if (w.__block) e.stopImmediatePropagation();
+      };
+      window.addEventListener('resize', block, true);
+      window.visualViewport?.addEventListener('resize', block, true);
+    });
+    await page.setViewportSize(PORTRAIT);
+    await page.goto('/');
+    const btn = page.locator('#hud-fullscreen');
+    await expect(btn).toBeVisible();
+    await expect(btn).toHaveAttribute('aria-label', 'Enter fullscreen');
+    expect(await orientationOf(page)).toBe('portrait');
+
+    await page.evaluate(() => ((window as unknown as { __block: boolean }).__block = true));
+    await page.setViewportSize(LANDSCAPE);
+    await expect.poll(() => page.evaluate(() => innerWidth)).toBe(640);
+    // Resize events are swallowed, so the layout is still the old one...
+    expect(await orientationOf(page)).toBe('portrait');
+    // ...until the browser announces fullscreen.
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-label', 'Exit fullscreen');
+    await expect(page.locator('#app')).toHaveAttribute('data-orientation', 'landscape');
+    await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
+
+    await page.setViewportSize(PORTRAIT);
+    await expect.poll(() => page.evaluate(() => innerWidth)).toBe(360);
+    expect(await orientationOf(page)).toBe('landscape');
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-label', 'Enter fullscreen');
+    await expect(page.locator('#app')).toHaveAttribute('data-orientation', 'portrait');
+    expect(await pageFits(page)).toBe(true);
+  });
+
+  test('battle: rotating during a turn animation throws nothing and the turn finishes with the same lines', async ({ browser, page }) => {
+    const errors = trackErrors(page);
+    await page.setViewportSize(PORTRAIT);
+    await enterBattle(page, 'e2e-layout');
+    expect(await page.evaluate(() => document.documentElement.classList.contains('reduce-motion'))).toBe(false);
+    await page.locator('#choices button:not([disabled])').first().click();
+    // The turn is playing: rotate there and back while it runs.
+    await expect(page.locator('#choices')).toHaveAttribute('aria-busy', 'true');
+    await rotateTo(page, LANDSCAPE);
+    await rotateTo(page, PORTRAIT);
+    await rotateTo(page, LANDSCAPE);
+    await expect(page.locator('#choices')).not.toHaveAttribute('aria-busy', 'true', { timeout: 20_000 });
+    await expect.poll(() => page.locator('#log .log-turn').count()).toBeGreaterThan(0);
+    const rotated = await battleState(page);
+
+    // The same seeded first move, never rotated, is the reference.
+    const ctx = await browser.newContext({ viewport: LANDSCAPE });
+    const ref = await ctx.newPage();
+    await enterBattle(ref, 'e2e-layout');
+    await ref.locator('#choices button:not([disabled])').first().click();
+    await expect(ref.locator('#choices')).not.toHaveAttribute('aria-busy', 'true', { timeout: 20_000 });
+    await expect.poll(() => ref.locator('#log .log-turn').count()).toBeGreaterThan(0);
+    const control = await battleState(ref);
+    await ctx.close();
+
+    expect(rotated.log).toEqual(control.log);
+    expect(rotated.summary).toEqual(control.summary);
+    expect(await pageFits(page)).toBe(true);
+    expect(errors).toEqual([]);
+  });
+});

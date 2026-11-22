@@ -150,6 +150,16 @@ export function openSheet(opts: SheetOptions): SheetHandle {
     ro.observe(body);
     watchers.push(ro);
   }
+  // Rotating the window while the sheet is open swaps the bottom sheet for the side drawer (and back):
+  // the layout driver rewrites `data-orientation` on `.app`, the sheet follows it.
+  if (typeof MutationObserver !== 'undefined' && app !== doc.body) {
+    const oo = new MutationObserver(() => {
+      dialog.dataset.orientation = app.dataset.orientation === 'landscape' ? 'landscape' : 'portrait';
+      syncScroll();
+    });
+    oo.observe(app, { attributes: true, attributeFilter: ['data-orientation'] });
+    watchers.push(oo);
+  }
   active = handle;
   const firstInside = body.querySelector<HTMLElement>(FOCUSABLE);
   (firstInside ?? closeBtn).focus();
