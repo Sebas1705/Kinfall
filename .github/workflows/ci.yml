@@ -90,7 +90,7 @@ jobs:
             projects: --project=chromium
           - name: Mobile viewport
             install: chromium
-            projects: --project=mobile
+            projects: --project=mobile --project=phone-landscape --project=phone-portrait
           - name: Firefox
             install: firefox
             projects: --project=firefox
