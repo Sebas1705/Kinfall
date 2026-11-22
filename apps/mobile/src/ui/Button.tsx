@@ -1,4 +1,5 @@
-import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import type { ComponentRef, Ref } from 'react';
+import { StyleSheet, type StyleProp, type View, type ViewStyle } from 'react-native';
 import { AppText } from './AppText';
 
 import { useTheme } from '../theme';
@@ -8,6 +9,8 @@ export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
 export interface ButtonProps {
   label: string;
+  /** Ref of the pressable: a sheet it opens gives it the focus back on close. */
+  ref?: Ref<ComponentRef<typeof View>>;
   onPress: () => void;
   variant?: ButtonVariant;
   disabled?: boolean;
@@ -24,10 +27,11 @@ export interface ButtonProps {
  * font scales. The main action ('primary') wears the ornate plate, the others the raised button;
  * a destructive one ('danger') writes its label in the danger colour (the words say it too).
  */
-export function Button({ label, onPress, variant = 'secondary', disabled = false, testID, accessibilityLabel, accessibilityHint, style, fit = false }: ButtonProps) {
+export function Button({ ref, label, onPress, variant = 'secondary', disabled = false, testID, accessibilityLabel, accessibilityHint, style, fit = false }: ButtonProps) {
   const theme = useTheme();
   return (
     <FramePressable
+      ref={ref}
       onPress={onPress}
       disabled={disabled}
       kind={variant === 'primary' ? 'plate' : 'button'}

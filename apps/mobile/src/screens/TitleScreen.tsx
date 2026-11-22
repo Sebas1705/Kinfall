@@ -19,10 +19,10 @@ import { TitleHero } from '../art/TitleHero';
 import { useLang } from '../platform/LangContext';
 import { useReducedMotion } from '../platform/motionSetting';
 import { randomSeed as defaultRandomSeed } from '../platform/random';
-import { useTextSize } from '../platform/textSizeSetting';
+import { MAX_FONT_SIZE_MULTIPLIER, useTextSize } from '../platform/textSizeSetting';
 import { useRunSession } from '../run/useRunSession';
 import { TOUCH, useTheme } from '../theme';
-import { AppText } from '../ui/AppText';
+import { AppText, scaleTextStyle } from '../ui/AppText';
 import { Button } from '../ui/Button';
 import { ConfirmPanel } from '../ui/ConfirmPanel';
 import { fitText } from '../ui/fitText';
@@ -115,6 +115,7 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const optionsRef = useRef<ComponentRef<typeof View>>(null);
+  const discardRef = useRef<ComponentRef<typeof View>>(null);
   const busy = useRef(false);
 
   const settings = useSettingsSheet();
@@ -212,7 +213,7 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
           <AppText style={[styles.notice, { color: theme.text, borderColor: theme.danger }]} numberOfLines={noticeLines('corrupt')}>
             {t('title.corrupt', { reason: saved.error })}
           </AppText>
-          <Button label={t('title.discard')} onPress={() => setConfirmDiscard(true)} testID="discard" style={buttonStyle} fit={consoleMode} />
+          <Button ref={discardRef} label={t('title.discard')} onPress={() => setConfirmDiscard(true)} testID="discard" style={buttonStyle} fit={consoleMode} />
         </View>
       ) : null}
       <Button label={t('title.continue')} variant="primary" disabled={!canContinue} onPress={() => void onContinue()} testID="continue" style={buttonStyle} fit={consoleMode} />
@@ -254,7 +255,8 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
             accessibilityLabelledBy="title-seed-label"
             accessibilityHint={t('title.seedHint')}
             testID="seed-input"
-            style={[styles.input, { color: theme.text, borderTopColor: theme.text, borderLeftColor: theme.text, borderRightColor: theme.outline, borderBottomColor: theme.outline, backgroundColor: theme.surface }]}
+            maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER / (appSize / 100)}
+            style={scaleTextStyle([styles.input, { color: theme.text, borderTopColor: theme.text, borderLeftColor: theme.text, borderRightColor: theme.outline, borderBottomColor: theme.outline, backgroundColor: theme.surface }], appSize)}
           />
           {/* Read once, as the field's hint; hidden here so screen readers do not repeat it. */}
           <AppText style={[styles.sheetHint, { color: theme.muted }]} importantForAccessibility="no" accessibilityElementsHidden>
@@ -276,7 +278,7 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
           </Pressable>
         ) : null}
       </Sheet>
-      <Sheet visible={confirmDiscard} onClose={() => setConfirmDiscard(false)} title={t('title.discard')} testID="discard-sheet">
+      <Sheet visible={confirmDiscard} onClose={() => setConfirmDiscard(false)} title={t('title.discard')} openerRef={discardRef} testID="discard-sheet">
         {/* The notice is cut to a few lines in the rail: its full text is here. */}
         {saved?.kind === 'corrupt' ? <AppText style={[styles.sheetHint, { color: theme.text }]}>{t('title.corrupt', { reason: saved.error })}</AppText> : null}
         <ConfirmPanel

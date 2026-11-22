@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { render, screen, userEvent, waitFor, within } from '@testing-library/react-native';
+import { act, render, screen, userEvent, waitFor, within } from '@testing-library/react-native';
+import { AccessibilityInfo, StyleSheet } from 'react-native';
 import { CONTENT } from '@kinfall/core/content';
 import { setLang } from '@kinfall/core/platform/i18n';
 import { SEED_ALPHABET } from '@kinfall/core/platform/seed';
@@ -9,6 +10,7 @@ import * as Localization from 'expo-localization';
 
 import { AppShell } from '../../App';
 import { randomSeed } from '../../src/platform/random';
+import { resetTextSizeSettingForTests, textSizeSetting } from '../../src/platform/textSizeSetting';
 import { createRunSession, type RunSession } from '../../src/run/session';
 import { RunSessionProvider } from '../../src/run/useRunSession';
 import { TitleScreen } from '../../src/screens/TitleScreen';
@@ -89,6 +91,33 @@ describe('title screen', () => {
     await waitFor(() => expect(screen.queryByTestId('corrupt-notice')).toBeNull());
     expect(storage.data.has(RUN_KEY)).toBe(false);
     expect(storage.removes).toBe(1);
+  });
+
+  it('gives the focus back to the Discard button when its sheet closes', async () => {
+    const focus = jest.spyOn(AccessibilityInfo, 'sendAccessibilityEvent').mockImplementation(() => {});
+    const user = userEvent.setup();
+    await renderTitle(makeSession(memoryStorage({ [RUN_KEY]: '{"broken":' })));
+    await user.press(await screen.findByTestId('discard'));
+    focus.mockClear();
+    await user.press(screen.getByTestId('discard-confirm-no'));
+    await waitFor(() => expect(screen.queryByTestId('discard-confirm')).toBeNull());
+    // One focus move, to the opener (without an openerRef the sheet moves no focus on close).
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(focus).toHaveBeenLastCalledWith(expect.anything(), 'focus');
+    focus.mockRestore();
+  });
+
+  it('writes the seed at the app text size', async () => {
+    resetTextSizeSettingForTests();
+    await renderTitle(makeSession(memoryStorage()));
+    await openTitleOptions();
+    const size = () => StyleSheet.flatten(screen.getByTestId('seed-input').props.style).fontSize as number;
+    expect(size()).toBe(18);
+    await act(async () => {
+      await textSizeSetting.set(150);
+    });
+    expect(size()).toBe(27);
+    resetTextSizeSettingForTests();
   });
 
   it('treats unavailable storage like no save, with the device notice', async () => {
