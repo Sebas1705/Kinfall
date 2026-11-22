@@ -77,7 +77,7 @@ body {
 /* ---- app shell: the console layout (see src/view/layout.ts) ----
    layout.ts publishes data-orientation, data-mode and --hud-h / --rail-w / --stage-h on .app. In
    `console` mode the shell is exactly one viewport tall and the page itself never scrolls; in
-   `fallback` mode (huge text or a very short window) the page scrolls, with the HUD pinned. The
+   `fallback` mode (huge text or a very short window) only the primary area scrolls. The
    content is capped at 1200 px (landscape) / 720 px (portrait); the backdrop (body) continues
    outside. Until the screens are recomposed into regions, the topbar fills `hud`, the existing
    screens fill the rest of the grid (`primary` plus the still empty `actions` / `info`) and
@@ -130,26 +130,17 @@ body {
   margin-top: 0.25rem;
 }
 
-.app[data-mode='console'] {
+/* Console and fallback both fill exactly one viewport and the page never scrolls. The only
+   difference is the content: in fallback (huge text or a very short window) the primary area
+   (`.screens`) scrolls inside the grid, so the HUD (the topbar row) stays pinned by layout. */
+.app[data-mode] {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
 }
 
-.app[data-mode='fallback'] {
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
 .app[data-mode='fallback'] > .screens {
-  overflow: visible;
-}
-
-.app[data-mode='fallback'] > .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--bg);
+  overflow-y: auto;
 }
 
 /* ---- top bar and settings ---- */

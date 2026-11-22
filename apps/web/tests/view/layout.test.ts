@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { startLayout } from '../../src/view/layout';
 
 function setWindow(width: number, height: number): void {
@@ -68,13 +68,13 @@ describe('startLayout', () => {
     handle.stop();
   });
 
-  it('listens to visualViewport resizes', () => {
+  it('listens to visualViewport resizes (stubbed, since jsdom has no visualViewport)', () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'visualViewport');
     const listeners = new Map<string, EventListener>();
     const vv = {
       addEventListener: (type: string, fn: EventListener) => listeners.set(type, fn),
       removeEventListener: (type: string) => listeners.delete(type),
     };
-    vi.stubGlobal('visualViewport', vv);
     Object.defineProperty(window, 'visualViewport', { configurable: true, value: vv });
     const handle = startLayout(root, { screen: () => 'map', textScale: () => 1 });
     setWindow(360, 640);
@@ -82,8 +82,8 @@ describe('startLayout', () => {
     expect(root.dataset.orientation).toBe('portrait');
     handle.stop();
     expect(listeners.size).toBe(0);
-    vi.unstubAllGlobals();
-    Object.defineProperty(window, 'visualViewport', { configurable: true, value: undefined });
+    if (original) Object.defineProperty(window, 'visualViewport', original);
+    else delete (window as { visualViewport?: unknown }).visualViewport;
   });
 
   it('stop() removes the listeners', () => {
