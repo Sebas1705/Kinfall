@@ -6,7 +6,7 @@ Legend: **verified** (checked on the Android emulator and/or by Jest, as stated)
 
 ## How it was checked
 
-- **Jest / React Native Testing Library** (`npm run test:mobile`): roles, names and states of every touchable on every run screen, 48dp targets, hidden sprites, the size-class logic, the compact battle, two panes, where the abandon confirmation shows, the reveal scroll maths, the iOS announcements and the palette contrast. Suites: `__tests__/screens/Layout.test.tsx`, `__tests__/ui/windowSize.test.ts`, `__tests__/ui/reveal.test.tsx`, `__tests__/platform/announce.test.tsx`, `__tests__/theme.test.ts`, plus the earlier screen suites.
+- **Jest / React Native Testing Library** (`npm run test:mobile`): roles, names and states of every touchable on every run screen, 48dp targets, hidden sprites, the console layout of every screen (regions, no page scroll, the pinned fallback), the sheets, where the abandon confirmation shows, the reveal scroll maths, the iOS announcements and the palette contrast. Suites: `__tests__/screens/Layout.test.tsx`, `__tests__/ui/reveal.test.tsx`, `__tests__/platform/announce.test.tsx`, `__tests__/theme.test.ts`, plus the earlier screen suites.
 - **Android emulator** (AVD `webgames_api36`, Android 16 / API 36, Expo Go, Metro): a scripted driver (adb + `uiautomator dump`) opened every screen in each configuration below, took a screenshot and checked from the view hierarchy that every touchable shown whole is at least 48x48dp and named, that nothing sticks out sideways, that at least one battle choice is on the first screen of the battle, and that the abandon confirmation is fully on screen once open. Event and end screens were reached through the dev tools' sample saves, then **Continue run**; the battle by tapping the first available node of a new run.
 - Window sizes were set with `wm size` / `wm density` and rotation, font scale with `settings put system font_scale`, the theme with `cmd uimode night`.
 
@@ -77,7 +77,7 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 ### Window sizes and insets
 | Case | Status |
 |---|---|
-| Size classes and layout decisions (pure `layoutFor`) | unit-tested: every device of the matrix and the boundaries |
+| Size classes and layout decisions (core's pure `layoutSpec`) | unit-tested in core: every device of the matrix and the boundaries |
 | Small phone 360x640 | verified (emulator) |
 | Phone 411x914 | verified (emulator) |
 | Phone in landscape (914x411): two panes on every screen, display cutout inset respected | verified (emulator); the app is no longer locked to portrait |

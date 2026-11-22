@@ -13,7 +13,7 @@ import { AppShell } from '../App';
 import { navigationRef } from '../src/navigation/AppNavigator';
 import { defaultAsyncStorage } from '../src/platform/asyncStorage';
 import { createRunSession } from '../src/run/session';
-import { openDevTools } from '../test-support/devTools';
+import { closeTitleOptions, openDevTools, openTitleOptions } from '../test-support/devTools';
 import { firstNode, makeSession, memoryStorage, RUN_KEY, STARTER, type MemoryStorage } from '../test-support/runFixtures';
 
 type BackFn = Parameters<typeof BackHandler.addEventListener>[1];
@@ -54,11 +54,16 @@ describe('app navigation', () => {
     await render(<AppShell session={makeSession(storage)} />);
     expect(await screen.findByTestId('title-screen')).toBeTruthy();
     expect(route()).toBe('Title');
+    // The seed field lives in the options sheet.
+    await openTitleOptions(user);
     await user.clear(screen.getByTestId('seed-input'));
     await user.type(screen.getByTestId('seed-input'), 'NAVSEED1');
+    await closeTitleOptions(user);
     await user.press(screen.getByTestId('new-run'));
     expect(await screen.findByTestId('map-screen')).toBeTruthy();
     expect(route()).toBe('Run');
+    // The seed line lives in the Settings sheet of the run screens.
+    await user.press(screen.getByTestId('hud-settings'));
     expect(screen.getByTestId('run-seed')).toHaveTextContent('Seed: NAVSEED1');
   });
 
@@ -102,7 +107,9 @@ describe('app navigation', () => {
 
     expect(await screen.findByTestId('title-screen')).toBeTruthy();
     await waitFor(() => expect(route()).toBe('Title'));
+    await openTitleOptions(user);
     expect(screen.getByTestId('seed-input').props.value).toBe('FRESH2');
+    await closeTitleOptions(user);
     await session.whenIdle();
     expect(storage.data.has(RUN_KEY)).toBe(false);
     expect(screen.getByTestId('continue').props.accessibilityState).toMatchObject({ disabled: true });
@@ -161,12 +168,16 @@ describe('app navigation', () => {
     await act(async () => session.whenIdle());
   });
 
-  it('reaches the dev tools from the title in dev builds only', async () => {
-    const dev = await render(<AppShell session={makeSession(storage)} devTools />);
+  it('reaches the dev tools from the options sheet of the title in dev builds', async () => {
+    await render(<AppShell session={makeSession(storage)} devTools />);
+    await openTitleOptions();
     expect(await screen.findByTestId('dev-tools')).toBeTruthy();
-    dev.unmount();
+  });
+
+  it('has no dev tools link in the options sheet of production builds', async () => {
     await render(<AppShell session={makeSession(storage)} devTools={false} />);
     expect(await screen.findByTestId('title-screen')).toBeTruthy();
+    await openTitleOptions();
     expect(screen.queryByTestId('dev-tools')).toBeNull();
   });
 });

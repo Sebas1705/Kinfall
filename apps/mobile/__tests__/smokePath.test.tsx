@@ -51,8 +51,13 @@ describe('smoke path (twin of the Maestro flow)', () => {
     await flush();
     expect(await screen.findByTestId('title-screen')).toBeTruthy();
 
-    // Title: type the seed, keep the default (first) starter, start.
+    // Title: type the seed (in the options sheet), keep the default (first) starter, start.
+    await fireEvent.press(screen.getByTestId('hud-options'));
     await fireEvent.changeText(screen.getByTestId('seed-input'), SMOKE_SEED);
+    await fireEvent.press(screen.getByTestId('options-sheet-close'));
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(500);
+    });
     expect(screen.getByTestId(`starter-${STARTER}`).props.accessibilityState).toMatchObject({ checked: true });
     await fireEvent.press(screen.getByTestId('new-run'));
     await flush();
@@ -83,7 +88,8 @@ describe('smoke path (twin of the Maestro flow)', () => {
     expect(await screen.findByTestId('map-screen')).toBeTruthy();
     expect(session.getSnapshot().run!.party).toHaveLength(2);
 
-    // Abandon, confirmed: back on the title, with no saved run.
+    // Abandon (in the Settings sheet), confirmed: back on the title, with no saved run.
+    await fireEvent.press(screen.getByTestId('hud-settings'));
     await fireEvent.press(screen.getByTestId('abandon'));
     await fireEvent.press(await screen.findByTestId('abandon-confirm-yes'));
     await flush();

@@ -24,6 +24,8 @@ export interface TitleHeroProps {
   reducedMotion: boolean;
   /** Width the hero gets before the first layout (dp). */
   initialWidth: number;
+  /** Largest height of the scene (dp); the console title gives it what its strip leaves. */
+  maxHeight?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -32,7 +34,7 @@ export function logoCell(width: number): number {
   return width >= 600 ? 4 : 3;
 }
 
-export function TitleHero({ starter, reducedMotion, initialWidth, style }: TitleHeroProps) {
+export function TitleHero({ starter, reducedMotion, initialWidth, maxHeight, style }: TitleHeroProps) {
   const { width, height } = useWindowDimensions();
   const creatures = useMemo<Partial<Record<Side, SceneCreature | null>>>(
     () => ({ player: { grid: creatureGrid(starter) }, enemy: { grid: creatureGrid(FOE), silhouette: true } }),
@@ -45,7 +47,7 @@ export function TitleHero({ starter, reducedMotion, initialWidth, style }: Title
         seed={TITLE_SEED}
         reducedMotion={reducedMotion}
         creatures={creatures}
-        maxHeight={Math.max(160, height * 0.36)}
+        maxHeight={maxHeight ?? Math.max(160, height * 0.36)}
         frame={{ cropTop: 4 }}
         initialWidth={initialWidth}
         testID="title-scene"

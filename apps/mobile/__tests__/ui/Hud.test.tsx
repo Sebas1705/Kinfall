@@ -51,6 +51,17 @@ describe('Hud', () => {
     expect(screen.getByRole('button', { name: 'Registro' })).toBeTruthy();
   });
 
+  it('lets a screen name the extra button and the heading (the run details, the title options)', async () => {
+    const onLog = jest.fn();
+    await render(<Hud screen="map" onSettings={() => {}} onLog={onLog} logLabel="Run" logTestID="hud-run" zoneLabel="Zone 1" titleTestID="map-heading" />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Run' }));
+    expect(onLog).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('hud-run')).toBeTruthy();
+    expect(screen.queryByTestId('hud-log')).toBeNull();
+    expect(screen.getByTestId('map-heading').props.accessibilityRole).toBe('header');
+    expect(screen.queryByTestId('hud-title')).toBeNull();
+  });
+
   it('falls back to the app title and writes the Settings label in Spanish', async () => {
     setLang('es');
     await render(<Hud screen="title" onSettings={() => {}} />);

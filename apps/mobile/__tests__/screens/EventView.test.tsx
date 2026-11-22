@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { act, render, screen, userEvent, within } from '@testing-library/react-native';
+import { act, render, screen, userEvent, waitFor, within } from '@testing-library/react-native';
 import { CONTENT } from '@kinfall/core/content';
 import { lookup } from '@kinfall/core/content/lookup';
 import { setLang, speciesName } from '@kinfall/core/platform/i18n';
@@ -96,9 +96,13 @@ describe('recruit', () => {
     expect(choiceTexts()).toEqual(['Recruit', 'Let it go']);
     // No abandon button on an event (as on the web); the party is shown.
     expect(screen.queryByTestId('abandon')).toBeNull();
-    expect(screen.getByTestId('party')).toBeTruthy();
     // Focus on arrival: the first enabled choice.
     expect(focusedTestId()).toBe('event-choice-0');
+    // The party is in the Run sheet.
+    await user.press(screen.getByTestId('hud-run'));
+    expect(screen.getByTestId('party')).toBeTruthy();
+    await user.press(screen.getByTestId('run-sheet-close'));
+    await waitFor(() => expect(screen.queryByTestId('run-sheet')).toBeNull());
 
     await user.press(screen.getByTestId('event-choice-0'));
     const after = session.getSnapshot().run!;
@@ -160,7 +164,10 @@ describe('shrine', () => {
       `Evolve ${starter}, Costs 3 souls`,
       'Leave',
     ]);
+    await user.press(screen.getByTestId('hud-run'));
     expect(screen.getByTestId('souls')).toHaveTextContent('Souls: 5');
+    await user.press(screen.getByTestId('run-sheet-close'));
+    await waitFor(() => expect(screen.queryByTestId('run-sheet')).toBeNull());
     await user.press(screen.getByTestId('event-choice-1'));
     const after = session.getSnapshot().run!;
     expect(after.party[0]!.speciesId).toBe(lookup(CONTENT).species(run.party[0]!.speciesId).evolvesTo);
@@ -269,9 +276,11 @@ describe('event screen layout and language', () => {
     const { session } = await resumedSample('recruitFull');
     await renderRun(session);
     expect(choiceTexts()).toHaveLength(4);
+    // The fallback caps nothing (the console layout caps lines to bound its heights).
     for (const node of within(screen.getByTestId('event-screen')).getAllByText(/./)) {
       expect(node.props.numberOfLines).toBeUndefined();
     }
+    for (const b of within(screen.getByTestId('event-choices')).getAllByText(/./)) expect(b.props.numberOfLines).toBeUndefined();
     const flat = (style: unknown) => Object.assign({}, ...[style].flat(3).filter(Boolean)) as { flexWrap?: string };
     // The card is a plate; its sprite and text row wraps.
     expect(flat(screen.getByTestId('event-offer-row').props.style).flexWrap).toBe('wrap');
@@ -296,7 +305,11 @@ describe('event screen layout and language', () => {
         <EventView run={run} confirming onToTitle={() => {}} />
       </RunSessionProvider>,
     );
-    expect(screen.getByTestId('event-screen')).toBeTruthy();
-    expect(focus).not.toHaveBeenCalled();
+    // The confirmation opened the Settings sheet, which hides the screen behind it.
+    expect(screen.getByTestId('event-screen', { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByTestId('settings-sheet')).toBeTruthy();
+    expect(focus).toHaveBeenCalledTimes(1);
+    // Only the Settings sheet took the focus (its title), not the initial choice.
+    expect((focus.mock.calls[0]![0] as unknown as { props: { testID: string } }).props.testID).toBe('settings-sheet-title');
   });
 });

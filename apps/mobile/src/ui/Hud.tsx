@@ -25,9 +25,16 @@ export interface HudProps {
   /** Refs of the two buttons: the sheets they open give them the focus back on close. */
   logRef?: Ref<ComponentRef<typeof View>>;
   settingsRef?: Ref<ComponentRef<typeof View>>;
+  /** Text and name of the extra button (the battle's Log, a run screen's details, the title's options). */
+  logLabel?: string;
+  /** testID of the extra button ('hud-log' by default). */
+  logTestID?: string;
+  /** Focus handle and testID of the heading: a run screen's heading is focused on arrival. */
+  titleRef?: Ref<ComponentRef<typeof AppText>>;
+  titleTestID?: string;
 }
 
-export function Hud({ screen, onSettings, party, zoneLabel, onLog, logRef, settingsRef }: HudProps) {
+export function Hud({ screen, onSettings, party, zoneLabel, onLog, logRef, settingsRef, logLabel, logTestID = 'hud-log', titleRef, titleTestID = 'hud-title' }: HudProps) {
   useLang();
   const theme = useTheme();
   const spec = useLayoutSpec(screen);
@@ -38,7 +45,7 @@ export function Hud({ screen, onSettings, party, zoneLabel, onLog, logRef, setti
       style={[styles.bar, fixed ? { height } : { minHeight: height }, { borderColor: theme.border, backgroundColor: theme.surface }]}
       testID="hud"
     >
-      <AppText style={[styles.title, { color: theme.text }]} numberOfLines={fixed ? 1 : undefined} accessibilityRole="header" testID="hud-title">
+      <AppText ref={titleRef} style={[styles.title, { color: theme.text }]} numberOfLines={fixed ? 1 : undefined} accessibilityRole="header" testID={titleTestID}>
         {zoneLabel ?? t('app.title')}
       </AppText>
       <View style={styles.party}>
@@ -62,12 +69,12 @@ export function Hud({ screen, onSettings, party, zoneLabel, onLog, logRef, setti
           ref={logRef}
           onPress={onLog}
           accessibilityRole="button"
-          accessibilityLabel={t('battle.openLog')}
+          accessibilityLabel={logLabel ?? t('battle.openLog')}
           style={({ pressed }) => [styles.settings, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}
-          testID="hud-log"
+          testID={logTestID}
         >
           <AppText style={[styles.settingsText, { color: theme.text }]} numberOfLines={1}>
-            {t('battle.openLog')}
+            {logLabel ?? t('battle.openLog')}
           </AppText>
         </Pressable>
       ) : null}

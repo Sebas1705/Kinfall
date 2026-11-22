@@ -149,9 +149,13 @@ describe('battle screen', () => {
     expect(run.phase.kind).not.toBe('battle');
     // The next phase shows, with the run log lines of the battle's end as the fresh lines.
     expect(screen.getByTestId(`run-${session.getSnapshot().view}`)).toBeTruthy();
-    const fresh = screen.getByTestId('run-log-fresh');
-    expect(within(fresh).getAllByTestId('run-log-line').length).toBe(session.getSnapshot().logFresh);
-    expect(session.getSnapshot().logFresh).toBeGreaterThan(0);
+    // The fresh lines are one message line (a polite live region); the Run sheet lists them one by one.
+    const logFresh = session.getSnapshot().logFresh;
+    expect(logFresh).toBeGreaterThan(0);
+    const message = within(screen.getByTestId('run-log-fresh')).getByTestId('run-log-message-text');
+    await fireEvent.press(screen.getByTestId('hud-run'));
+    const lines = within(screen.getByTestId('run-sheet')).getAllByTestId('run-log-line').map((l) => l.props.children as string);
+    expect(lines.slice(-logFresh).join(' ')).toBe(message.props.children);
   });
 
   it('calls onEnd exactly once, after the final play settled', async () => {

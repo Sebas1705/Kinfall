@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, render, screen, userEvent, waitFor, within } from '@testing-library/react-native';
+import { columnWidth, nodeWidth } from '../../src/screens/mapMetrics';
+import { layoutSpec } from '@kinfall/core/layout/spec';
 import { CONTENT } from '@kinfall/core/content';
 import { nodeTypeLabel, setLang, t } from '@kinfall/core/platform/i18n';
 import { serializeRun } from '@kinfall/core/sim/run/codec';
@@ -89,9 +91,9 @@ describe('map screen', () => {
       const state = open.has(node.id) ? 'available' : 'locked';
       expect(button.props.accessibilityLabel).toBe(`${nodeTypeLabel(node.type)}: ${state}`);
       expect(button.props.accessibilityState).toMatchObject({ disabled: !open.has(node.id) });
-      // The type and state are visible text, not only colour.
-      expect(within(button).getByText(nodeTypeLabel(node.type))).toBeTruthy();
-      expect(within(button).getByText(state)).toBeTruthy();
+      // The type is visible text under the icon (its first word: the board is 7 columns wide), and
+      // the full type and state are the accessible name above.
+      expect(screen.getByTestId(`node-name-${node.id}`, { includeHiddenElements: true }).props.children).toBe(nodeTypeLabel(node.type).split(' ')[0]);
     }
   });
 
@@ -104,17 +106,23 @@ describe('map screen', () => {
     const current = screen.getByTestId(`node-${at}`);
     expect(current.props.accessibilityLabel).toMatch(/: cleared, you are here$/);
     expect(current.props.accessibilityState).toMatchObject({ disabled: true, selected: true });
-    expect(within(current).getByText('cleared, you are here')).toBeTruthy();
+    // Not colour alone: a check on a cleared node and a dot on the current one (text glyphs).
+    expect(within(current).getByText('✓', { includeHiddenElements: true })).toBeTruthy();
+    expect(within(current).getByText('●', { includeHiddenElements: true })).toBeTruthy();
     // Successors of the current node are now the available ones.
     const next = start.maps[0]!.layers[0]!.find((n) => n.id === at)!.next;
     for (const id of next) expect(screen.getByTestId(`node-${id}`).props.accessibilityState).toMatchObject({ disabled: false });
   });
 
   it('shows the party with sprite, name and HP as text, and the souls', async () => {
+    const user = userEvent.setup();
     const session = makeSession(memoryStorage());
     session.start(SEED, 'tidewisp');
     await renderRun(session);
     const max = maxHpOf('tidewisp', CONTENT);
+    // The HUD shows the chips; the details are in the Run sheet.
+    expect(screen.getByTestId('hud-chip-0').props.accessibilityLabel).toBe(`Tidewisp ${max}/${max}`);
+    await user.press(screen.getByTestId('hud-run'));
     expect(screen.getByTestId('party-member-0').props.accessibilityLabel).toBe(`Tidewisp ${max}/${max}`);
     expect(screen.getByTestId('party-hp-0').props.children).toBe(`${max}/${max}`);
     expect(screen.getByTestId('sprite-tidewisp-2', { includeHiddenElements: true })).toBeTruthy();
@@ -186,6 +194,9 @@ describe('map screen', () => {
     const session = makeSession(storage);
     session.start(SEED, STARTER);
     const { onExit } = await renderRun(session);
+    // Abandon lives in the Settings sheet; its confirmation replaces the button there.
+    expect(screen.queryByTestId('abandon')).toBeNull();
+    await user.press(screen.getByTestId('hud-settings'));
     await user.press(screen.getByTestId('abandon'));
     expect(screen.getByText('Abandon this run? Your save will be deleted.')).toBeTruthy();
     expect(screen.queryByTestId('abandon')).toBeNull();
@@ -236,24 +247,26 @@ describe('map screen', () => {
     expect(screen.getByTestId('battle-screen')).toBeTruthy();
   });
 
-  it('widens node buttons with the font scale (one per row at 200% on a phone, never broken words)', async () => {
-    const flat = (style: unknown) => Object.assign({}, ...[style].flat(3).filter(Boolean)) as { flexBasis?: number; minHeight?: number };
+  it('sizes every node from the board column, at least 48dp each way, on a phone in either size and at 130% text', async () => {
+    const flat = (style: unknown) => Object.assign({}, ...[style].flat(3).filter(Boolean)) as { width?: number; height?: number; minHeight?: number };
     const session = makeSession(memoryStorage());
     session.start(SEED, STARTER);
     const id = `node-${firstNode(session.getSnapshot().run!)}`;
     // useWindowDimensions reads Dimensions.get('window') (the Jest default has fontScale 2).
     const dims = jest.spyOn(Dimensions, 'get');
-    dims.mockReturnValue({ width: 411, height: 914, scale: 2.625, fontScale: 1 });
-    await renderRun(session);
-    const at1 = flat(screen.getByTestId(id).props.style);
-    expect(at1.flexBasis).toBe(140);
-    expect(at1.minHeight).toBeGreaterThanOrEqual(48);
-
-    dims.mockReturnValue({ width: 360, height: 640, scale: 2.625, fontScale: 2 });
-    await renderRun(session);
-    expect(dims).toHaveBeenCalled();
-    // 280dp + 280dp + gap > 328dp of content width at 360dp: one node per row.
-    expect(flat(screen.getByTestId(id).props.style).flexBasis).toBe(280);
+    for (const [width, height, fontScale] of [
+      [411, 914, 1],
+      [360, 640, 1.3],
+    ] as const) {
+      dims.mockReturnValue({ width, height, scale: 2.625, fontScale });
+      await renderRun(session);
+      const spec = layoutSpec({ width, height, textScale: fontScale }, 'map');
+      expect(spec.mode).toBe('console');
+      const style = flat(screen.getAllByTestId(id).at(-1)!.props.style);
+      expect(style.width).toBe(nodeWidth(columnWidth(spec.regions.primary.width)));
+      expect(style.width).toBeGreaterThanOrEqual(48);
+      expect(style.minHeight).toBeGreaterThanOrEqual(48);
+    }
   });
 
   it('follows the language', async () => {
@@ -263,6 +276,7 @@ describe('map screen', () => {
     await renderRun(session);
     expect(screen.getByTestId('map-heading').props.children).toBe('Zona 1: Marjal de Ceniza');
     expect(screen.getByText('Paso 1')).toBeTruthy();
+    await userEvent.setup().press(screen.getByTestId('hud-settings'));
     expect(screen.getByText('Abandonar partida')).toBeTruthy();
   });
 });
@@ -297,6 +311,8 @@ describe('event and end phases', () => {
   });
 
   it('a new phase starts scrolled to the top', async () => {
+    // A phone at 200% text does not fit the console layout: its primary region scrolls.
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ width: 360, height: 640, scale: 2.625, fontScale: 2 });
     const scrollTo = jest.fn();
     const { ScrollView } = jest.requireActual<typeof import('react-native')>('react-native');
     jest.spyOn(ScrollView.prototype as unknown as { scrollTo: () => void }, 'scrollTo').mockImplementation(scrollTo);

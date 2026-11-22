@@ -1,79 +1,157 @@
-// Map screen: the pure map model (buildMapModel, in @kinfall/core) drawn with React Native.
-// A banner of the zone's scene sits under the heading; layers stack vertically along a dotted
-// path, step 1 first and the boss last; nodes wrap in rows. Every node is a framed 48dp button with
-// its pixel icon (a distinct silhouette per type) and names its type and state in text (never
-// colour alone): the current node wears the plate, locked ones are flat. In two panes (tablets,
-// foldables, landscape) the party and the run log sit on the left and the map on the right.
+// Map screen in the console layout (no page scroll): the zone drawn as a fixed board in the primary
+// region, one column per layer (step 1 first, the boss last: at most 7 columns of at most 3 nodes),
+// side by side in both orientations (a portrait phone is 360 dp wide, 7 columns of a 48 dp touch
+// target); the rail holds the readout of the focused node and a legend; the HUD carries the zone,
+// the party chips, the "Run" button (party details and the run log in a sheet) and Settings (with
+// Abandon and its confirmation, like the battle).
+//
+// A node is a 48 dp framed button with its pixel icon, and under it the short type name (the first
+// word of its label) as real text. The state is never colour alone: a locked node is flat and its
+// icon dimmed, a cleared one carries a check, the current one a dot and the plate; the accessible
+// name is the full "type: state" and the visible name under the icon is hidden from readers so it
+// is not read twice. The selection model is unchanged: activating an available node moves there.
+//
+// The log is a one-line message over the board's bottom edge (the newest line, a polite live region
+// OUTSIDE the part a sheet hides, see Screen's `overlay` and `backdrop`). When the window does not
+// fit the contract (200% text, tiny windows) the Screen falls back to a pinned HUD and rail with
+// the board scrolling in between. Sizes are in mapMetrics, which the fit tests prove.
 import { CONTENT } from '@kinfall/core/content';
 import { buildMapModel, type MapModel } from '@kinfall/core/models/map';
 import { t } from '@kinfall/core/platform/i18n';
 import type { RunState } from '@kinfall/core/sim/run/types';
-import { useMemo, type ReactNode } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { AppText } from '../ui/AppText';
+import { effectiveTextScale } from '@kinfall/core/layout/spec';
+import { useMemo, useState, type ReactNode, type Ref } from 'react';
+import { StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 
-import { ArtScene } from '../art/ArtScene';
+import { GridImage } from '../art/GridImage';
 import { nodeIconGrid } from '../art/sceneCache';
-import { useReducedMotion } from '../platform/motionSetting';
-import { useTheme, type Theme } from '../theme';
-import { Button } from '../ui/Button';
+import { useLang } from '../platform/LangContext';
+import { useTextSize } from '../platform/textSizeSetting';
+import { useTheme } from '../theme';
+import { AppText } from '../ui/AppText';
+import { fitText } from '../ui/fitText';
+import { Hud } from '../ui/Hud';
 import { PartyPanel } from '../ui/PartyPanel';
-import { FramePressable } from '../ui/PixelFrame';
-import { frameCell } from '../ui/frames';
-import { useLayout } from '../ui/windowSize';
+import { FramePressable, Plate, usePlateText } from '../ui/PixelFrame';
+import { RunLogMessage, RunLogPanel } from '../ui/RunLogPanel';
+import { Screen } from '../ui/Screen';
+import { Sheet } from '../ui/Sheet';
+import { useLayoutSpec } from '../ui/useLayoutSpec';
+import { useRunSheets } from '../ui/useRunSheets';
+import { messageHeight } from './battleMetrics';
+import {
+  BOARD_PAD,
+  NAME_GAP,
+  NAME_LINE,
+  NAME_SIZE,
+  NODE_GAP,
+  NODE_MIN,
+  LEGEND_SIZE,
+  READOUT_LABEL_SIZE,
+  READOUT_STATE_SIZE,
+  RAIL_GAP,
+  RAIL_PAD,
+  STEP_GAP,
+  STEP_SIZE,
+  columnWidth,
+  nodeWidth,
+} from './mapMetrics';
 
 type MapNodeModel = MapModel['layers'][number]['nodes'][number];
 
-/** Node button basis width (dp) at font scale 1. */
-export const NODE_BASIS = 140;
-/** Rows of the zone scene the banner shows (the horizon and the landmarks). */
-export const BANNER = { cropTop: 34, rows: 62 } as const;
+/** Cell size (dp) of a node icon: 16 cells at 2 dp fill the 48 dp frame's content box exactly. */
+const ICON_CELL = 2;
+const ICON_BOX = 16 * ICON_CELL;
 
 function stateText(node: MapNodeModel): string {
   const base = t(`map.${node.state}`);
   return node.current ? `${base}, ${t('map.current')}` : base;
 }
 
-function NodeButton({ node, onPick, basis }: { node: MapNodeModel; onPick: (id: string) => void; basis: number }) {
+/** The short type name under a node's icon: the first word of its label. */
+export function shortName(node: MapNodeModel): string {
+  return node.label.split(' ')[0] ?? node.label;
+}
+
+interface NodeCellProps {
+  node: MapNodeModel;
+  onPick: (id: string) => void;
+  width: number;
+  onFocusChange: (id: string, focused: boolean) => void;
+}
+
+function NodeCell({ node, onPick, width, onFocusChange }: NodeCellProps) {
+  const theme = useTheme();
   const state = stateText(node);
   const available = node.state === 'available';
-  // Locked nodes show their icon dimmed (their state is in text too).
-  const icon = useMemo(() => ({ grid: nodeIconGrid(node.type), cellDp: 2, alpha: available || node.current ? 1 : 0.55 }), [node.type, available, node.current]);
+  const cleared = node.state === 'cleared';
+  const grid = useMemo(() => nodeIconGrid(node.type), [node.type]);
+  const dim = available || node.current ? 1 : 0.55;
   return (
-    <FramePressable
-      onPress={() => onPick(node.id)}
-      disabled={!available}
-      kind={node.current ? 'plate' : 'button'}
-      accessibilityLabel={t('map.nodeLabel', { label: node.label, state })}
-      accessibilityState={{ disabled: !available, selected: node.current }}
-      testID={`node-${node.id}`}
-      icon={icon}
-      iconTestID={`map-icon-${node.type}`}
-      style={[styles.node, { flexBasis: basis }]}
-    >
-      {({ textColor }) => (
-        <View style={styles.nodeText}>
-          <AppText style={[styles.nodeLabel, { color: textColor }]}>{node.label}</AppText>
-          <AppText style={[styles.nodeState, { color: textColor }]}>{state}</AppText>
-        </View>
-      )}
-    </FramePressable>
+    <View style={[styles.cell, { width }]}>
+      <FramePressable
+        onPress={() => onPick(node.id)}
+        disabled={!available}
+        kind={node.current ? 'plate' : 'button'}
+        accessibilityLabel={t('map.nodeLabel', { label: node.label, state })}
+        accessibilityState={{ disabled: !available, selected: node.current }}
+        testID={`node-${node.id}`}
+        style={[styles.node, { width, height: NODE_MIN, minHeight: NODE_MIN }]}
+        padX={0}
+        padY={0}
+        onFocusChange={(focused) => onFocusChange(node.id, focused)}
+      >
+        {({ textColor }) => (
+          <View style={styles.icon}>
+            <GridImage grid={grid} cellDp={ICON_CELL} style={{ opacity: dim }} testID={`map-icon-${node.type}`} />
+            {/* A state cue that is not colour: a check on cleared nodes, a dot on the current one. */}
+            {cleared ? (
+              <Text style={[styles.mark, styles.markTop, { color: textColor }]} allowFontScaling={false} importantForAccessibility="no" accessibilityElementsHidden>
+                {'✓'}
+              </Text>
+            ) : null}
+            {node.current ? (
+              <Text style={[styles.mark, styles.markBottom, { color: textColor }]} allowFontScaling={false} importantForAccessibility="no" accessibilityElementsHidden>
+                {'●'}
+              </Text>
+            ) : null}
+          </View>
+        )}
+      </FramePressable>
+      {/* Fixed size on purpose (see mapMetrics NAME_SIZE); hidden from readers, the node's name has it. */}
+      <Text
+        style={[styles.name, { color: available || node.current ? theme.text : theme.muted }]}
+        numberOfLines={1}
+        ellipsizeMode="clip"
+        allowFontScaling={false}
+        importantForAccessibility="no"
+        accessibilityElementsHidden
+        testID={`node-name-${node.id}`}
+      >
+        {shortName(node)}
+      </Text>
+    </View>
   );
 }
 
-/** The step marker and the dotted path segment down to the next step (decorative). */
-function PathMarker({ last, done, theme }: { last: boolean; done: boolean; theme: Theme }) {
-  const cell = frameCell().dp;
+/** The rail: the name and state of the node under the focus (or the next one to pick), and the legend. */
+function Readout({ node, fixed }: { node: MapNodeModel | null; fixed: boolean }) {
+  const ink = usePlateText();
+  const theme = useTheme();
   return (
-    <View style={styles.rail} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-      <View style={[styles.marker, { width: cell * 5, height: cell * 5, borderWidth: cell, borderColor: theme.text, backgroundColor: done ? theme.accent : theme.bg }]} />
-      {last ? null : (
-        <View style={styles.dots}>
-          {Array.from({ length: 24 }, (_, i) => (
-            <View key={i} style={{ width: cell, height: cell, marginVertical: cell, backgroundColor: theme.border }} />
-          ))}
-        </View>
-      )}
+    // Purely visual: every node already has its accessible name.
+    <View style={styles.rail} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden testID="map-rail">
+      <Plate style={styles.readout} testID="map-readout" pad={0}>
+        <AppText style={[styles.readoutLabel, { color: ink.text }]} {...fitText(fixed, 1, 0.7)} testID="map-readout-label">
+          {node?.label ?? ''}
+        </AppText>
+        <AppText style={[styles.readoutState, { color: ink.muted }]} {...fitText(fixed, 1, 0.7)} testID="map-readout-state">
+          {node ? stateText(node) : ''}
+        </AppText>
+      </Plate>
+      <AppText style={[styles.legend, { color: theme.muted }]} numberOfLines={fixed ? 2 : undefined} testID="map-legend">
+        {`✓ ${t('map.cleared')}   ● ${t('map.current')}`}
+      </AppText>
     </View>
   );
 }
@@ -84,114 +162,132 @@ export interface MapViewProps {
   onPick: (nodeId: string) => void;
   /** First step of the two-step abandon (the Run screen shows the confirmation). */
   onAbandon: () => void;
-  /** Hides the abandon button while its confirmation is open. */
+  /** The Settings sheet closed while the confirmation was open: the Run screen drops it. */
+  onCancelAbandon?: () => void;
+  /** The abandon confirmation is open (it shows in the Settings sheet, in place of Abandon). */
   confirming: boolean;
-  /** The abandon confirmation, drawn where the Abandon button was while `confirming`. */
   confirmPanel?: ReactNode;
-  /** The run log panel (after the map, or under the party in two panes). */
-  log?: ReactNode;
+  /** Above the board (the save warning). */
+  header?: ReactNode;
+  /** In the Settings sheet, under the Abandon button (the seed line). */
+  trailer?: ReactNode;
+  /** The scroll area of the fallback layout (the Run screen scrolls it to the top on a phase change). */
+  scrollRef?: Ref<ScrollViewInstance>;
+  testID?: string;
 }
 
-export function MapView({ run, trail, onPick, onAbandon, confirming, confirmPanel, log }: MapViewProps) {
+export function MapView({ run, trail, onPick, onAbandon, onCancelAbandon, confirming, confirmPanel, header, trailer, scrollRef, testID }: MapViewProps) {
+  useLang();
   const theme = useTheme();
-  const { twoPane, width: widthClass } = useLayout();
-  const reduceMotion = useReducedMotion();
-  // Node width grows with the font scale, so large text gets one node per row instead of words
-  // broken mid-way (two per row at the default size on a 360dp phone).
-  const { fontScale, width } = useWindowDimensions();
-  const basis = NODE_BASIS * Math.max(1, fontScale);
+  const spec = useLayoutSpec('map');
+  const { fontScale } = useWindowDimensions();
+  const appSize = useTextSize();
+  const scale = effectiveTextScale(fontScale, appSize / 100);
+  const landscape = spec.orientation === 'landscape';
+  const consoleMode = spec.mode === 'console';
   const model = buildMapModel(run, CONTENT, trail);
-  const heading = (
-    <AppText style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="map-heading">
-      {t('map.zone', { n: model.zoneNo, name: model.zoneName })}
-    </AppText>
-  );
-  const banner = (
-    <ArtScene
-      zone={run.zone}
-      seed={run.seed}
-      reducedMotion={reduceMotion}
-      maxHeight={110}
-      frame={{ banner: BANNER }}
-      initialWidth={twoPane ? width / 2 : width}
-      style={!twoPane && widthClass === 'compact' ? styles.bleed : null}
-      testID="map-banner"
-    />
-  );
-  const party = <PartyPanel party={model.party} speciesIds={run.party.map((m) => m.speciesId)} souls={model.souls} />;
-  const abandon = confirming ? (confirmPanel ?? null) : <Button label={t('map.abandon')} onPress={onAbandon} testID="abandon" />;
-  const last = model.layers.length - 1;
-  const layers = (
-    <View style={styles.layers}>
-      {model.layers.map((layer, li) => {
-        const done = layer.nodes.every((n) => n.state !== 'available' && n.state !== 'locked') || layer.nodes.some((n) => n.current);
-        return (
-          <View key={layer.layer} style={styles.layerRow} testID={`layer-${layer.layer}`}>
-            <PathMarker last={li === last} done={done} theme={theme} />
-            <View style={styles.layer}>
-              <AppText style={[styles.step, { color: theme.text }]} accessibilityRole="header">
-                {t('map.step', { n: layer.layer + 1 })}
-              </AppText>
-              <View style={styles.nodes}>
-                {layer.nodes.map((n) => (
-                  <NodeButton key={n.id} node={n} onPick={onPick} basis={basis} />
-                ))}
-              </View>
-            </View>
-          </View>
-        );
-      })}
-    </View>
-  );
-  if (twoPane) {
-    return (
-      <View style={styles.map} testID="map-screen">
-        {heading}
-        <View style={styles.panes} testID="map-two-pane">
-          <View style={[styles.pane, styles.paneSide]}>
-            {banner}
-            {party}
-            {log}
-          </View>
-          <View style={[styles.pane, styles.paneMain]}>
-            {layers}
-            {abandon}
+  const sheets = useRunSheets({ confirming, confirmPanel, trailer, onAbandon, onCancelAbandon });
+  const [focused, setFocused] = useState<string | null>(null);
+
+  const nodes = model.layers.flatMap((l) => l.nodes);
+  const shown = nodes.find((n) => n.id === focused) ?? nodes.find((n) => n.state === 'available') ?? nodes.find((n) => n.current) ?? nodes[0] ?? null;
+  const onFocusChange = (id: string, on: boolean) => setFocused((prev) => (on ? id : prev === id ? null : prev));
+
+  // In the fallback the board sits in the scrolling area, inside its 16 dp side padding.
+  const boardWidth = spec.regions.primary.width - (consoleMode ? 0 : 32);
+  const column = columnWidth(boardWidth);
+  const nodeW = nodeWidth(column);
+
+  const board = (
+    <View
+      style={[consoleMode ? styles.boardFill : styles.board, { paddingBottom: BOARD_PAD + (consoleMode && landscape ? messageHeight(scale, 1) : 0) }]}
+      testID="map-screen"
+    >
+      {model.layers.map((layer) => (
+        <View key={layer.layer} style={[styles.column, { width: column }]} testID={`layer-${layer.layer}`}>
+          <AppText
+            style={[styles.step, { color: theme.text }]}
+            accessibilityRole="header"
+            {...fitText(true, 1, 0.7)}
+          >
+            {t('map.step', { n: layer.layer + 1 })}
+          </AppText>
+          <View style={styles.nodes}>
+            {layer.nodes.map((n) => (
+              <NodeCell key={n.id} node={n} onPick={onPick} width={nodeW} onFocusChange={onFocusChange} />
+            ))}
           </View>
         </View>
-      </View>
-    );
-  }
+      ))}
+    </View>
+  );
+  const main = (
+    <>
+      {consoleMode ? (
+        <View style={styles.banner} pointerEvents="box-none">
+          {header}
+        </View>
+      ) : (
+        header
+      )}
+      {board}
+    </>
+  );
+
+  const hud = (
+    <Hud
+      screen="map"
+      zoneLabel={t('map.zone', { n: model.zoneNo, name: model.zoneName })}
+      titleTestID="map-heading"
+      party={model.party}
+      onLog={sheets.openDetails}
+      logRef={sheets.detailsRef as never}
+      logLabel={t('run.open')}
+      logTestID="hud-run"
+      onSettings={sheets.settings.open}
+      settingsRef={sheets.settings.openerRef as never}
+    />
+  );
+
   return (
-    <View style={styles.map} testID="map-screen">
-      {heading}
-      {banner}
-      {party}
-      {layers}
-      {abandon}
-      {log}
+    <View style={styles.root}>
+      <Screen
+        ref={scrollRef}
+        screen="map"
+        testID={testID}
+        hud={hud}
+        primary={main}
+        actions={<Readout node={shown} fixed={consoleMode} />}
+        backdrop={sheets.backdrop}
+        overlay={<RunLogMessage landscape={landscape} />}
+      />
+      {sheets.settings.sheet}
+      <Sheet visible={sheets.detailsOpen} onClose={sheets.closeDetails} title={t('run.details')} openerRef={sheets.detailsRef} testID="run-sheet">
+        <PartyPanel party={model.party} speciesIds={run.party.map((m) => m.speciesId)} souls={model.souls} />
+        <RunLogPanel />
+      </Sheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  map: { gap: 16 },
-  panes: { flexDirection: 'row', alignItems: 'flex-start', gap: 24 },
-  pane: { gap: 16, minWidth: 0 },
-  paneSide: { flex: 2 },
-  paneMain: { flex: 3 },
-  heading: { fontSize: 24, fontWeight: '700' },
-  bleed: { marginHorizontal: -16 },
-  layers: { gap: 4 },
-  layerRow: { flexDirection: 'row', gap: 10 },
-  rail: { width: 14, alignItems: 'center', paddingTop: 3, overflow: 'hidden', position: 'relative' },
-  marker: {},
-  // Absolute, so the path never makes a step taller than its nodes.
-  dots: { position: 'absolute', top: 18, bottom: 0, left: 0, right: 0, alignItems: 'center', overflow: 'hidden' },
-  layer: { flex: 1, gap: 6, paddingBottom: 10 },
-  step: { fontSize: 15, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  nodes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  node: { flexGrow: 1 },
-  nodeText: { flexShrink: 1 },
-  nodeLabel: { fontSize: 16, fontWeight: '600' },
-  nodeState: { fontSize: 14 },
+  root: { flex: 1 },
+  board: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: BOARD_PAD },
+  boardFill: { flex: 1, minHeight: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: BOARD_PAD },
+  banner: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 },
+  column: { alignItems: 'center', justifyContent: 'center', gap: STEP_GAP },
+  step: { fontSize: STEP_SIZE, fontWeight: '700', textAlign: 'center' },
+  nodes: { gap: NODE_GAP, alignItems: 'center' },
+  cell: { alignItems: 'center', gap: NAME_GAP },
+  node: { alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
+  icon: { width: ICON_BOX, height: ICON_BOX },
+  mark: { position: 'absolute', fontSize: 11, lineHeight: 11, fontWeight: '700' },
+  markTop: { top: -4, right: -4 },
+  markBottom: { bottom: -4, left: -4 },
+  name: { fontSize: NAME_SIZE, lineHeight: NAME_LINE, fontWeight: '600', textAlign: 'center', alignSelf: 'stretch' },
+  rail: { padding: RAIL_PAD, gap: RAIL_GAP },
+  readout: { gap: 0 },
+  readoutLabel: { fontSize: READOUT_LABEL_SIZE, fontWeight: '700', textAlign: 'center' },
+  readoutState: { fontSize: READOUT_STATE_SIZE, textAlign: 'center' },
+  legend: { fontSize: LEGEND_SIZE, textAlign: 'center' },
 });

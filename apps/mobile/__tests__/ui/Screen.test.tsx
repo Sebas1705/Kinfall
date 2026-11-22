@@ -1,5 +1,6 @@
-// The scroll-into-view machinery of Screen (useReveal): where it scrolls, its retry after a frame,
-// the repeat on a late content size change, and the pinned footer's own scroll area. This is the
+// The scroll-into-view machinery of Screen (useReveal), in the fallback layout where the primary
+// region scrolls: where it scrolls, its retry after a frame, the repeat on a late content size
+// change, and the pinned actions' own scroll area. This is the
 // code behind the abandon confirmation that opened cut off on the emulator in Task 8.
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
@@ -24,22 +25,30 @@ function target(y: number, h: number) {
 }
 
 async function renderScreen(props: { onContentSizeChange?: (w: number, h: number) => void } = {}) {
+  jest.spyOn(Dimensions, 'get').mockReturnValue({ width: 360, height: 640, fontScale: 2, scale: 2 });
   const ref = createRef<ScrollViewInstance>();
   let main: Reveal = () => {};
   let foot: Reveal = () => {};
   await render(
     <Screen
       ref={ref}
+      screen="battle"
       testID="scr"
       onContentSizeChange={props.onContentSizeChange}
-      footer={<Probe onReveal={(r) => (foot = r)} />}
-      footerTestID="foot"
+      hud={<Text>hud</Text>}
+      actions={
+        <>
+          <Probe onReveal={(r) => (foot = r)} />
+          <Text>foot-body</Text>
+        </>
+      }
     >
       <Probe onReveal={(r) => (main = r)} />
       <Text>body</Text>
     </Screen>,
   );
-  const scroll = screen.getByTestId('scr');
+  // A phone at 200% text does not fit the console layout: the primary region scrolls.
+  const scroll = screen.getByTestId('scr-scroll');
   const scrollTo = jest.mocked(ref.current!.scrollTo);
   scrollTo.mockClear();
   return {
@@ -153,25 +162,19 @@ describe('Screen reveal', () => {
   });
 });
 
-describe('Screen footer', () => {
-  it('pins the footer below the content, capped at its share of the window, with its own reveal', async () => {
+describe('Screen pinned actions', () => {
+  it('pins the actions below the content, capped at their share of the window, with their own reveal', async () => {
     const s = await renderScreen();
-    const footer = screen.getByTestId('foot');
-    const style = StyleSheet.flatten(footer.props.style) as { maxHeight: number };
-    expect(style.maxHeight).toBe(Math.round(Dimensions.get('window').height * FOOTER_MAX_SHARE));
-    // The footer is outside the main scroll area, and its children reveal inside the footer.
-    expect(within(s.scroll).queryByTestId('foot')).toBeNull();
+    let n = screen.getByText('foot-body').parent;
+    let cap = NaN;
+    for (; n && Number.isNaN(cap); n = n.parent) {
+      const m = StyleSheet.flatten(n.props.style)?.maxHeight;
+      if (typeof m === 'number') cap = m;
+    }
+    expect(cap).toBe(Math.round(Dimensions.get('window').height * FOOTER_MAX_SHARE));
+    // The actions are outside the main scroll area, and their children reveal inside their own.
+    expect(within(s.scroll).queryByText('foot-body')).toBeNull();
     expect(s.footReveal()).not.toBe(s.mainReveal());
-  });
-
-  it('renders no footer area without a footer', async () => {
-    await render(
-      <Screen testID="plain">
-        <Text>body</Text>
-      </Screen>,
-    );
-    expect(screen.getByTestId('plain')).toBeTruthy();
-    expect(screen.queryByTestId('foot')).toBeNull();
   });
 });
 
@@ -188,7 +191,7 @@ function textsIn(node: Json | string): string[] {
   return (node.children ?? []).flatMap(textsIn);
 }
 
-describe('Screen shell (opt-in through the screen prop)', () => {
+describe('Screen shell', () => {
   function windowIs(width: number, height: number, fontScale: number) {
     jest.spyOn(Dimensions, 'get').mockReturnValue({ width, height, fontScale, scale: 2 });
   }
@@ -308,15 +311,5 @@ describe('Screen shell (opt-in through the screen prop)', () => {
       expect(StyleSheet.flatten(strip.props.style).position).toBeUndefined();
       expect(within(screen.getByTestId('scr-scroll', { includeHiddenElements: true })).queryByText('live-slot', { includeHiddenElements: true })).toBeNull();
     });
-  });
-
-  it('keeps the legacy ScrollView path when no screen is given', async () => {
-    windowIs(640, 360, 1);
-    await render(
-      <Screen testID="old">
-        <Text>legacy</Text>
-      </Screen>,
-    );
-    expect(scrollViews(screen.toJSON() as Json | Json[] | null)).toHaveLength(1);
   });
 });

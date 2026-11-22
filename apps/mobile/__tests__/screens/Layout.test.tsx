@@ -1,6 +1,7 @@
-// Adaptive layouts and accessibility of every run screen: the battle in the console shell (stage,
-// message line and a choice rail or band, the pinned fallback at 200% text), two panes on wide
-// windows, the abandon confirmation shown where its trigger was, and a sweep that every touchable
+// Adaptive layouts and accessibility of every run screen: the five screens in the console shell
+// (fixed regions and no page scroll at 640x360 and 360x640, at text 100% and 130%; the pinned
+// fallback at 200% text), the reading order, the sheets opening from their HUD buttons and giving
+// the focus back, the abandon confirmation in the Settings sheet, and a sweep that every touchable
 // element has a role, a name, its state and a 48dp target.
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
@@ -399,67 +400,197 @@ describe('abandon from the battle', () => {
   });
 });
 
-describe('two panes', () => {
-  it('map on a landscape phone: party and log beside the map; the confirmation where Abandon was', async () => {
-    windowIs(LANDSCAPE);
-    const session = makeSession(memoryStorage());
-    session.start('MAPSEED1', STARTER);
+describe('title, map, event and end in the console layout', () => {
+  type Kind = 'title' | 'map' | 'event' | 'end';
+  /** Test id of each screen's root (the Screen's testID): its regions are `${root}-primary` and `${root}-actions`. */
+  const ROOT: Record<Kind, string> = { title: 'title-screen', map: 'run-map', event: 'run-event', end: 'run-end' };
+  const windows: Array<[string, Win]> = [
+    ['640x360', { width: 640, height: 360, fontScale: 1 }],
+    ['640x360 at 130%', { width: 640, height: 360, fontScale: 1.3 }],
+    ['360x640', { width: 360, height: 640, fontScale: 1 }],
+    ['360x640 at 130%', { width: 360, height: 640, fontScale: 1.3 }],
+  ];
+  const planned = (kind: Kind, w: Win) => layoutSpec({ width: w.width, height: w.height, textScale: effectiveTextScale(w.fontScale, 1) }, kind);
+
+  async function show(kind: Kind): Promise<RunSession> {
+    if (kind === 'title') {
+      const session = makeSession(memoryStorage());
+      await render(
+        <RunSessionProvider session={session}>
+          <TitleScreen onRunReady={() => {}} randomSeed={() => 'SEED0001'} onOpenDevTools={() => {}} />
+        </RunSessionProvider>,
+      );
+      await flush();
+      return session;
+    }
+    if (kind === 'map') {
+      const session = makeSession(memoryStorage());
+      session.start('MAPSEED1', STARTER);
+      await renderRun(session);
+      return session;
+    }
+    // The heaviest event: a full-party recruit (description, offer card, note and four choices).
+    const session = await resumedSample(kind === 'event' ? 'recruitFull' : 'won');
     await renderRun(session);
-    const panes = screen.getByTestId('map-two-pane');
-    expect(within(panes).getByTestId('party')).toBeTruthy();
-    expect(within(panes).getByTestId('layer-0')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('abandon'));
-    expect(within(panes).getByTestId('abandon-confirm')).toBeTruthy();
-  });
+    return session;
+  }
 
-  it('event on a tablet: the party in the side pane', async () => {
-    windowIs(TABLET);
-    await renderRun(await resumedSample('recruit'));
-    expect(within(screen.getByTestId('event-side')).getByTestId('party')).toBeTruthy();
-    expect(within(screen.getByTestId('event-side')).queryByTestId('event-choices')).toBeNull();
-  });
+  for (const kind of ['title', 'map', 'event', 'end'] as Kind[]) {
+    for (const [label, win] of windows) {
+      it(`${kind} at ${label}: console, no page scroll, the rail beside (landscape) or below (portrait) the primary region, every touchable 48dp`, async () => {
+        windowIs(win);
+        await show(kind);
+        const spec = planned(kind, win);
+        expect(spec.mode).toBe('console');
+        expect(pageScrolls()).toBe(0);
+        const root = ROOT[kind];
+        const actions = screen.getByTestId(`${root}-actions`);
+        const row = containerOf(`${root}-primary`);
+        expect(childIds(row)).toEqual([`${root}-primary`, `${root}-actions`]);
+        if (spec.orientation === 'landscape') {
+          expect(flat(row.props.style).flexDirection).toBe('row');
+          const wide = flat(actions.props.style).width as number;
+          // The event's rail is wider than the contract's (five choices with details); never narrower.
+          expect(kind === 'event' ? wide >= spec.regions.actions.width : wide === spec.regions.actions.width).toBe(true);
+        } else {
+          expect(flat(row.props.style).flexDirection).not.toBe('row');
+          expect(flat(actions.props.style).height).toBe(spec.regions.actions.height);
+        }
+        expectAccessibleTouchables();
+      });
+    }
+  }
 
-  it('title on a landscape phone: the starters and New run in the right pane', async () => {
-    windowIs(LANDSCAPE);
-    const session = makeSession(memoryStorage());
-    await render(
-      <RunSessionProvider session={session}>
-        <TitleScreen onRunReady={() => {}} randomSeed={() => 'SEED0001'} />
-      </RunSessionProvider>,
-    );
-    await flush();
-    const panes = screen.getByTestId('title-two-pane');
-    expect(within(panes).getByTestId('new-run')).toBeTruthy();
-    expect(within(panes).getByTestId('continue')).toBeTruthy();
-  });
+  for (const [label, win] of windows) {
+    it(`map at ${label}: every node is reachable, labelled and at least 48dp wide and tall, inside the primary region`, async () => {
+      windowIs(win);
+      const session = await show('map');
+      const run = session.getSnapshot().run!;
+      const total = run.maps[0]!.layers.flat().length;
+      const nodes = within(screen.getByTestId('run-map-primary')).getAllByTestId(/^node-z/);
+      expect(nodes).toHaveLength(total);
+      expect(total).toBeLessThanOrEqual(19);
+      for (const node of nodes) {
+        const style = flat(node.props.style);
+        expect([node.props.testID, Number(style.width) >= 48 && Number(style.minHeight) >= 48]).toEqual([node.props.testID, true]);
+        expect(node.props.accessibilityLabel).toMatch(/: (available|locked|cleared)/);
+        expect(node.props.accessibilityState).toHaveProperty('disabled');
+      }
+      // One column per layer, side by side: step 1 first and the boss last.
+      expect(within(screen.getByTestId('run-map-primary')).getAllByTestId(/^layer-/)).toHaveLength(run.maps[0]!.layers.length);
+    });
+  }
 
-  it('phones in portrait keep one column', async () => {
+  const orders: Array<[Kind, string[]]> = [
+    ['title', ['hud-title', 'hud-options', 'hud-settings', 'app-name', 'starters', 'title-actions']],
+    ['map', ['map-heading', 'hud-run', 'hud-settings', 'layer-0', 'layer-1', 'layer-6', 'map-rail']],
+    ['event', ['event-heading', 'hud-run', 'hud-settings', 'event-desc', 'event-offer', 'event-note', 'event-choices']],
+    ['end', ['end-heading', 'hud-run', 'hud-settings', 'end-score', 'end-new-run', 'end-to-title']],
+  ];
+  for (const [kind, expected] of orders) {
+    for (const [label, win] of [['portrait', PHONE], ['landscape', LANDSCAPE]] as Array<[string, Win]>) {
+      it(`${kind} keeps the reading order in ${label}: ${expected.join(', ')}`, async () => {
+        windowIs(win);
+        await show(kind);
+        const wanted = new Set(expected);
+        const order = hostElements(screen.root as unknown as El)
+          .map((e) => e.props.testID as string | undefined)
+          .filter((id): id is string => id !== undefined && wanted.has(id));
+        // A testID can appear on a pressable and on its host: keep each one's first place.
+        expect([...new Set(order)]).toEqual(expected);
+      });
+    }
+  }
+
+  const sheets: Array<[Kind, string, string]> = [
+    ['title', 'hud-options', 'options-sheet'],
+    ['map', 'hud-run', 'run-sheet'],
+    ['event', 'hud-run', 'run-sheet'],
+    ['end', 'hud-run', 'run-sheet'],
+  ];
+  for (const [kind, button, sheet] of sheets) {
+    for (const [label, win] of windows.filter(([l]) => !l.includes('130'))) {
+      it(`${kind} at ${label}: the ${sheet} opens from its HUD button and closes with the focus back on it`, async () => {
+        windowIs(win);
+        await show(kind);
+        await fireEvent.press(screen.getByTestId(button));
+        expect(screen.getByTestId(sheet)).toBeTruthy();
+        expect(screen.getByTestId(`${sheet}-title`)).toBeTruthy();
+        // What the sheet covers is hidden from screen readers.
+        const hud = screen.getByTestId('hud', { includeHiddenElements: true });
+        expect(ancestors(hud).some((p) => p.importantForAccessibility === 'no-hide-descendants')).toBe(true);
+        const focus = jest.mocked(AccessibilityInfo.sendAccessibilityEvent);
+        focus.mockClear();
+        await act(async () => {
+          await fireEvent.press(screen.getByTestId(`${sheet}-close`));
+        });
+        expect(screen.queryByTestId(sheet)).toBeNull();
+        const last = focus.mock.calls[focus.mock.calls.length - 1]!;
+        expect([(last[0] as unknown as { props: { testID: string } }).props.testID, last[1]]).toEqual([button, 'focus']);
+      });
+    }
+  }
+
+  for (const kind of ['title', 'map', 'event'] as Array<'title' | 'map' | 'event'>) {
+    it(`${kind} at 360x640 with 200% text falls back: HUD and rail pinned, only the primary region scrolls`, async () => {
+      const win = { width: 360, height: 640, fontScale: 2 };
+      windowIs(win);
+      await show(kind);
+      expect(planned(kind, win).mode).toBe('fallback');
+      const scroll = screen.getByTestId(`${ROOT[kind]}-scroll`);
+      expect(within(scroll).queryByTestId('hud')).toBeNull();
+      expect(screen.getByTestId('hud')).toBeTruthy();
+      const rail = { title: 'title-actions', map: 'map-rail', event: 'event-choices' }[kind];
+      expect(within(scroll).queryByTestId(rail, { includeHiddenElements: true })).toBeNull();
+      expect(screen.getByTestId(rail, { includeHiddenElements: true })).toBeTruthy();
+      expectAccessibleTouchables();
+    });
+  }
+
+  it('keeps the run log live message outside the part hidden from screen readers while a sheet is open (event)', async () => {
     windowIs(PHONE);
-    const session = makeSession(memoryStorage());
-    session.start('MAPSEED1', STARTER);
+    const session = await resumedSample('cache');
     await renderRun(session);
-    expect(screen.queryByTestId('map-two-pane')).toBeNull();
+    // The pick moves the run on and logs lines; the map that follows keeps the live message.
+    await act(async () => {
+      expect(session.act({ type: 'cache' }).ok).toBe(true);
+    });
+    for (const open of ['hud-run', 'hud-settings']) {
+      await fireEvent.press(screen.getByTestId(open));
+      const live = screen.getByTestId('run-log-fresh', { includeHiddenElements: true });
+      expect(live.props.accessibilityLiveRegion).toBe('polite');
+      expect(ancestors(live).some((p) => p.importantForAccessibility === 'no-hide-descendants')).toBe(false);
+      expect(ancestors(live).some((p) => p.accessibilityElementsHidden === true)).toBe(false);
+      // The HUD behind the sheet is hidden.
+      const hud = screen.getByTestId('hud', { includeHiddenElements: true });
+      expect([open, ancestors(hud).some((p) => p.importantForAccessibility === 'no-hide-descendants')]).toEqual([open, true]);
+      await fireEvent.press(screen.getByRole('button', { name: 'Close' }));
+    }
   });
 });
 
 describe('abandon confirmation placement', () => {
-  it('on the map it replaces the Abandon button inside the map, before the run log', async () => {
+  it('on the map Abandon is in the Settings sheet, and the confirmation replaces it there', async () => {
     windowIs(PHONE);
     const session = makeSession(memoryStorage());
     session.start('MAPSEED1', STARTER);
     await renderRun(session);
+    expect(screen.queryByTestId('abandon')).toBeNull();
+    await fireEvent.press(screen.getByTestId('hud-settings'));
     await fireEvent.press(screen.getByTestId('abandon'));
-    expect(within(screen.getByTestId('map-screen')).getByTestId('abandon-confirm')).toBeTruthy();
+    expect(within(screen.getByTestId('settings-sheet')).getByTestId('abandon-confirm')).toBeTruthy();
+    expect(screen.queryByTestId('abandon')).toBeNull();
   });
 
-  it('on an event (opened by Android back) it shows right after the choices', async () => {
+  it('on an event (opened by Android back) it opens the Settings sheet with the confirmation', async () => {
     windowIs(PHONE);
     await renderRun(await resumedSample('cache'));
     await pressBack();
-    const order = hostElements(screen.root as unknown as El)
-      .map((e) => e.props.testID)
-      .filter((id) => id === 'event-choices' || id === 'abandon-confirm' || id === 'party');
-    expect(order).toEqual(['event-choices', 'abandon-confirm', 'party']);
+    expect(within(screen.getByTestId('settings-sheet')).getByTestId('abandon-confirm')).toBeTruthy();
+    // An event has no Abandon button: answering "no" closes the sheet again.
+    expect(screen.queryByTestId('abandon')).toBeNull();
+    await fireEvent.press(screen.getByTestId('abandon-confirm-no'));
+    expect(screen.queryByTestId('settings-sheet')).toBeNull();
   });
 });
 

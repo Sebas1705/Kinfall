@@ -166,6 +166,8 @@ export interface FramePressableProps {
   /** Extra padding in dp inside the frame's content inset. */
   padX?: number;
   padY?: number;
+  /** Called when keyboard or D-pad focus enters or leaves (the map's readout follows it). */
+  onFocusChange?: (focused: boolean) => void;
 }
 
 /**
@@ -189,6 +191,7 @@ export function FramePressable({
   accessibilityState,
   padX = 6,
   padY = 4,
+  onFocusChange,
 }: FramePressableProps) {
   const { theme, zone } = useFrameStyle();
   const [focused, setFocused] = useState(false);
@@ -208,8 +211,14 @@ export function FramePressable({
       ref={ref}
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
+      onFocus={() => {
+        setFocused(true);
+        onFocusChange?.(true);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        onFocusChange?.(false);
+      }}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}

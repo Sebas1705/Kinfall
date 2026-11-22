@@ -1,5 +1,5 @@
 import type { ScreenId } from '@kinfall/core/layout/spec';
-import { createContext, useCallback, useContext, useMemo, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
+import { createContext, useCallback, useContext, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
 import { useLayoutSpec } from './useLayoutSpec';
-import { useLayout } from './windowSize';
 
 /** Space kept around a revealed element (dp). */
 const REVEAL_MARGIN = 16;
@@ -156,50 +155,44 @@ function RevealScroll({ children, testID, scrollRef, contentPadding, maxWidth, s
 }
 
 /**
- * Known limitation of the console shell: the layout contract does not know the safe-area insets (its
- * regions come from the raw window size), and the root is padded by the insets, so on a notched
- * landscape phone the primary region can be smaller than the contract promises. To be checked on a
- * device.
+ * The screen shell of the console layout, inside the safe area (edge to edge: the app draws under the
+ * system bars and keeps its content clear of them and of display cutouts in any orientation).
+ * Console mode (the window fits the screen's budget in core's layout contract): fixed regions without
+ * any page scroll, HUD on top, then the primary region with the actions rail beside it (landscape)
+ * or below it (portrait, with a one or two line info band between). Fallback mode (200% text, tiny
+ * windows): the HUD and the actions stay pinned, each capped, and only the primary region scrolls.
  *
- * A scrolling screen inside the safe area (edge to edge: the app draws under the system bars and
- * keeps its content clear of them and of display cutouts in any orientation). Content grows
- * downwards only: rows wrap instead of scrolling sideways, so nothing is clipped at 360dp wide or
- * at 200% font scale. Content is centred and capped at the layout's width (720dp in one column,
- * wider for two panes). An optional footer stays pinned at the bottom (the compact battle's
- * choices); it scrolls by itself when it is taller than its share of the window.
+ * Known limitation: the layout contract does not know the safe-area insets (its regions come from
+ * the raw window size), and the root is padded by the insets, so on a notched landscape phone the
+ * primary region can be smaller than the contract promises. To be checked on a device.
  */
 export interface ScreenProps {
-  /** The content; in the shell it can be replaced by `primary`. */
+  /** The primary region's content (or give `primary`). */
   children?: ReactNode;
   testID?: string;
   ref?: Ref<ScrollViewInstance>;
   /** Called after the content changed size. */
   onContentSizeChange?: (width: number, height: number) => void;
-  /** Pinned below the scrolling content, above the navigation bar. */
-  footer?: ReactNode;
-  footerTestID?: string;
-  /**
-   * Opts in to the console shell: fixed regions without a page scroll when the window fits the
-   * layout contract, and only the primary region scrolling (HUD and actions pinned) when it does
-   * not. Without it the screen keeps the legacy single scrolling page.
-   */
-  screen?: ScreenId;
-  /** Shell only: the top bar (a Hud). */
+  /** Which screen this is: its budget decides console or fallback (core's layoutSpec). */
+  screen: ScreenId;
+  /** The top bar (a Hud). */
   hud?: ReactNode;
-  /** Shell only: the primary region; the children when omitted. */
+  /** The primary region; the children when omitted. */
   primary?: ReactNode;
-  /** Shell only: the actions rail (landscape) or band (portrait). */
+  /** The actions rail (landscape) or band (portrait). */
   actions?: ReactNode;
-  /** Shell only: the info line under the primary region (portrait only). */
+  /** The info line under the primary region (portrait only). */
   info?: ReactNode;
+  /** Landscape: a rail wider than the contract's (the event's choices), in dp. */
+  actionsWidth?: number;
   /**
-   * Shell only: props for every pinned region and the primary content, hiding them from screen
+   * Props for every pinned region and the primary content, hiding them from screen
    * readers while a sheet is open (`useSheetBackdropProps`). They go on the regions, not on the root,
    * so that the overlay stays outside the hidden part.
    */
   backdrop?: BackdropProps;
   /**
-   * Shell only: a live message line that must keep announcing while a sheet is open. It floats over
+   * A live message line that must keep announcing while a sheet is open. It floats over
    * the bottom edge of the primary region (in portrait it takes the info line's place, which is
    * reserved for it); in the fallback it is a strip between the scrolling primary region and the
    * actions. Never hidden by `backdrop`.
@@ -213,11 +206,7 @@ export interface BackdropProps {
   accessibilityElementsHidden: boolean;
 }
 
-export function Screen(props: ScreenProps) {
-  return props.screen ? <ShellScreen {...props} screen={props.screen} /> : <LegacyScreen {...props} />;
-}
-
-function ShellScreen({ screen, children, testID, ref, hud, primary, actions, info, backdrop, overlay, onContentSizeChange }: ScreenProps & { screen: ScreenId }) {
+export function Screen({ screen, children, testID, ref, hud, primary, actions, info, actionsWidth, backdrop, overlay, onContentSizeChange }: ScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -232,7 +221,7 @@ function ShellScreen({ screen, children, testID, ref, hud, primary, actions, inf
   const column = [styles.shellColumn, { width: regions.content.width }];
 
   if (spec.mode === 'console') {
-    const actionsStyle = landscape ? { width: regions.actions.width } : { height: regions.actions.height };
+    const actionsStyle = landscape ? { width: actionsWidth ?? regions.actions.width } : { height: regions.actions.height };
     return (
       <View style={[styles.screen, styles.shellRoot, pad, { backgroundColor: theme.bg }]} testID={testID}>
         <View style={column}>
@@ -311,44 +300,6 @@ function ShellScreen({ screen, children, testID, ref, hud, primary, actions, inf
           </View>
         ) : null}
       </View>
-    </View>
-  );
-}
-
-function LegacyScreen({ children, testID, ref, onContentSizeChange, footer, footerTestID }: ScreenProps) {
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
-  const { maxContentWidth } = useLayout();
-  const side = useMemo(() => ({ left: insets.left + 16, right: insets.right + 16 }), [insets.left, insets.right]);
-  const mainPadding = useMemo(
-    () => ({ top: PAD_TOP, bottom: footer ? 16 : insets.bottom + 32, ...side }),
-    [footer, insets.bottom, side],
-  );
-  const footerPadding = useMemo(() => ({ top: 12, bottom: insets.bottom + 12, ...side }), [insets.bottom, side]);
-  return (
-    // The status bar area stays clear (content scrolls below it, never under the clock).
-    <View style={[styles.screen, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
-      <RevealScroll
-        scrollRef={ref}
-        style={styles.screen}
-        contentPadding={mainPadding}
-        maxWidth={maxContentWidth}
-        onContentSizeChange={onContentSizeChange}
-        testID={testID}
-      >
-        {children}
-      </RevealScroll>
-      {footer ? (
-        <View
-          style={[styles.footer, { maxHeight: Math.round(height * FOOTER_MAX_SHARE), borderColor: theme.border, backgroundColor: theme.surface }]}
-          testID={footerTestID}
-        >
-          <RevealScroll contentPadding={footerPadding} maxWidth={maxContentWidth} style={styles.footerScroll}>
-            {footer}
-          </RevealScroll>
-        </View>
-      ) : null}
     </View>
   );
 }
