@@ -9,6 +9,7 @@ import { lazyBattleView } from './lazyView';
 import { startLayout } from './layout';
 import type { LayoutHandle } from './layout';
 import { createRouter } from './router';
+import { wireScreenSheet } from './screenSheets';
 import { createRunController } from './runController';
 import { createRunUi } from './runUi';
 import { bindScreenInput } from './screenInput';
@@ -30,6 +31,7 @@ export function startRunPage(): void {
     warning: byId('save-warning'),
     log: byId('run-log-panel'),
     seed: byId('seed'),
+    hudParty: byId('hud-party'),
   });
 
   // Reduced motion: follows the system and the toggle; screens read the class on <html>.
@@ -103,6 +105,7 @@ export function startRunPage(): void {
   });
 
   wireSettingsButton(byId<HTMLButtonElement>('hud-settings'));
+  wireScreenSheet({ button: byId<HTMLButtonElement>('hud-run'), screens: root, app: byId('app'), log: byId('run-log-panel') });
   wireFullscreenButton(byId<HTMLButtonElement>('hud-fullscreen'));
   applyI18nAttributes();
   controller.showTitle({ focus: false });

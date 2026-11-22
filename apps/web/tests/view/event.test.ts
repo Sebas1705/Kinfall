@@ -262,3 +262,73 @@ describe('initial focus', () => {
     expect(shrine.choices[shrine.focusIndex]!.label).toBe('Rest');
   });
 });
+
+describe('renderEvent: console composition', () => {
+  it('heading, vignette stage and description in the primary region; choices in the rail; party in the sheet store', () => {
+    const host = document.createElement('section');
+    renderEvent(host, buildEventModel(runIn({ kind: 'recruit', speciesId: 'skirrow', hp: 7 }), CONTENT)!, () => {});
+    const primary = host.querySelector('.screen-primary')!;
+    expect(primary.contains(host.querySelector('h2'))).toBe(true);
+    expect(primary.querySelector('.event-stage .event-desc')).not.toBeNull();
+    expect(primary.querySelector('.event-stage .offer')).not.toBeNull();
+    const rail = host.querySelector('.screen-rail')!;
+    expect(rail.querySelectorAll('button[data-choice]')).toHaveLength(2);
+    expect(rail.querySelector('.event-choices')!.getAttribute('aria-labelledby')).toBe('event-title');
+    const store = host.querySelector('.sheet-store')!;
+    expect(store.getAttribute('data-sheet-title')).toBe('Run details');
+    expect(store.querySelector('.run-status')!.textContent).toContain('Cindermite');
+    expect(primary.querySelector('.run-status')).toBeNull();
+  });
+
+  it('keeps reading order: primary, rail, then the sheet store', () => {
+    const host = document.createElement('section');
+    renderEvent(host, buildEventModel(runIn({ kind: 'shrine', nodeId: 'z0-l5-c0' }), CONTENT)!, () => {});
+    const kids = [...host.children].map((c) => c.className.split(' ')[0]);
+    expect(kids).toEqual(['screen-primary', 'screen-rail', 'sheet-store']);
+  });
+
+  it('a full-party recruit keeps its note and four choices in the rail', () => {
+    const host = document.createElement('section');
+    const run = runIn({ kind: 'recruit', speciesId: 'dusklurk', hp: 9 }, (r) => {
+      r.party = [
+        { speciesId: 'cindermite', hp: 5 },
+        { speciesId: 'skirrow', hp: 6 },
+        { speciesId: 'tidewisp', hp: 7 },
+      ];
+    });
+    renderEvent(host, buildEventModel(run, CONTENT)!, () => {});
+    expect(host.querySelector('.screen-primary .event-note')).not.toBeNull();
+    expect(host.querySelectorAll('.screen-rail button[data-choice]')).toHaveLength(4);
+  });
+});
+
+describe('renderEnd: console composition', () => {
+  const lost = () => runIn({ kind: 'ended', result: 'lost' }, (r) => (r.stats = { nodesCleared: 9, elitesBeaten: 1, bossesBeaten: 1, creaturesLost: 3 }));
+
+  it('result and main score in the primary region, New run and To title in the rail, stats in the sheet store', () => {
+    const host = document.createElement('section');
+    const onNew = vi.fn();
+    const onTitle = vi.fn();
+    renderEnd(host, buildEndModel(lost(), CONTENT)!, onNew, onTitle);
+    const primary = host.querySelector('.screen-primary')!;
+    expect(primary.contains(host.querySelector('h2'))).toBe(true);
+    expect(primary.querySelector('.end-score')!.textContent).toContain(String(runScore(lost(), CONTENT)));
+    expect(primary.querySelector('.end-stats')).toBeNull();
+    const rail = host.querySelector('.screen-rail')!;
+    expect(rail.querySelector('[data-choice="new-run"]')!.textContent).toBe('New run');
+    expect(rail.querySelector('[data-choice="to-title"]')!.textContent).toBe('Back to start');
+    const store = host.querySelector('.sheet-store')!;
+    expect(store.getAttribute('data-sheet-title')).toBe('Run details');
+    expect(store.querySelectorAll('.end-stats dt')).toHaveLength(6);
+    rail.querySelector<HTMLButtonElement>('[data-choice="new-run"]')!.click();
+    rail.querySelector<HTMLButtonElement>('[data-choice="to-title"]')!.click();
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(onTitle).toHaveBeenCalledTimes(1);
+  });
+
+  it('without a to-title handler only New run is offered', () => {
+    const host = document.createElement('section');
+    renderEnd(host, buildEndModel(lost(), CONTENT)!, () => {});
+    expect(host.querySelector('[data-choice="to-title"]')).toBeNull();
+  });
+});

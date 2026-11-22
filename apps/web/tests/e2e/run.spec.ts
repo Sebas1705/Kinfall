@@ -151,9 +151,12 @@ test.describe('run flow', () => {
     await startRunWithKeyboard(page, SEED);
     expect(await readSave(page)).not.toBeNull();
 
-    await page.locator('#screen-map [data-action="abandon"]').click();
-    await expect(page.locator('#screen-map [data-action="abandon-no"]')).toBeFocused();
-    await page.locator('#screen-map [data-action="abandon-yes"]').click();
+    // Abandon lives in the run sheet (HUD button); its confirmation stays where the button was.
+    await page.locator('#hud-run').click();
+    const sheet = page.getByRole('dialog');
+    await sheet.locator('[data-action="abandon"]').click();
+    await expect(sheet.locator('[data-action="abandon-no"]')).toBeFocused();
+    await sheet.locator('[data-action="abandon-yes"]').click();
 
     await expect(page.locator('#screen-title')).toBeVisible();
     await expect(page.locator('#screen-title [data-screen-heading]')).toBeFocused();

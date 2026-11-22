@@ -50,7 +50,12 @@ export const CONTENT_MAX_PORTRAIT = 720;
 export const TEXT_SCALE_MAX = 2;
 /** Below this window height (dp) the console layout never applies. */
 export const MIN_HEIGHT_PX = 320;
-/** Minimum "text-sized" height (height / textScale) each screen needs to fit without scrolling. */
+/**
+ * Minimum "text-sized" height (height / textScale) each screen needs to fit without scrolling.
+ * Provisional: the web screens were measured in Task 6 and the need depends on orientation and
+ * width (a portrait map needs 468 px at 360 wide, a landscape one 272), which one number per screen
+ * cannot say; the measurements and the open decision are in the Task 6 report.
+ */
 export const MIN_BUDGET: Record<ScreenId, number> = {
   title: 270,
   map: 270,
@@ -59,9 +64,11 @@ export const MIN_BUDGET: Record<ScreenId, number> = {
   end: 270,
 };
 
-// Provisional line heights (px at text scale 1); the HUD and info bands grow with the text scale
-// (spec 7.1). Tune them when the screens are built.
-export const HUD_LINE = 28;
+// Band heights (px at text scale 1). The HUD was measured on the web shell: 52 px, which is the
+// 44 px touch targets plus half a rem of padding. Only the part above HUD_FIXED grows with the text
+// scale, because the targets do not (spec 7.1). The info band is two lines of text and does grow.
+export const HUD_FIXED = 44;
+export const HUD_LINE = 52;
 export const INFO_LINE = 18;
 const PRIMARY_PORTRAIT_SHARE = 0.41;
 const ACTIONS_SHARE = 0.32;
@@ -90,7 +97,7 @@ function planRegions(info: WindowInfo, landscape: boolean): RegionPlan {
   const scale = Math.max(1, info.textScale);
   const cw = Math.min(width, landscape ? CONTENT_MAX_LANDSCAPE : CONTENT_MAX_PORTRAIT);
   const content: Rect = { x: Math.floor((width - cw) / 2), y: 0, width: cw, height };
-  const hudH = Math.min(Math.round(HUD_LINE * scale), Math.floor(height / 3));
+  const hudH = Math.min(Math.round(HUD_FIXED + (HUD_LINE - HUD_FIXED) * scale), Math.floor(height / 3));
   const hud: Rect = { x: content.x, y: 0, width: cw, height: hudH };
 
   if (landscape) {

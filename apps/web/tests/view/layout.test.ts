@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { startLayout } from '../../src/view/layout';
+import { HUD_LINE } from '@kinfall/core/layout/spec';
 
 function setWindow(width: number, height: number): void {
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
@@ -58,9 +59,9 @@ describe('startLayout', () => {
 
   it('exposes the region sizes as custom properties', () => {
     const handle = startLayout(root, { screen: () => 'map', textScale: () => 1 });
-    expect(root.style.getPropertyValue('--hud-h')).toBe('28px');
+    expect(root.style.getPropertyValue('--hud-h')).toBe(`${HUD_LINE}px`);
     expect(root.style.getPropertyValue('--rail-w')).toBe('205px');
-    expect(root.style.getPropertyValue('--stage-h')).toBe('332px');
+    expect(root.style.getPropertyValue('--stage-h')).toBe(`${360 - HUD_LINE}px`);
     setWindow(360, 640);
     handle.refresh();
     expect(root.style.getPropertyValue('--rail-w')).toBe('0px');

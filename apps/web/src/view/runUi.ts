@@ -3,6 +3,7 @@
 import { t } from '@kinfall/core/platform/i18n';
 import type { StringKey } from '@kinfall/core/platform/i18n';
 import type { RunAction } from '@kinfall/core/sim/run/types';
+import { setHudParty } from './hudParty';
 import { confirmInline, el } from './screens/dom';
 import { renderEnd } from './screens/end';
 import type { EndModel } from '@kinfall/core/models/end';
@@ -20,7 +21,8 @@ export interface RunUi {
   renderTitle(props: TitleProps): void;
   renderMap(model: MapModel, onPick: (nodeId: string) => void, onAbandon: () => void): void;
   renderEvent(model: EventModel, onPick: (action: RunAction) => void): void;
-  renderEnd(model: EndModel, onNewRun: () => void): void;
+  /** `onToTitle` adds the "Back to start" button (the title keeps this run's seed). */
+  renderEnd(model: EndModel, onNewRun: () => void, onToTitle?: () => void): void;
   /** The battle screen's secondary "Abandon run" control (two-step confirm); run mode only. */
   renderBattleFooter(onAbandon: () => void): void;
   showSaveWarning(error: string): void;
@@ -48,6 +50,8 @@ export interface RunUiHosts {
   /** Run log panel holding a `[role="log"]` region. */
   log: HTMLElement;
   seed?: HTMLElement;
+  /** The HUD's party chips (map and event screens). */
+  hudParty?: HTMLElement;
 }
 
 export function createRunUi(hosts: RunUiHosts): RunUi {
@@ -74,13 +78,26 @@ export function createRunUi(hosts: RunUiHosts): RunUi {
   };
 
   return {
-    renderTitle: (props) => renderTitle(hosts.title, props),
-    renderMap: (model, onPick, onAbandon) => renderMap(hosts.map, model, onPick, onAbandon),
-    renderEvent: (model, onPick) => renderEvent(hosts.event, model, onPick),
-    renderEnd: (model, onNewRun) => renderEnd(hosts.end, model, onNewRun),
+    renderTitle(props) {
+      setHudParty(hosts.hudParty ?? null, null);
+      renderTitle(hosts.title, props);
+    },
+    renderMap(model, onPick, onAbandon) {
+      setHudParty(hosts.hudParty ?? null, model.party, model.souls);
+      renderMap(hosts.map, model, onPick, onAbandon);
+    },
+    renderEvent(model, onPick) {
+      setHudParty(hosts.hudParty ?? null, model.party, model.souls);
+      renderEvent(hosts.event, model, onPick);
+    },
+    renderEnd(model, onNewRun, onToTitle) {
+      setHudParty(hosts.hudParty ?? null, null);
+      renderEnd(hosts.end, model, onNewRun, onToTitle);
+    },
     renderBattleFooter(onAbandon) {
       const footer = hosts.battleFooter;
       if (!footer) return;
+      setHudParty(hosts.hudParty ?? null, null);
       const abandon = el('button', { type: 'button', class: 'secondary', 'data-action': 'abandon' }, t('map.abandon'));
       abandon.addEventListener('click', () =>
         confirmInline(abandon, {

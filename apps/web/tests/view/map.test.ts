@@ -182,18 +182,6 @@ describe('renderMap', () => {
     }
   });
 
-  it('shows the party with HP and the souls count above the map', () => {
-    const run = fresh();
-    run.souls = 3;
-    const { host } = rendered(run);
-    const status = host.querySelector('.run-status')!;
-    const max = maxHpOf('cindermite', CONTENT);
-    expect(status.textContent).toContain(`Cindermite ${max}/${max}`);
-    expect(status.textContent).toContain('Souls');
-    expect(status.querySelector('.run-souls-value')!.textContent).toBe('3');
-    expect(status.compareDocumentPosition(host.querySelector('.map-layers')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
   it('renders Spanish labels', () => {
     setLang('es');
     const { host } = rendered(fresh());
@@ -221,6 +209,87 @@ describe('renderMap', () => {
 
     abandon().click();
     host.querySelector<HTMLButtonElement>('[data-action="abandon-yes"]')!.click();
+    expect(onAbandon).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('renderMap: console composition', () => {
+  function rendered(run = fresh(), trail: string[] = []) {
+    const host = document.createElement('div');
+    document.body.replaceChildren(host);
+    const onPick = vi.fn();
+    const onAbandon = vi.fn();
+    const model = buildMapModel(run, CONTENT, trail);
+    renderMap(host, model, onPick, onAbandon);
+    return { host, model, onPick, onAbandon };
+  }
+
+  it('shows the party with HP and the souls count in the run sheet store, not in the primary region', () => {
+    const run = fresh();
+    run.souls = 3;
+    const { host } = rendered(run);
+    const status = host.querySelector('.sheet-store .run-status')!;
+    const max = maxHpOf('cindermite', CONTENT);
+    expect(status.textContent).toContain(`Cindermite ${max}/${max}`);
+    expect(status.querySelector('.run-souls-value')!.textContent).toBe('3');
+    expect(host.querySelector('.screen-primary .run-status')).toBeNull();
+  });
+
+  it('is a bounded board: at most 19 nodes, 2 or 3 per layer and one boss, in Tab (layer) order', () => {
+    const { host, model } = rendered(fresh());
+    const nodes = [...host.querySelectorAll<HTMLButtonElement>('.map-layers button[data-node]')];
+    expect(nodes.length).toBeLessThanOrEqual(19);
+    expect(nodes.map((b) => b.dataset.node)).toEqual(model.layers.flatMap((l) => l.nodes.map((n) => n.id)));
+    expect(model.layers.slice(0, -1).every((l) => l.nodes.length >= 2 && l.nodes.length <= 3)).toBe(true);
+    expect(model.layers[model.layers.length - 1]!.nodes).toHaveLength(1);
+    // Plain buttons: none takes the Tab order away from the document order.
+    expect(nodes.every((b) => !b.hasAttribute('tabindex'))).toBe(true);
+  });
+
+  it('every zone of every run has a board of at most 19 nodes (7 layers)', () => {
+    for (let zone = 0; zone < 3; zone++) {
+      const run = fresh(`board-${zone}`);
+      run.zone = zone;
+      const { host } = rendered(run);
+      expect(host.querySelectorAll('.map-layers > li')).toHaveLength(7);
+      expect(host.querySelectorAll('.map-layers button[data-node]').length).toBeLessThanOrEqual(19);
+    }
+  });
+
+  it('puts the heading and the board in the primary region and a readout in the rail', () => {
+    const { host } = rendered(fresh());
+    const primary = host.querySelector('.screen-primary')!;
+    expect(primary.contains(host.querySelector('h2'))).toBe(true);
+    expect(primary.contains(host.querySelector('.map-layers'))).toBe(true);
+    const readout = host.querySelector('.screen-rail .map-readout')!;
+    expect(readout.getAttribute('aria-hidden')).toBe('true');
+    expect(readout.textContent).toContain('Wild creature');
+    expect(readout.textContent).toContain('available');
+  });
+
+  it('the readout follows the focused node', () => {
+    const { run, a, b } = afterTwo();
+    const { host } = rendered(run, [a.id, b.id]);
+    const node = host.querySelector<HTMLButtonElement>(`button[data-node="${b.next[0]}"]`)!;
+    node.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    const readout = host.querySelector('.map-readout')!;
+    expect(readout.textContent).toContain(node.querySelector('.map-node-label')!.textContent!);
+    expect(readout.textContent).toContain('available');
+    const cleared = host.querySelector<HTMLButtonElement>(`button[data-node="${a.id}"]`)!;
+    cleared.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    expect(readout.textContent).toContain('cleared');
+  });
+
+  it('puts Abandon in the run sheet store, with the confirmation inline where its button was', () => {
+    const { host, onAbandon } = rendered(fresh());
+    const store = host.querySelector('.sheet-store')!;
+    expect(store.getAttribute('data-sheet-title')).toBe('Run details');
+    expect(store.getAttribute('data-sheet-button')).toBe('Run');
+    expect(host.querySelector('.screen-primary [data-action="abandon"]')).toBeNull();
+    store.querySelector<HTMLButtonElement>('[data-action="abandon"]')!.click();
+    expect(store.querySelector('.confirm')).not.toBeNull();
+    expect(document.activeElement).toBe(store.querySelector('[data-action="abandon-no"]'));
+    store.querySelector<HTMLButtonElement>('[data-action="abandon-yes"]')!.click();
     expect(onAbandon).toHaveBeenCalledTimes(1);
   });
 });

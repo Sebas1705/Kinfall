@@ -81,6 +81,10 @@ for (const scheme of ['light', 'dark'] as const) {
         await setTextSize(page, 150);
 
         await checkScreen(page, `title (${lang})`, size.width);
+        await page.locator('#hud-run').click();
+        await checkScreen(page, `title options sheet (${lang})`, size.width);
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
 
         // Title -> map: focus on the map heading; every node names its type in text.
         await startRunWithKeyboard(page, 'a11y-run');
@@ -93,9 +97,14 @@ for (const scheme of ['light', 'dark'] as const) {
           await expect(node).toHaveAccessibleName(new RegExp(`^${NODE_LABELS[lang][type]}: `));
         }
         await checkScreen(page, `map (${lang})`, size.width);
-        // The abandon confirmation is part of the map too.
-        await page.locator('#screen-map [data-action="abandon"]').click();
+        // The run sheet (party details, run log, Abandon) and its inline confirmation.
+        await page.locator('#hud-run').click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await checkScreen(page, `map run sheet (${lang})`, size.width);
+        await page.getByRole('dialog').locator('[data-action="abandon"]').click();
         await checkScreen(page, `map with abandon confirm (${lang})`, size.width);
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
 
         // Battle screen with the abandon button (and its confirmation).
         await page.locator('#screen-map button.map-node:not([disabled])').first().click();
@@ -121,6 +130,9 @@ for (const scheme of ['light', 'dark'] as const) {
           await expect(page.locator('#screen-event button[data-initial]')).toBeFocused();
           if ('souls' in options) await expect(page.locator('#screen-event button[data-choice][disabled]')).toHaveCount(2);
           await checkScreen(page, where, size.width);
+          await page.locator('#hud-run').click();
+          await checkScreen(page, `${where} run sheet`, size.width);
+          await page.keyboard.press('Escape');
         }
 
         // Won end screen: focus on the result heading.
@@ -128,6 +140,9 @@ for (const scheme of ['light', 'dark'] as const) {
         await continueSavedRun(page);
         await expect(page.locator('#screen-end [data-screen-heading]')).toBeFocused();
         await checkScreen(page, `end (${lang})`, size.width);
+        await page.locator('#hud-run').click();
+        await checkScreen(page, `end stats sheet (${lang})`, size.width);
+        await page.keyboard.press('Escape');
 
         // End -> New run -> title: focus on the title heading.
         await page.locator('#screen-end [data-choice="new-run"]').click();

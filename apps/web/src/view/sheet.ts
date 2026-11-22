@@ -49,6 +49,21 @@ export function openSheet(opts: SheetOptions): SheetHandle {
   const body = doc.createElement('div');
   body.className = 'sheet__body';
   body.append(opts.content);
+  // A body that scrolls must be reachable by keyboard (and named, being a tab stop); one that fits
+  // adds no stop to the Tab order.
+  const syncScroll = (): void => {
+    const scrolls = body.scrollHeight > body.clientHeight + 1;
+    if (scrolls) {
+      body.tabIndex = 0;
+      body.setAttribute('role', 'region');
+      body.setAttribute('aria-labelledby', titleId);
+    } else {
+      body.removeAttribute('tabindex');
+      body.removeAttribute('role');
+      body.removeAttribute('aria-labelledby');
+    }
+  };
+  const view = doc.defaultView;
 
   const closeBtn = doc.createElement('button');
   closeBtn.type = 'button';
@@ -68,6 +83,7 @@ export function openSheet(opts: SheetOptions): SheetHandle {
       closed = true;
       if (active === handle) active = null;
       doc.removeEventListener('keydown', onKeydown, true);
+      view?.removeEventListener('resize', syncScroll);
       backdrop.remove();
       for (const el of inerted) el.removeAttribute('inert');
       if (opts.opener.isConnected && !opts.opener.closest('[hidden]')) {
@@ -119,6 +135,8 @@ export function openSheet(opts: SheetOptions): SheetHandle {
     inerted.push(child);
   }
   app.append(backdrop);
+  syncScroll();
+  view?.addEventListener('resize', syncScroll);
   active = handle;
   const firstInside = body.querySelector<HTMLElement>(FOCUSABLE);
   (firstInside ?? closeBtn).focus();

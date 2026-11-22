@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   effectiveTextScale,
   heightClass,
+  HUD_FIXED,
+  HUD_LINE,
   INFO_LINE,
   layoutSpec,
+  MIN_BUDGET,
   widthClass,
   type LayoutMode,
   type Orientation,
@@ -179,5 +182,51 @@ describe('content is capped and centred', () => {
     const tall = layoutSpec({ width: 1000, height: 1600, textScale: 1 }, 'map').regions.content;
     expect(tall.width).toBe(720);
     expect(tall.x).toBe(140);
+  });
+});
+
+describe('the HUD band', () => {
+  it('is the measured web HUD at text 1 and grows only above the 44 px targets', () => {
+    const h = (textScale: number) => layoutSpec({ width: 640, height: 360, textScale }, 'map').regions.hud.height;
+    expect(HUD_LINE).toBe(52);
+    expect(h(1)).toBe(HUD_LINE);
+    expect(h(1.3)).toBe(Math.round(HUD_FIXED + (HUD_LINE - HUD_FIXED) * 1.3));
+    expect(h(2)).toBe(HUD_FIXED + 2 * (HUD_LINE - HUD_FIXED));
+    // Text 2 never doubles the HUD: the touch targets keep their size.
+    expect(h(2)).toBeLessThan(2 * HUD_LINE);
+  });
+  it('never takes more than a third of a very short window', () => {
+    const { regions } = layoutSpec({ width: 300, height: 90, textScale: 2 }, 'map');
+    expect(regions.hud.height).toBeLessThanOrEqual(30);
+  });
+});
+
+describe('per-screen budgets', () => {
+  const SCREEN_LIST: ScreenId[] = ['title', 'map', 'battle', 'event', 'end'];
+  const modes = (width: number, height: number, textScale: number) =>
+    Object.fromEntries(SCREEN_LIST.map((s) => [s, layoutSpec({ width, height, textScale }, s).mode]));
+
+  it('overriding one screen budget changes only that screen mode', () => {
+    const saved = { ...MIN_BUDGET };
+    try {
+      // 640x360 at text 1 is 360 text-sized px: every screen is a console at the current budgets.
+      expect(Object.values(modes(640, 360, 1))).toEqual(SCREEN_LIST.map(() => 'console'));
+      MIN_BUDGET.map = 361;
+      expect(modes(640, 360, 1)).toEqual({ title: 'console', map: 'fallback', battle: 'console', event: 'console', end: 'console' });
+      // The other way round: a bigger window with one budget lifted above it.
+      MIN_BUDGET.map = saved.map;
+      MIN_BUDGET.event = 10_000;
+      expect(modes(1280, 800, 1)).toEqual({ title: 'console', map: 'console', battle: 'console', event: 'fallback', end: 'console' });
+    } finally {
+      Object.assign(MIN_BUDGET, saved);
+    }
+    expect(Object.values(modes(640, 360, 1))).toEqual(SCREEN_LIST.map(() => 'console'));
+  });
+
+  it('every budget leaves 640x360 at text 1.3 a console and 640x360 at text 2 a fallback', () => {
+    for (const s of SCREEN_LIST) {
+      expect(MIN_BUDGET[s], s).toBeLessThanOrEqual(360 / 1.3);
+      expect(MIN_BUDGET[s], s).toBeGreaterThan(360 / 2);
+    }
   });
 });

@@ -41,6 +41,8 @@ export interface RunController {
   resume(): void;
   /** Clears the save and returns to the title (after the inline confirmation, or "New run" at the end). */
   abandon(): void;
+  /** Leaves a finished run for the title, which keeps that run's seed (the end screen's "Back to start"). */
+  toTitle(): void;
   pickNode(nodeId: string): void;
   pickEvent(action: RunAction): void;
   getRun(): RunState | null;
@@ -132,7 +134,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       ui.renderMap(buildMapModel(run, content, trail), (id) => controller.pickNode(id), () => controller.abandon());
     } else if (kind === 'ended') {
       const model = buildEndModel(run, content);
-      if (model) ui.renderEnd(model, () => controller.abandon());
+      if (model) ui.renderEnd(model, () => controller.abandon(), () => controller.toTitle());
     } else if (kind !== 'battle') {
       const model = buildEventModel(run, content);
       if (model) ui.renderEvent(model, (a) => controller.pickEvent(a));
@@ -193,6 +195,15 @@ export function createRunController(deps: RunControllerDeps): RunController {
       trail = [];
       log.reset();
       titleSeed = freshSeed();
+      clearSave();
+      controller.showTitle();
+    },
+    toTitle() {
+      if (battle.isPending()) return;
+      if (run) titleSeed = run.seed;
+      run = null;
+      trail = [];
+      log.reset();
       clearSave();
       controller.showTitle();
     },

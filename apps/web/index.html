@@ -14,6 +14,8 @@
         <div class="hud__party" id="hud-party"></div>
         <div class="hud__buttons">
           <button type="button" class="hud__btn hud__btn--text" id="hud-log" data-i18n="battle.openLog" hidden>Log</button>
+          <!-- Opens the sheet of the visible run screen (options, run details); its label comes from the screen. -->
+          <button type="button" class="hud__btn hud__btn--text" id="hud-run" hidden></button>
           <button type="button" class="hud__btn" id="hud-settings" data-i18n-label="hud.settings" aria-label="Settings"><span aria-hidden="true">&#9881;</span></button>
           <button type="button" class="hud__btn" id="hud-fullscreen" data-i18n-label="hud.fullscreen" aria-label="Enter fullscreen" hidden><span aria-hidden="true">&#9974;</span></button>
         </div>
@@ -101,7 +103,7 @@
 
         <section class="run-log-panel" id="run-log-panel" aria-labelledby="run-log-title" hidden>
           <h2 class="panel-title" id="run-log-title" data-i18n="map.log">Run log</h2>
-          <div class="log run-log" id="run-log" role="log" aria-live="polite" aria-labelledby="run-log-title" tabindex="0"></div>
+          <div class="log run-log" id="run-log" role="log" aria-live="polite" aria-labelledby="run-log-title" tabindex="-1"></div>
         </section>
       </main>
 

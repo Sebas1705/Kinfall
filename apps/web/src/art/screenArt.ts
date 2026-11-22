@@ -74,7 +74,7 @@ const keep = (section: HTMLElement, list: ScenePlayer[]) => {
 
 function decorateTitle(section: HTMLElement): void {
   const doc = section.ownerDocument;
-  const existing = section.querySelector<HTMLElement>(':scope > .title-hero');
+  const existing = section.querySelector<HTMLElement>('.title-hero');
   if (existing) {
     // Re-rendered for a language change: refresh the logo's name.
     existing.querySelector('.title-logo')?.setAttribute('aria-label', t(wordmark().labelKey));
@@ -90,13 +90,17 @@ function decorateTitle(section: HTMLElement): void {
     className: 'scene-art title-scene',
     stage: { player: lead ? { species: lead } : null, enemy: { species: foe, silhouette: true } },
   });
-  const width = section.clientWidth || doc.defaultView?.innerWidth || 320;
+  const primary = section.querySelector<HTMLElement>('.screen-primary') ?? section;
+  const width = primary.clientWidth || doc.defaultView?.innerWidth || 320;
   const hero = doc.createElement('div');
   hero.className = 'title-hero';
   hero.setAttribute(ART, '');
   let logo = logoCanvas(doc, width);
   hero.append(player.canvas, logo);
-  section.prepend(hero);
+  // After the heading, in the primary region (the console fits the hero to what the starters leave).
+  const heading = primary.querySelector<HTMLElement>('.screen-heading');
+  if (heading) heading.after(hero);
+  else primary.prepend(hero);
   // Keep the logo at a whole-number scale for the hero's current width.
   if (typeof ResizeObserver !== 'undefined') {
     new ResizeObserver(() => {
@@ -128,8 +132,8 @@ function decorateMap(section: HTMLElement): void {
     icon.dataset.icon = kind;
     slot.replaceChildren(icon);
   }
-  const heading = section.querySelector<HTMLElement>(':scope > .screen-heading');
-  const old = section.querySelector<HTMLElement>(':scope > .scene-banner');
+  const heading = section.querySelector<HTMLElement>('.screen-heading');
+  const old = section.querySelector<HTMLElement>('.scene-banner');
   const zone = currentZone(doc);
   const seed = currentSeed(doc);
   const key = `${zone}|${seed}`;
@@ -153,7 +157,7 @@ function decorateEvent(section: HTMLElement): void {
   const zone = zoneIdOf(currentZone(doc));
   const seed = currentSeed(doc);
   const key = `${kind}|${zone}|${seed}`;
-  const old = section.querySelector<HTMLElement>(':scope > .event-vignette');
+  const old = section.querySelector<HTMLElement>('.event-vignette');
   if (old && old.dataset.key === key) return;
   const grid = eventVignette(kind as VignetteKind, zone, seed);
   const frame = doc.createElement('div');
@@ -163,13 +167,13 @@ function decorateEvent(section: HTMLElement): void {
   frame.setAttribute('aria-hidden', 'true');
   frame.append(pixelCanvas(doc, grid, gridBitmap(grid), vignetteScale(section.clientWidth || 360), 'vignette-art'));
   if (old) old.replaceWith(frame);
-  else section.querySelector(':scope > .screen-heading')?.after(frame);
+  else (section.querySelector('.event-stage') ?? section.querySelector('.screen-heading')?.parentElement)?.prepend(frame);
 }
 
 function decorateEnd(section: HTMLElement): void {
   const doc = section.ownerDocument;
-  const heading = section.querySelector<HTMLElement>(':scope > .screen-heading');
-  if (!heading || section.querySelector(':scope > .end-scene')) return;
+  const heading = section.querySelector<HTMLElement>('.screen-heading');
+  if (!heading || section.querySelector('.end-scene')) return;
   const won = heading.classList.contains('win');
   const player = createScenePlayer(doc, {
     zone: currentZone(doc),

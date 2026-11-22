@@ -1347,3 +1347,662 @@ button {
 .reduce-motion .sheet {
   animation: none !important;
 }
+
+/* ---- title, map, event and end in the console layout (see src/view/layout.ts) ----
+   Each run screen is a primary region (heading and the art or board) plus a rail (the actions): the
+   rail is a column right of the primary region in landscape and a two-column band under it in
+   portrait. What does not fit moves into a sheet (`.sheet-store`, opened from the HUD button, see
+   src/view/screenSheets.ts). In `fallback` none of this applies: the screens stack as before and
+   scroll inside `.screens`, with the stores shown inline. */
+.screen-primary,
+.screen-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.screen-rail {
+  gap: 0.5rem;
+}
+
+.sheet-store {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.screen-rail > .primary {
+  align-self: flex-start;
+  min-width: min(100%, 12rem);
+}
+
+.starter-hint-line,
+.map-readout {
+  display: none;
+}
+
+/* Party chips in the HUD. */
+.hud-chips {
+  position: relative;
+  display: flex;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.hud-chip {
+  flex: none;
+  padding: 0.15rem 0.5rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.hud-chip--low .hud-chip__value {
+  font-weight: 700;
+  color: var(--lose);
+}
+
+.hud-chip--low .hud-chip__value::after {
+  content: '\00a0!' / '';
+}
+
+.hud-chip--souls::before {
+  content: '\25c6\00a0' / '';
+}
+
+@media (max-width: 479px) {
+  /* Phones show the numbers; the names stay in the text for assistive technology. */
+  .hud-chip__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* The shared run log is kept out of sight in the console (it stays in the accessibility tree, so its
+   polite announcements still happen) and shows as a plain history inside the sheet. */
+.app[data-mode='console'] > .screens > .run-log-panel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.sheet .run-log-panel {
+  margin-top: 0;
+}
+
+.sheet .run-log {
+  max-height: none;
+}
+
+.app[data-mode] .sheet .sheet-store {
+  display: flex;
+}
+
+.sheet .field input {
+  max-width: 100%;
+}
+
+.app[data-mode='console'] > .screens {
+  display: flex;
+  flex-direction: column;
+}
+
+.app[data-mode='console'] .screen:not([hidden]) {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  gap: 0 0.5rem;
+  grid-template-columns: minmax(0, 1fr) var(--rail-w, 0px);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'primary rail';
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .screen:not([hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'primary'
+    'rail';
+  gap: 0.4rem 0;
+}
+
+/* The title's form wraps all three parts; its box itself takes no part in the grid. */
+.app[data-mode='console'] .title-form {
+  display: contents;
+}
+
+.app[data-mode='console'] .sheet-store {
+  display: none;
+}
+
+.app[data-mode='console'] :is(.screen-primary, .screen-rail) {
+  --k-btn-w: 5px;
+  --k-plate-w: 6px;
+}
+
+.app[data-mode='console'] .screen-primary {
+  grid-area: primary;
+  min-height: 0;
+  gap: 0.4rem;
+  overflow: hidden;
+}
+
+.app[data-mode='console'] .screen-heading {
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.app[data-mode='console'] .screen-heading.result-title {
+  font-size: 1.3rem;
+}
+
+/* The rail: a column in landscape (centred when short; the auto margins keep a tall one reachable). */
+.app[data-mode='console'] .screen-rail {
+  grid-area: rail;
+  min-height: 0;
+  gap: 0.4rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.app[data-mode='console'] .screen-rail > :first-child {
+  margin-top: auto;
+}
+
+.app[data-mode='console'] .screen-rail > :last-child {
+  margin-bottom: auto;
+}
+
+.app[data-mode='console'] .screen-rail > :is(.primary, .secondary, .danger) {
+  align-self: stretch;
+  min-width: 0;
+  min-height: 44px;
+  padding-block: 0.25rem;
+}
+
+/* ... and a two-column band in portrait. */
+.app[data-orientation='portrait'][data-mode='console'] .screen-rail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: end;
+  overflow-y: visible;
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .screen-rail > * {
+  margin: 0;
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .screen-rail > :is(.notice, .map-readout, .event-choices) {
+  grid-column: 1 / -1;
+}
+
+.app[data-mode='console'] .notice,
+.app[data-mode='console'] .confirm {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.app[data-mode='console'] .notice p,
+.app[data-mode='console'] .confirm-question {
+  margin: 0 0 0.3rem;
+}
+
+/* -- title -- */
+.app[data-mode='console'] .title-hero {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 3rem;
+  margin-inline: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app[data-mode='console'] .title-hero .scene-art {
+  flex: none;
+}
+
+.app[data-mode='console'] .starters legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.app[data-mode='console'] .starters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.app[data-mode='console'] .starter-list {
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 0.35rem;
+}
+
+.app[data-mode='console'] .starter-card {
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  min-height: 44px;
+  padding: 0.15rem 0.3rem;
+  text-align: center;
+}
+
+/* The radio is the card (it keeps focus and the checked state; the card draws both). */
+.app[data-mode='console'] .starter-card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  opacity: 0;
+}
+
+.app[data-mode='console'] .starter-art,
+.app[data-mode='console'] .starter-hint {
+  display: none;
+}
+
+.app[data-mode='console'] .starter-text {
+  align-items: center;
+  line-height: 1.15;
+}
+
+.app[data-mode='console'] .starter-name {
+  font-size: 0.85rem;
+}
+
+.app[data-mode='console'] .starter-element {
+  font-size: 0.72rem;
+}
+
+.app[data-mode='console'] .starter-hint-line {
+  display: block;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* -- map: a fixed board, layers side by side -- */
+.app[data-mode='console'] .scene-banner {
+  display: none;
+}
+
+.app[data-mode='console'] .map-layers,
+.art-frames .app[data-mode='console'] .map-layers {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.2rem;
+  padding: 0;
+}
+
+.art-frames .app[data-mode='console'] .map-layers::before,
+.art-frames .app[data-mode='console'] .map-step::before {
+  display: none;
+}
+
+.app[data-mode='console'] .map-layer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.app[data-mode='console'] .map-step {
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.62rem;
+  letter-spacing: 0;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app[data-mode='console'] .map-nodes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.app[data-mode='console'] .map-nodes > li {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.app[data-mode='console'] .map-node {
+  position: relative;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.app[data-mode='console'] .map-node-icon {
+  display: flex;
+  justify-content: center;
+}
+
+/* The name and state are in the accessible name and the rail's readout; the board shows the icon. */
+.app[data-mode='console'] .map-node-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* The state is not colour alone: cleared nodes carry a check, the current one a dot. */
+.app[data-mode='console'] .map-node--cleared::after {
+  content: '\2713' / '';
+  position: absolute;
+  top: 0;
+  right: 2px;
+  font-size: 0.7rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.app[data-mode='console'] .map-node--current::before {
+  content: '\25cf' / '';
+  position: absolute;
+  bottom: 0;
+  left: 2px;
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+.app[data-mode='console'] .map-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+.app[data-mode='console'] .map-readout-label {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.app[data-mode='console'] .map-readout-state {
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .map-readout {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.1rem 0.5rem;
+}
+
+/* Portrait: the layers are rows, the step label to the left of its nodes. */
+.app[data-orientation='portrait'][data-mode='console'] .map-layers,
+.art-frames .app[data-orientation='portrait'][data-mode='console'] .map-layers {
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 0.25rem;
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .map-layer {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .map-step {
+  flex: none;
+  width: 3.6rem;
+  text-align: start;
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .map-nodes {
+  flex: 1 1 0;
+  flex-direction: row;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .map-nodes > li {
+  flex: 0 1 4.5rem;
+  width: auto;
+  min-width: 44px;
+}
+
+/* -- event: the vignette and the text side by side -- */
+.app[data-mode='console'] .event-stage {
+  container: stage / size;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  overflow: hidden;
+}
+
+/* The vignette plate hugs its picture (64x40 art px, a 1.6 ratio): as large as the stage allows, at
+   most 48% of its width (the stage is a size container, so cqw and cqh are its width and height). */
+.app[data-mode='console'] .event-vignette {
+  align-self: center;
+  flex: none;
+  display: block;
+  width: auto;
+  height: auto;
+}
+
+.app[data-mode='console'] .vignette-art {
+  display: block;
+  height: auto;
+  max-width: none;
+  width: min(calc(48cqw - 2 * var(--k-plate-w, 6px)), calc((100cqh - 2 * var(--k-plate-w, 6px)) * 1.6));
+}
+
+.app[data-mode='console'] .event-text {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.app[data-mode='console'] .offer {
+  gap: 0.5rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.app[data-mode='console'] .offer-art {
+  width: 40px;
+  height: 40px;
+}
+
+.app[data-mode='console'] .offer-detail {
+  font-size: 0.75rem;
+}
+
+.app[data-mode='console'] .event-note {
+  font-size: 0.8rem;
+}
+
+.app[data-mode='console'] .event-choices {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .event-choices {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* -- end: the scene is the result -- */
+.app[data-mode='console'] .end-scene {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 2rem;
+}
+
+.app[data-mode='console'] .end-scene .scene-art {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.app[data-mode='console'] .end-score {
+  font-size: 1rem;
+}
+
+.app[data-mode='console'] .end-note {
+  font-size: 0.8rem;
+}
+
+/* Events can offer five choices with details (rest, three evolutions, leave): in landscape their
+   rail is wider than the contract's default so the details stay on few lines and all of them fit. */
+.app[data-orientation='landscape'][data-mode='console'] .screen[data-screen='event']:not([hidden]) {
+  grid-template-columns: minmax(0, 1fr) min(max(var(--rail-w, 0px), 17rem), 48%);
+}
+
+.app[data-mode='console'] .event-choices .choice {
+  padding-block: 0;
+  gap: 0;
+}
+
+.app[data-mode='console'] .event-choices .choice-detail {
+  font-size: 0.68rem;
+}
+
+/* The hero's side bleed was for the page; inside the scrolling primary area it would overflow sideways. */
+.app[data-mode] .title-hero {
+  margin-inline: 0;
+}
+
+/* Long labels at large text on a 320 px phone break inside their button instead of spilling out. */
+.app[data-mode='console'] .screen-rail > :is(.primary, .secondary, .danger) {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.hud__btn--text {
+  font-size: 0.72rem;
+  padding: 0 0.4rem;
+}
+
+/* On a narrow stage (a 320 px phone at large text) the text needs the whole width: the vignette,
+   which is decoration, steps aside. */
+@container stage (max-width: 14rem) {
+  .app[data-mode='console'] .event-vignette {
+    display: none;
+  }
+}
+
+/* A full-party recruit has the most text (description, offer and the "choose who to replace" note):
+   its offer shows name, elements and HP in fewer lines, and the vignette gives way sooner. */
+.app[data-mode='console'] .offer-text {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+}
+
+.app[data-mode='console'] .offer-name {
+  flex: 1 0 100%;
+}
+
+@container stage (max-width: 24rem) {
+  .app[data-mode='console'] .event-stage:has(.event-note) .event-vignette {
+    display: none;
+  }
+}
+
+@container stage (max-width: 14rem) {
+  .app[data-mode='console'] .event-text {
+    gap: 0.25rem;
+    font-size: 0.82rem;
+  }
+
+  .app[data-mode='console'] .event-note {
+    font-size: 0.75rem;
+  }
+}
+
+/* Roomy windows get bigger nodes (a phone keeps the 44 px minimum). */
+.app[data-mode='console'] .map-node {
+  height: clamp(44px, 8dvh, 72px);
+}
+
+.app[data-mode='console'] .map-node-icon,
+.app[data-mode='console'] .node-icon {
+  width: clamp(32px, 5dvh, 48px);
+  height: clamp(32px, 5dvh, 48px);
+}
+
+.app[data-mode='console'] .event-choices > .choice:only-child {
+  grid-column: 1 / -1;
+}
+
+/* Four or more choices (a full-party recruit, a shrine) go two to a row in the landscape rail: a
+   column of five does not fit a 360 px window at large text. */
+.app[data-orientation='landscape'][data-mode='console'] .event-choices:has(> :nth-child(4)) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.app[data-orientation='landscape'][data-mode='console'] .event-choices:has(> :nth-child(4)) > .choice:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+/* The battle's rail is as wide as the events': at large text a move's name and detail need the room
+   (a 205 px rail split in two columns wraps every word), so six choices fit a 360 px window. */
+.app[data-orientation='landscape'][data-mode='console'] .battle:not([hidden]) {
+  grid-template-columns: minmax(0, 1fr) min(max(var(--rail-w, 0px), 17rem), 48%);
+}

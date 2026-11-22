@@ -139,3 +139,36 @@ describe('openSheet', () => {
     expect(document.getElementById('screens')!.hasAttribute('inert')).toBe(true);
   });
 });
+
+describe('openSheet: scrolling body', () => {
+  it('a body that fits adds no tab stop', () => {
+    open = openSheet({ title: 'Team', content: content(), opener });
+    const body = document.querySelector<HTMLElement>('.sheet__body')!;
+    expect(body.hasAttribute('tabindex')).toBe(false);
+    expect(body.hasAttribute('role')).toBe(false);
+  });
+
+  it('a body that scrolls is a named, focusable region (updated on resize)', () => {
+    const proto = HTMLElement.prototype;
+    const sh = Object.getOwnPropertyDescriptor(proto, 'scrollHeight');
+    const ch = Object.getOwnPropertyDescriptor(proto, 'clientHeight');
+    Object.defineProperty(proto, 'scrollHeight', { configurable: true, get: () => 500 });
+    Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 200 });
+    try {
+      open = openSheet({ title: 'Team', content: content(), opener });
+      const body = document.querySelector<HTMLElement>('.sheet__body')!;
+      expect(body.tabIndex).toBe(0);
+      expect(body.getAttribute('role')).toBe('region');
+      const titleId = document.querySelector('.sheet__title')!.id;
+      expect(body.getAttribute('aria-labelledby')).toBe(titleId);
+      Object.defineProperty(proto, 'scrollHeight', { configurable: true, get: () => 100 });
+      window.dispatchEvent(new Event('resize'));
+      expect(body.hasAttribute('tabindex')).toBe(false);
+    } finally {
+      if (sh) Object.defineProperty(proto, 'scrollHeight', sh);
+      else delete (proto as unknown as Record<string, unknown>).scrollHeight;
+      if (ch) Object.defineProperty(proto, 'clientHeight', ch);
+      else delete (proto as unknown as Record<string, unknown>).clientHeight;
+    }
+  });
+});
