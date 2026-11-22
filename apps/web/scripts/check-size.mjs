@@ -9,7 +9,8 @@ import { gzipSync } from 'node:zlib';
 import { dirname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BUDGET = 30_546;
+// Raised from 30_546 for the console layout (layout driver, sheets, HUD, rail screens and their CSS: +5.7 KB gzipped, measured 36_249).
+const BUDGET = 37_000;
 const ART_BUDGET = 60_000;
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const indexPath = join(dist, 'index.html');
