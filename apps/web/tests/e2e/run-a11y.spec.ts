@@ -64,7 +64,10 @@ async function expectTargets(page: Page, where: string): Promise<void> {
 /** In the console the HUD button opens the sheet; in the fallback (e.g. a map at 320 px and text 150%) the content is inline and there is no button. */
 async function openRunSheet(page: Page): Promise<boolean> {
   const button = page.locator('#hud-run');
-  if (!(await button.isVisible())) return false;
+  const mode = await page.locator('#app').getAttribute('data-mode');
+  if (mode === 'fallback') return false;
+  // A console always has the button: wait for it (the observer shows it a tick after the route change) and fail, never skip.
+  await expect(button).toBeVisible();
   await button.click();
   await expect(page.getByRole('dialog')).toBeVisible();
   return true;
@@ -97,6 +100,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
         await checkScreen(page, `title (${lang})`, size.width);
         const titleSheet = await openRunSheet(page);
+        if (size.width === 1000) expect(titleSheet, 'title sheet ran').toBe(true);
         await checkScreen(page, `title options sheet (${lang})`, size.width);
         await closeRunSheet(page, titleSheet);
 
@@ -113,6 +117,8 @@ for (const scheme of ['light', 'dark'] as const) {
         await checkScreen(page, `map (${lang})`, size.width);
         // The run sheet (party details, run log, Abandon) and its inline confirmation.
         const mapSheet = await openRunSheet(page);
+        // 1000 px wide is always a console: the sheet checks must run there.
+        if (size.width === 1000) expect(mapSheet, 'map sheet ran').toBe(true);
         await checkScreen(page, `map run sheet (${lang})`, size.width);
         await page.locator(mapSheet ? '[role="dialog"] [data-action="abandon"]' : '#screen-map [data-action="abandon"]').click();
         await checkScreen(page, `map with abandon confirm (${lang})`, size.width);
@@ -144,6 +150,7 @@ for (const scheme of ['light', 'dark'] as const) {
           if ('souls' in options) await expect(page.locator('#screen-event button[data-choice][disabled]')).toHaveCount(2);
           await checkScreen(page, where, size.width);
           const sheet = await openRunSheet(page);
+          if (size.width === 1000) expect(sheet, 'event sheet ran').toBe(true);
           await checkScreen(page, `${where} run sheet`, size.width);
           await closeRunSheet(page, sheet);
         }
@@ -154,6 +161,7 @@ for (const scheme of ['light', 'dark'] as const) {
         await expect(page.locator('#screen-end [data-screen-heading]')).toBeFocused();
         await checkScreen(page, `end (${lang})`, size.width);
         const endSheet = await openRunSheet(page);
+        if (size.width === 1000) expect(endSheet, 'end sheet ran').toBe(true);
         await checkScreen(page, `end stats sheet (${lang})`, size.width);
         await closeRunSheet(page, endSheet);
 

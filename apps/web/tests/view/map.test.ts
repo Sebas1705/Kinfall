@@ -267,6 +267,19 @@ describe('renderMap: console composition', () => {
     expect(readout.textContent).toContain('available');
   });
 
+  it('every node has a short visible type name that its accessible name starts with, in both languages', () => {
+    for (const lang of ['en', 'es'] as const) {
+      setLang(lang);
+      const { host } = rendered(fresh());
+      for (const b of host.querySelectorAll<HTMLButtonElement>('button[data-node]')) {
+        const short = b.querySelector('.map-node-short')!.textContent!;
+        expect(short.length, b.dataset.node).toBeGreaterThan(0);
+        expect(short.includes(' ')).toBe(false);
+        expect(b.getAttribute('aria-label')!.startsWith(short)).toBe(true);
+      }
+    }
+  });
+
   it('the readout follows the focused node', () => {
     const { run, a, b } = afterTwo();
     const { host } = rendered(run, [a.id, b.id]);

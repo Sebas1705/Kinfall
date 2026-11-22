@@ -64,6 +64,8 @@ export function openSheet(opts: SheetOptions): SheetHandle {
     }
   };
   const view = doc.defaultView;
+  // Content that grows while the sheet is open (a confirmation, new log lines) can start to scroll.
+  const watchers: Array<{ disconnect(): void }> = [];
 
   const closeBtn = doc.createElement('button');
   closeBtn.type = 'button';
@@ -84,6 +86,7 @@ export function openSheet(opts: SheetOptions): SheetHandle {
       if (active === handle) active = null;
       doc.removeEventListener('keydown', onKeydown, true);
       view?.removeEventListener('resize', syncScroll);
+      for (const w of watchers) w.disconnect();
       backdrop.remove();
       for (const el of inerted) el.removeAttribute('inert');
       if (opts.opener.isConnected && !opts.opener.closest('[hidden]')) {
@@ -137,6 +140,16 @@ export function openSheet(opts: SheetOptions): SheetHandle {
   app.append(backdrop);
   syncScroll();
   view?.addEventListener('resize', syncScroll);
+  if (typeof MutationObserver !== 'undefined') {
+    const mo = new MutationObserver(syncScroll);
+    mo.observe(body, { childList: true, subtree: true, characterData: true });
+    watchers.push(mo);
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(syncScroll);
+    ro.observe(body);
+    watchers.push(ro);
+  }
   active = handle;
   const firstInside = body.querySelector<HTMLElement>(FOCUSABLE);
   (firstInside ?? closeBtn).focus();

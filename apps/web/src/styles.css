@@ -2006,3 +2006,36 @@ button {
 .app[data-orientation='landscape'][data-mode='console'] .battle:not([hidden]) {
   grid-template-columns: minmax(0, 1fr) min(max(var(--rail-w, 0px), 17rem), 48%);
 }
+
+/* Board nodes: icon over a short type name (real text, so a touch user can read what a node is
+   before choosing it); cleared and current nodes keep their check and dot, locked ones a dashed frame. */
+.map-node-short {
+  display: none;
+}
+
+.app[data-mode='console'] .map-node {
+  flex-direction: column;
+}
+
+.app[data-mode='console'] .map-node-short {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1;
+  padding-bottom: 2px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app[data-mode='console'] .map-node-icon,
+.app[data-mode='console'] .node-icon {
+  width: clamp(20px, 4dvh, 40px);
+  height: clamp(20px, 4dvh, 40px);
+}
+
+.app[data-mode='console'] .map-node-icon .node-icon {
+  width: 100%;
+  height: 100%;
+}

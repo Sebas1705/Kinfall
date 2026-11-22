@@ -240,6 +240,8 @@ async function expectScreenFits(page: Page, screen: RunScreen, landscape: boolea
       .filter((el) => el.clientWidth > 2 && el.clientHeight > 2 && getComputedStyle(el).overflow !== 'visible')
       .filter((el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1)
       .filter((el) => !el.matches('.title-hero, .end-scene, .event-vignette'))
+      // A node's short name may end in an ellipsis in a narrow column (the full name is its label and the readout).
+      .filter((el) => !(el.matches('.map-node-short') && el.scrollHeight <= el.clientHeight + 1))
       .map((el) => `${el.id || el.className}: ${el.scrollWidth}x${el.scrollHeight} in ${el.clientWidth}x${el.clientHeight}`);
     // Everything visible stays inside the window.
     const outside = [...section.querySelectorAll<HTMLElement>('.screen-primary *, .screen-rail *')]
@@ -348,6 +350,27 @@ test('map: the nodes are reachable by Tab in layer order and the board is bounde
   expect(visited).toEqual(info.enabled);
   // The enabled nodes appear in the document in board order.
   expect(info.enabled).toEqual(info.order.filter((id) => info.enabled.includes(id)));
+});
+
+// Every board node shows a short type name under its icon, and it is really on screen (not clipped away).
+test('map: every node shows a visible type name in the console', async ({ page }) => {
+  await startRunWithKeyboard(page, 'e2e-layout');
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
+  const m = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('#screen-map button.map-node')].map((b) => {
+      const label = b.querySelector<HTMLElement>('.map-node-short')!;
+      const r = label.getBoundingClientRect();
+      const br = b.getBoundingClientRect();
+      return { text: label.textContent, w: r.width, h: r.height, inside: r.bottom <= br.bottom + 0.5 && r.top >= br.top - 0.5 };
+    }),
+  );
+  expect(m.length).toBeGreaterThan(6);
+  for (const n of m) {
+    expect(n.text!.length).toBeGreaterThan(0);
+    expect(n.w).toBeGreaterThan(8);
+    expect(n.h).toBeGreaterThan(6);
+    expect(n.inside).toBe(true);
+  }
 });
 
 // The HUD button of each screen opens its sheet: map and event the run details (party, log, Abandon).

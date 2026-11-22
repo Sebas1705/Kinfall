@@ -30,6 +30,8 @@ function nodeButton(node: NodeModel, onPick: (id: string) => void): HTMLElement 
     },
     // Icon slot: the lazy scene art draws the type's pixel icon here (src/art/screenArt.ts).
     el('span', { class: 'map-node-icon', 'aria-hidden': 'true' }),
+    // Short type name under the icon (first word of the label): real text the console board shows.
+    el('span', { class: 'map-node-short' }, node.label.split(' ')[0]),
     el('span', { class: 'map-node-text' }, el('span', { class: 'map-node-label' }, node.label), el('span', { class: 'map-node-state' }, state)),
   );
   if (node.state === 'available') button.addEventListener('click', () => onPick(node.id));

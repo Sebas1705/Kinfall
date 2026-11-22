@@ -171,4 +171,30 @@ describe('openSheet: scrolling body', () => {
       else delete (proto as unknown as Record<string, unknown>).clientHeight;
     }
   });
+
+  it('re-checks when the content grows while open and stops watching on close', async () => {
+    let tall = false;
+    const proto = HTMLElement.prototype;
+    Object.defineProperty(proto, 'scrollHeight', { configurable: true, get: () => (tall ? 500 : 100) });
+    Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 200 });
+    try {
+      open = openSheet({ title: 'Team', content: content(), opener });
+      const body = document.querySelector<HTMLElement>('.sheet__body')!;
+      expect(body.hasAttribute('tabindex')).toBe(false);
+      tall = true;
+      body.append(document.createElement('p'));
+      await new Promise((r) => setTimeout(r, 0));
+      expect(body.tabIndex).toBe(0);
+      expect(body.getAttribute('role')).toBe('region');
+      open.close();
+      open = null;
+      tall = false;
+      body.append(document.createElement('p'));
+      await new Promise((r) => setTimeout(r, 0));
+      expect(body.tabIndex).toBe(0); // no longer watched: untouched after close
+    } finally {
+      delete (proto as unknown as Record<string, unknown>).scrollHeight;
+      delete (proto as unknown as Record<string, unknown>).clientHeight;
+    }
+  });
 });
