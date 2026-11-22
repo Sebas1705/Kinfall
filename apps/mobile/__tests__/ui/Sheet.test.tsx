@@ -1,10 +1,12 @@
 // The mobile sheet: bottom sheet in portrait, side drawer in landscape, Close at 48 dp, hardware back,
 // modal for screen readers, focus in and back out, and no slide with reduce motion.
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { setLang } from '@kinfall/core/platform/i18n';
 import { createRef, type ComponentProps, type ComponentRef } from 'react';
 import { AccessibilityInfo, Animated, BackHandler, Dimensions, StyleSheet, Text, View } from 'react-native';
+
+import * as SafeArea from 'react-native-safe-area-context';
 
 import { resetMotionSettingForTests, setAppReduceMotion } from '../../src/platform/motionSetting';
 import { Sheet, useSheetBackdropProps } from '../../src/ui/Sheet';
@@ -116,7 +118,7 @@ describe('Sheet', () => {
 
   it('scrolls its body inside the sheet', async () => {
     await render(sheet());
-    expect(screen.getByTestId('sheet-body')).toBeTruthy();
+    expect(screen.getByTestId('sheet-body').type).toBe('RCTScrollView');
   });
 
   it('slides in, and does not animate when reduce motion is on', async () => {
@@ -158,6 +160,58 @@ describe('Sheet', () => {
     expect(focus).toHaveBeenCalledTimes(1);
     expect(focus.mock.calls[0]![0]).toBe(openerRef.current);
     expect(screen.queryByText('Party')).toBeNull();
+  });
+
+  it('keeps the Close button out of the accessibility tree while not visible', async () => {
+    await render(sheet({ visible: false }));
+    expect(screen.queryByRole('button', { name: 'Close', hidden: true })).toBeNull();
+    expect(screen.queryByTestId('sheet-close', { hidden: true })).toBeNull();
+  });
+
+  it('stays mounted when it is reopened while the slide-out is still running', async () => {
+    const r = await render(sheet());
+    await r.rerender(sheet({ visible: false }));
+    await r.rerender(sheet({ visible: true }));
+    await act(async () => {
+      await new Promise((ok) => setTimeout(ok, 350));
+    });
+    expect(screen.getByText('Party')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy();
+  });
+
+  it('does not touch state after an unmount in the middle of the slide', async () => {
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const r = await render(sheet());
+    await r.rerender(sheet({ visible: false }));
+    await r.unmount();
+    await act(async () => {
+      await new Promise((ok) => setTimeout(ok, 350));
+    });
+    expect(errors).not.toHaveBeenCalled();
+  });
+
+  it('does not re-add the back handler when only onClose changes', async () => {
+    const add = BackHandler.addEventListener as jest.Mock;
+    const first = jest.fn();
+    const second = jest.fn();
+    const r = await render(sheet({ onClose: first }));
+    const calls = add.mock.calls.length;
+    await r.rerender(sheet({ onClose: second }));
+    expect(add.mock.calls.length).toBe(calls);
+    expect(backHandlers).toHaveLength(1);
+    backHandlers[0]!({} as Parameters<BackFn>[0]);
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  it('keeps the Close button above the system bars (bottom inset in portrait, right and bottom in landscape)', async () => {
+    jest.spyOn(SafeArea, 'useSafeAreaInsets').mockReturnValue({ top: 0, left: 0, right: 24, bottom: 34 });
+    const r = await render(sheet());
+    expect(StyleSheet.flatten(screen.getByTestId('sheet').props.style)).toMatchObject({ paddingBottom: 16 + 34 });
+    await r.unmount();
+    windowIs(LANDSCAPE);
+    await render(sheet());
+    expect(StyleSheet.flatten(screen.getByTestId('sheet').props.style)).toMatchObject({ paddingRight: 16 + 24, paddingBottom: 34 });
   });
 
   it('does nothing on close without an opener', async () => {

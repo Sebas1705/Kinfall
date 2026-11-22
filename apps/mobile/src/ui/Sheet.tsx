@@ -1,14 +1,20 @@
 // Modal sheet of the console layout: a bottom sheet in portrait and a side drawer (right) in
 // landscape, chosen by the orientation of `useLayoutSpec`. It is an absolutely positioned view above
 // the screen, not a RN `Modal`: a Modal is its own window, which would cut the screen (and its polite
-// live region) off from the announcements while the sheet is open. The caller hides what is behind
-// it from screen readers with `useSheetBackdropProps` on the screen's root view (a sibling of the
-// sheet, never its parent). Android back closes it, focus moves to the title on open and back to
+// live region) off from the announcements while the sheet is open.
+//
+// HARD REQUIREMENTS FOR THE CALLER (Android has no real focus trap, so this is enforced by the caller):
+//  (a) spread `useSheetBackdropProps(visible)` on the screen's root view, which must be a SIBLING of
+//      the Sheet, never its parent (the sheet itself would be hidden otherwise);
+//  (b) any polite live region that must keep announcing while the sheet is open (the battle log
+//      line) must sit OUTSIDE that hidden root, because `no-hide-descendants` silences it.
+// Android back closes it, focus moves to the title on open and back to
 // `openerRef` on close, and there is no slide when reduce motion is on.
 import { t } from '@kinfall/core/platform/i18n';
 import type { ScreenId } from '@kinfall/core/layout/spec';
 import { useEffect, useRef, useState, type ComponentRef, type ReactNode, type RefObject } from 'react';
 import { AccessibilityInfo, Animated, BackHandler, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLang } from '../platform/LangContext';
 import { useReducedMotion } from '../platform/motionSetting';
@@ -60,36 +66,46 @@ export function Sheet({ visible, onClose, title, children, screen = 'battle', op
   const titleRef = useRef<ComponentRef<typeof AppText>>(null);
   const slide = useRef(new Animated.Value(0)).current;
   const wasVisible = useRef(false);
+  const insets = useSafeAreaInsets();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [mounted, setMounted] = useState(visible);
 
   // Hardware back only while open.
   useEffect(() => {
     if (!visible) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
+      onCloseRef.current();
       return true;
     });
     return () => sub.remove();
-  }, [visible, onClose]);
+  }, [visible]);
+
+  // A mid-slide unmount must not set state afterwards.
+  useEffect(() => () => slide.stopAnimation(), [slide]);
 
   // Open: mount, slide in (or appear at once), focus the title. Close: slide out, then unmount.
   useEffect(() => {
     if (visible) {
       setMounted(true);
+      slide.stopAnimation();
       if (reduceMotion) slide.setValue(1);
       else Animated.timing(slide, { toValue: 1, duration: SLIDE_MS, useNativeDriver: true }).start();
       focusOn(titleRef.current);
     } else if (wasVisible.current) {
+      slide.stopAnimation();
       if (reduceMotion) {
         slide.setValue(0);
         setMounted(false);
       } else {
-        Animated.timing(slide, { toValue: 0, duration: SLIDE_MS, useNativeDriver: true }).start(() => setMounted(false));
+        Animated.timing(slide, { toValue: 0, duration: SLIDE_MS, useNativeDriver: true }).start(({ finished }) => {
+          if (finished) setMounted(false);
+        });
       }
       focusOn(openerRef?.current);
     }
     wasVisible.current = visible;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reduceMotion changing mid-open must not replay the slide
+    // Deliberately only [visible]: reduceMotion changing mid-open must not replay the slide.
   }, [visible]);
 
   if (!visible && !mounted) return null;
@@ -99,8 +115,8 @@ export function Sheet({ visible, onClose, title, children, screen = 'battle', op
   const offscreen = landscape ? drawerWidth : height;
   const translate = slide.interpolate({ inputRange: [0, 1], outputRange: [offscreen, 0] });
   const panelStyle = landscape
-    ? [styles.drawer, { width: drawerWidth, transform: [{ translateX: translate }] }]
-    : [styles.bottom, { maxHeight: Math.round(height * SHEET_MAX_SHARE), transform: [{ translateY: translate }] }];
+    ? [styles.drawer, { width: drawerWidth, paddingRight: 16 + insets.right, paddingBottom: insets.bottom, transform: [{ translateX: translate }] }]
+    : [styles.bottom, { paddingBottom: 16 + insets.bottom, maxHeight: Math.round(height * SHEET_MAX_SHARE), transform: [{ translateY: translate }] }];
 
   return (
     <View
@@ -120,6 +136,7 @@ export function Sheet({ visible, onClose, title, children, screen = 'battle', op
       <Animated.View
         style={[panelStyle, { backgroundColor: theme.surface, borderColor: theme.border }]}
         accessibilityViewIsModal
+        importantForAccessibility="yes"
         testID={testID}
       >
         <AppText ref={titleRef} accessible accessibilityRole="header" style={[styles.title, { color: theme.text }]} testID={`${testID}-title`}>
