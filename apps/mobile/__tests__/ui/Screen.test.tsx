@@ -173,3 +173,66 @@ describe('Screen footer', () => {
     expect(screen.queryByTestId('foot')).toBeNull();
   });
 });
+
+type Json = { type: string; children?: (Json | string)[] | null };
+/** Host nodes of a rendered tree whose type is RCTScrollView. */
+function scrollViews(node: Json | Json[] | null): Json[] {
+  if (!node) return [];
+  if (Array.isArray(node)) return node.flatMap(scrollViews);
+  const kids = (node.children ?? []).filter((c): c is Json => typeof c !== 'string');
+  return [...(node.type === 'RCTScrollView' ? [node] : []), ...kids.flatMap(scrollViews)];
+}
+function textsIn(node: Json | string): string[] {
+  if (typeof node === 'string') return [node];
+  return (node.children ?? []).flatMap(textsIn);
+}
+
+describe('Screen shell (opt-in through the screen prop)', () => {
+  function windowIs(width: number, height: number, fontScale: number) {
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ width, height, fontScale, scale: 2 });
+  }
+  const shell = (
+    <Screen screen="battle" testID="scr" hud={<Text>hud-slot</Text>} actions={<Text>actions-slot</Text>} info={<Text>info-slot</Text>}>
+      <Text>primary-slot</Text>
+    </Screen>
+  );
+
+  it.each([
+    [640, 360, 1],
+    [640, 360, 1.3],
+    [360, 640, 1],
+    [360, 640, 1.3],
+  ])('has no ScrollView in console mode at %ix%i, font scale %s', async (w, h, fs) => {
+    windowIs(w, h, fs);
+    await render(shell);
+    expect(scrollViews(screen.toJSON() as Json | Json[] | null)).toHaveLength(0);
+    expect(screen.getByText('hud-slot')).toBeTruthy();
+    expect(screen.getByText('primary-slot')).toBeTruthy();
+    expect(screen.getByText('actions-slot')).toBeTruthy();
+    // The info line only exists in portrait.
+    expect(screen.queryByText('info-slot') !== null).toBe(h > w);
+  });
+
+  it('in the fallback scrolls only the primary region: one ScrollView, HUD and actions outside it', async () => {
+    windowIs(640, 360, 2);
+    await render(shell);
+    const scrolls = scrollViews(screen.toJSON() as Json | Json[] | null);
+    expect(scrolls).toHaveLength(1);
+    const inside = textsIn(scrolls[0]!);
+    expect(inside).toContain('primary-slot');
+    expect(inside).not.toContain('hud-slot');
+    expect(inside).not.toContain('actions-slot');
+    expect(screen.getByText('hud-slot')).toBeTruthy();
+    expect(screen.getByText('actions-slot')).toBeTruthy();
+  });
+
+  it('keeps the legacy ScrollView path when no screen is given', async () => {
+    windowIs(640, 360, 1);
+    await render(
+      <Screen testID="old">
+        <Text>legacy</Text>
+      </Screen>,
+    );
+    expect(scrollViews(screen.toJSON() as Json | Json[] | null)).toHaveLength(1);
+  });
+});

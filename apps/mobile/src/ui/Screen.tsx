@@ -1,3 +1,4 @@
+import type { ScreenId } from '@kinfall/core/layout/spec';
 import { createContext, useCallback, useContext, useMemo, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
   ScrollView,
@@ -12,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
+import { useLayoutSpec } from './useLayoutSpec';
 import { useLayout } from './windowSize';
 
 /** Space kept around a revealed element (dp). */
@@ -168,9 +170,87 @@ export interface ScreenProps {
   /** Pinned below the scrolling content, above the navigation bar. */
   footer?: ReactNode;
   footerTestID?: string;
+  /**
+   * Opts in to the console shell: fixed regions without a page scroll when the window fits the
+   * layout contract, and only the primary region scrolling (HUD and actions pinned) when it does
+   * not. Without it the screen keeps the legacy single scrolling page.
+   */
+  screen?: ScreenId;
+  /** Shell only: the top bar (a Hud). */
+  hud?: ReactNode;
+  /** Shell only: the primary region; the children when omitted. */
+  primary?: ReactNode;
+  /** Shell only: the actions rail (landscape) or band (portrait). */
+  actions?: ReactNode;
+  /** Shell only: the info line under the primary region (portrait only). */
+  info?: ReactNode;
 }
 
-export function Screen({ children, testID, ref, onContentSizeChange, footer, footerTestID }: ScreenProps) {
+export function Screen(props: ScreenProps) {
+  return props.screen ? <ShellScreen {...props} screen={props.screen} /> : <LegacyScreen {...props} />;
+}
+
+function ShellScreen({ screen, children, testID, ref, hud, primary, actions, info, onContentSizeChange }: ScreenProps & { screen: ScreenId }) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const spec = useLayoutSpec(screen);
+  const { regions } = spec;
+  const landscape = spec.orientation === 'landscape';
+  const main = primary ?? children;
+  const infoLine = landscape ? null : info;
+  // The insets eat from the primary region (it is the flexible one); the rest keeps its planned size.
+  const pad = { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right };
+  const column = [styles.shellColumn, { width: regions.content.width }];
+
+  if (spec.mode === 'console') {
+    const actionsStyle = landscape ? { width: regions.actions.width } : { height: regions.actions.height };
+    return (
+      <View style={[styles.screen, styles.shellRoot, pad, { backgroundColor: theme.bg }]} testID={testID}>
+        <View style={column}>
+          <View style={{ height: regions.hud.height }}>{hud}</View>
+          <View style={landscape ? styles.shellRow : styles.shellColumnFill}>
+            <View style={styles.shellFlex} testID={testID ? `${testID}-primary` : undefined}>
+              <View style={styles.shellFlex}>{main}</View>
+              {infoLine ? <View style={{ height: regions.info?.height ?? 0 }}>{infoLine}</View> : null}
+            </View>
+            <View style={[styles.shellActions, actionsStyle]} testID={testID ? `${testID}-actions` : undefined}>
+              {actions}
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Fallback: HUD and actions stay pinned (never inside a scroll area), the primary region and the
+  // info line scroll.
+  const side = { left: 16, right: 16 };
+  return (
+    <View style={[styles.screen, styles.shellRoot, pad, { backgroundColor: theme.bg }]} testID={testID}>
+      <View style={column}>
+        <View>{hud}</View>
+        <RevealScroll
+          scrollRef={ref}
+          style={styles.screen}
+          contentPadding={{ top: PAD_TOP, bottom: 16, ...side }}
+          maxWidth={regions.content.width}
+          onContentSizeChange={onContentSizeChange}
+          testID={testID ? `${testID}-scroll` : undefined}
+        >
+          {main}
+          {infoLine}
+        </RevealScroll>
+        {actions ? (
+          <View style={[styles.footer, { borderColor: theme.border, backgroundColor: theme.surface, paddingHorizontal: 16, paddingVertical: 12 }]}>
+            {actions}
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function LegacyScreen({ children, testID, ref, onContentSizeChange, footer, footerTestID }: ScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -210,6 +290,12 @@ export function Screen({ children, testID, ref, onContentSizeChange, footer, foo
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  shellRoot: { alignItems: 'center' },
+  shellColumn: { flex: 1, maxWidth: '100%' },
+  shellColumnFill: { flex: 1, minHeight: 0 },
+  shellRow: { flex: 1, flexDirection: 'row', minHeight: 0 },
+  shellFlex: { flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' },
+  shellActions: { flexShrink: 0, overflow: 'hidden' },
   body: { gap: 16, width: '100%', alignSelf: 'center' },
   footer: { borderTopWidth: 2, flexShrink: 0 },
   footerScroll: { flexGrow: 0 },
