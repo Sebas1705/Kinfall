@@ -5,6 +5,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { effectiveTextScale, layoutSpec } from '@kinfall/core/layout/spec';
 
+import { consoleRows } from '../../test-utils/consoleRows';
 import {
   CHOICE_COLUMNS,
   STAGE_MIN_DP,
@@ -16,19 +17,9 @@ import {
   stageBoxHeight,
 } from '../../src/screens/battleMetrics';
 
-const windows: Array<[string, number, number, number]> = [
-  ['640x360', 640, 360, 1],
-  ['640x360 at 130%', 640, 360, 1.3],
-  ['914x411', 914, 411, 1],
-  ['914x411 at 130%', 914, 411, 1.3],
-  ['360x640', 360, 640, 1],
-  ['360x640 at 130%', 360, 640, 1.3],
-  ['411x914', 411, 914, 1],
-  ['411x914 at 130%', 411, 914, 1.3],
-];
 
 describe('battle metrics (worst case: 4 moves + 2 swaps, a party of 3)', () => {
-  it.each(windows)('%s: console, the rail fits the actions region', (_l, w, h, fs) => {
+  it.each(consoleRows('battle'))('%s: console, the rail fits the actions region', (_l, w, h, fs) => {
     const scale = effectiveTextScale(fs, 1);
     const spec = layoutSpec({ width: w, height: h, textScale: scale }, 'battle');
     expect(spec.mode).toBe('console');
@@ -36,14 +27,14 @@ describe('battle metrics (worst case: 4 moves + 2 swaps, a party of 3)', () => {
     expect([need, need <= spec.regions.actions.height]).toEqual([need, true]);
   });
 
-  it.each(windows)('%s: the stage box keeps at least the art height after both plates', (_l, w, h, fs) => {
+  it.each(consoleRows('battle'))('%s: the stage box keeps at least the art height after both plates', (_l, w, h, fs) => {
     const scale = effectiveTextScale(fs, 1);
     const spec = layoutSpec({ width: w, height: h, textScale: scale }, 'battle');
     const box = stageBoxHeight(spec.regions.primary.height, scale);
     expect([box, box >= STAGE_MIN_DP]).toEqual([box, true]);
   });
 
-  it.each(windows.filter(([, w, h]) => w < h))('%s: the message line (2 lines) fits the contract info band', (_l, w, h, fs) => {
+  it.each(consoleRows('battle').filter(([, w, h]) => w < h))('%s: the message line (2 lines) fits the contract info band', (_l, w, h, fs) => {
     const scale = effectiveTextScale(fs, 1);
     const spec = layoutSpec({ width: w, height: h, textScale: scale }, 'battle');
     expect(messageHeight(scale, 2)).toBeLessThanOrEqual(spec.regions.info!.height);

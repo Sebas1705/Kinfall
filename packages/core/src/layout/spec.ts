@@ -58,17 +58,23 @@ export const MIN_HEIGHT_PX = 320;
  * portrait 360 and 320 wide), rounded up to 5. A phone at 200% text therefore falls back by design
  * (spec 7.5): a 640 px portrait window is 320 text-sized px, under the portrait budgets of the
  * title, map, battle and event.
+ *
+ * The title and event portrait budgets (460), the title landscape budget (245) and the end portrait
+ * budget (330) were raised after the mobile fit proofs (apps/mobile/__tests__/screens/runMetrics.test.ts,
+ * run over every console row of the contract up to 200% text) showed the Android screens overflow
+ * their regions at 360x640 @150%, 411x914 @200%, 600x800 @200% (title, event), 640x360 @150% (title)
+ * and 360x640 @200% (end): those rows fall back instead (spec section 12).
  */
 export interface ScreenBudget {
   landscape: number;
   portrait: number;
 }
 export const MIN_BUDGET: Record<ScreenId, ScreenBudget> = {
-  title: { landscape: 220, portrait: 380 },
+  title: { landscape: 245, portrait: 460 },
   map: { landscape: 275, portrait: 470 },
   battle: { landscape: 270, portrait: 480 },
-  event: { landscape: 250, portrait: 380 },
-  end: { landscape: 210, portrait: 310 },
+  event: { landscape: 250, portrait: 460 },
+  end: { landscape: 210, portrait: 330 },
 };
 
 // Band heights (px at text scale 1). The HUD was measured on the web shell: 52 px, which is the

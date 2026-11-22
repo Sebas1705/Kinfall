@@ -16,7 +16,7 @@ import { useLang } from '../platform/LangContext';
 import { useTextSize } from '../platform/textSizeSetting';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
-import { BUTTON_SIZE, CHIP_SIZE, HUD_GAP, HUD_PAD, TITLE_SIZE, TITLE_SIZE_2, hudPlan } from './hudMetrics';
+import { BUTTON_SIZE, CHIP_SIZE, HUD_GAP, HUD_PAD, TITLE_SIZE, hudPlan } from './hudMetrics';
 import { useLayoutSpec } from './useLayoutSpec';
 
 type ViewRef = Ref<ComponentRef<typeof View>>;
@@ -62,6 +62,7 @@ export function Hud({ screen, onSettings, party = [], zoneLabel, onExtra, extraR
   const compact = compactChip(party);
   const plan = hudPlan({
     width: spec.regions.content.width,
+    ...(fixed ? { height } : {}),
     scale,
     title,
     chips: party.map((p) => `${p.name} ${p.hp}/${p.maxHp}`),
@@ -84,7 +85,7 @@ export function Hud({ screen, onSettings, party = [], zoneLabel, onExtra, extraR
     >
       <AppText
         ref={titleRef}
-        style={[styles.title, { color: theme.text, fontSize: lines === 2 ? TITLE_SIZE_2 : TITLE_SIZE }]}
+        style={[styles.title, { color: theme.text, fontSize: fixed ? plan.titleSize : TITLE_SIZE }]}
         numberOfLines={lines}
         accessibilityRole="header"
         testID={titleTestID}

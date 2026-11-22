@@ -1,7 +1,8 @@
 // Jest cannot measure a layout, so the fit of the console title, map, event and end screens is
 // proven by arithmetic on the same bounded heights their styles use (titleMetrics, mapMetrics,
 // eventMetrics, endMetrics) and on a conservative estimate of the real strings' line counts
-// (textFit): for the four windows of the matrix at text scales 1.0 and 1.3, every region's content
+// (textFit): for every (window, text scale) the contract calls a console for the screen (generated from the
+// contract, see test-utils/consoleRows.ts: phones, a tablet and desktops up to 200% text), every region's content
 // is no taller than its region, with at least SLACK dp to spare (the contract ignores the safe-area
 // insets, which the Screen takes from the primary region), every touch target is at least 48 dp, and
 // the longest English and Spanish texts fit their line caps.
@@ -11,6 +12,7 @@ import { effectiveTextScale, layoutSpec, type ScreenId } from '@kinfall/core/lay
 import { setLang, speciesName, t } from '@kinfall/core/platform/i18n';
 import { startRun } from '@kinfall/core/sim/run/run';
 
+import { consoleRows } from '../../test-utils/consoleRows';
 import { lineHeight, messageHeight } from '../../src/screens/battleMetrics';
 import * as end from '../../src/screens/endMetrics';
 import * as event from '../../src/screens/eventMetrics';
@@ -18,16 +20,6 @@ import * as map from '../../src/screens/mapMetrics';
 import { textLines } from '../../src/screens/textFit';
 import * as title from '../../src/screens/titleMetrics';
 
-const windows: Array<[string, number, number, number]> = [
-  ['640x360', 640, 360, 1],
-  ['640x360 at 130%', 640, 360, 1.3],
-  ['914x411', 914, 411, 1],
-  ['914x411 at 130%', 914, 411, 1.3],
-  ['360x640', 360, 640, 1],
-  ['360x640 at 130%', 360, 640, 1.3],
-  ['411x914', 411, 914, 1],
-  ['411x914 at 130%', 411, 914, 1.3],
-];
 /** Room kept free in every region (dp): a gesture bar or cutout inset the contract does not know. */
 const SLACK = 10;
 
@@ -40,7 +32,7 @@ const fits = (need: number, have: number) => expect([need, need <= have]).toEqua
 const langs = ['en', 'es'] as const;
 
 describe('map board', () => {
-  it.each(windows)('%s: console; the worst board (7 layers of 3 nodes) fits the primary region with room to spare', (_l, w, h, fs) => {
+  it.each(consoleRows('map'))('%s: console; the worst board (7 layers of 3 nodes) fits the primary region with room to spare', (_l, w, h, fs) => {
     const { scale, spec } = specOf('map', w, h, fs);
     expect(spec.mode).toBe('console');
     const landscape = spec.orientation === 'landscape';
@@ -49,7 +41,7 @@ describe('map board', () => {
     expect(map.columnWidth(spec.regions.primary.width)).toBeGreaterThanOrEqual(map.NODE_MIN);
   });
 
-  it.each(windows)('%s: the readout and the legend fit the actions region with room to spare', (_l, w, h, fs) => {
+  it.each(consoleRows('map'))('%s: the readout and the legend fit the actions region with room to spare', (_l, w, h, fs) => {
     const { scale, spec } = specOf('map', w, h, fs);
     fits(map.railHeight(scale) + SLACK, spec.regions.actions.height);
   });
@@ -81,7 +73,7 @@ describe('map board', () => {
 });
 
 describe.each(langs)('title in %s', (lang) => {
-  it.each(windows)('%s: the hero keeps its minimum after the strip and its hint, and the hint fits its lines', (_l, w, h, fs) => {
+  it.each(consoleRows('title'))('%s: the hero keeps its minimum after the strip and its hint, and the hint fits its lines', (_l, w, h, fs) => {
     setLang(lang);
     const { scale, spec } = specOf('title', w, h, fs);
     expect(spec.mode).toBe('console');
@@ -93,7 +85,7 @@ describe.each(langs)('title in %s', (lang) => {
     }
   });
 
-  it.each(windows)('%s: the worst rails (unavailable notice; damaged save with Discard) fit with room to spare', (_l, w, h, fs) => {
+  it.each(consoleRows('title'))('%s: the worst rails (unavailable notice; damaged save with Discard) fit with room to spare', (_l, w, h, fs) => {
     setLang(lang);
     const { scale, spec } = specOf('title', w, h, fs);
     const landscape = spec.orientation === 'landscape';
@@ -133,7 +125,7 @@ describe.each(langs)('event in %s', (lang) => {
     mystery: [{ label: t('event.mystery.open') }, { label: t('event.mystery.leave') }],
   });
 
-  it.each(windows)('%s: the longest choice sets fit the rail with room to spare, labels on few lines', (_l, w, h, fs) => {
+  it.each(consoleRows('event'))('%s: the longest choice sets fit the rail with room to spare, labels on few lines', (_l, w, h, fs) => {
     setLang(lang);
     const { scale, spec } = specOf('event', w, h, fs);
     expect(spec.mode).toBe('console');
@@ -142,13 +134,13 @@ describe.each(langs)('event in %s', (lang) => {
     for (const [name, choices] of Object.entries(sets())) {
       const need = event.railHeight(scale, choices, width, landscape) + SLACK;
       expect([name, need, need <= spec.regions.actions.height]).toEqual([name, need, true]);
-      // A label takes one line in the wide landscape rail and at most three in a portrait cell.
-      for (const c of choices) expect([name, c.label, event.labelLines(c, width, scale) <= (landscape ? 1 : 3)]).toEqual([name, c.label, true]);
+      // A label takes one line in the landscape rail (two at 150% text and more, where the 360 dp rail cap bites: the rail height above already counts them) and at most three in a portrait cell.
+      for (const c of choices) expect([name, c.label, event.labelLines(c, width, scale) <= (landscape ? (scale > 1.3 ? 2 : 1) : 3)]).toEqual([name, c.label, true]);
     }
     if (landscape) expect(event.railWidth(spec.regions.content.width, spec.regions.actions.width)).toBeGreaterThanOrEqual(spec.regions.actions.width);
   });
 
-  it.each(windows)('%s: every event body (the heaviest: a full-party recruit with offer card and note) fits the primary region, no text cut', (_l, w, h, fs) => {
+  it.each(consoleRows('event'))('%s: every event body (the heaviest: a full-party recruit with offer card and note) fits the primary region, no text cut', (_l, w, h, fs) => {
     setLang(lang);
     const { scale, spec } = specOf('event', w, h, fs);
     const landscape = spec.orientation === 'landscape';
@@ -175,16 +167,19 @@ describe.each(langs)('event in %s', (lang) => {
 });
 
 describe.each(langs)('end in %s', (lang) => {
-  it.each(windows)('%s: the scene keeps its minimum after the score and the note, the note fits its lines, and the rail fits', (_l, w, h, fs) => {
+  it.each(consoleRows('end'))('%s: the scene keeps its minimum after the score and the note, the note fits its lines, and the rail fits', (_l, w, h, fs) => {
     setLang(lang);
     const { scale, spec } = specOf('end', w, h, fs);
     expect(spec.mode).toBe('console');
     const landscape = spec.orientation === 'landscape';
-    const scene = end.sceneHeight(spec.regions.primary.height, scale, landscape);
+    const lines = end.noteLines(t('end.canRestart'), spec.regions.primary.width, scale);
+    // The note takes the lines its text needs (three at most), and the scene gives way.
+    const need = textLines(t('end.canRestart'), spec.regions.primary.width - 2 * end.MAIN_PAD, end.NOTE_SIZE, scale);
+    expect([lines, lines === Math.min(need, end.NOTE_LINES_MAX)]).toEqual([lines, true]);
+    expect([need, need <= end.NOTE_LINES_MAX]).toEqual([need, true]);
+    const scene = end.sceneHeight(spec.regions.primary.height, scale, landscape, lines);
     expect([scene, scene >= end.SCENE_MIN]).toEqual([scene, true]);
     fits(end.railHeight(scale) + SLACK, spec.regions.actions.height);
-    const lines = textLines(t('end.canRestart'), spec.regions.primary.width - 2 * end.MAIN_PAD, end.NOTE_SIZE, scale);
-    expect([lines, lines <= end.NOTE_LINES]).toEqual([lines, true]);
-    expect(lineHeight(end.NOTE_SIZE, scale) * lines).toBeLessThanOrEqual(end.noteHeight(scale));
+    expect(lineHeight(end.NOTE_SIZE, scale) * lines).toBeLessThanOrEqual(end.noteHeight(scale, lines));
   });
 });

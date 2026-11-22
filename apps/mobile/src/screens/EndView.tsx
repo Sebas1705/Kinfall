@@ -29,7 +29,7 @@ import { Sheet } from '../ui/Sheet';
 import { useLayoutSpec } from '../ui/useLayoutSpec';
 import { useRunSheets } from '../ui/useRunSheets';
 import { RAIL_GAP, messageHeight } from './battleMetrics';
-import { MAIN_GAP, MAIN_PAD, NOTE_LINES, NOTE_SIZE, RAIL_PAD, SCENE_MIN, SCORE_LABEL_SIZE, SCORE_VALUE_SIZE, sceneHeight } from './endMetrics';
+import { MAIN_GAP, MAIN_PAD, NOTE_SIZE, RAIL_PAD, SCENE_MIN, SCORE_LABEL_SIZE, SCORE_VALUE_SIZE, noteLines, sceneHeight } from './endMetrics';
 import type { PhaseViewProps } from './RunScreen';
 import { buttonHeight } from './titleMetrics';
 
@@ -68,7 +68,8 @@ export function EndView({ run, onToTitle, confirmPanel, confirming, header, trai
     fn();
   };
 
-  const planned = sceneHeight(spec.regions.primary.height, scale, landscape);
+  const noteN = noteLines(t('end.canRestart'), spec.regions.primary.width, scale);
+  const planned = sceneHeight(spec.regions.primary.height, scale, landscape, noteN);
   const sceneH = consoleMode ? Math.max(SCENE_MIN, Math.round(box?.height ?? planned)) : 160;
   const sceneW = box?.width ?? spec.regions.primary.width;
   const reserve = consoleMode && landscape ? messageHeight(scale, 1) : 0;
@@ -118,7 +119,7 @@ export function EndView({ run, onToTitle, confirmPanel, confirming, header, trai
             </AppText>
           </View>
         </Plate>
-        <AppText style={[styles.note, { color: theme.text }]} numberOfLines={consoleMode ? NOTE_LINES : undefined}>
+        <AppText style={[styles.note, { color: theme.text }]} numberOfLines={consoleMode ? noteN : undefined}>
           {t('end.canRestart')}
         </AppText>
       </View>

@@ -1,25 +1,18 @@
 // The HUD is a fixed-height row (the contract's HUD height): the heading, the party chips and the
 // buttons must fit it. Jest cannot measure text, so this proves by arithmetic (hudMetrics, the same
 // plan the Hud renders) that for the maximum party and the longest headings in Spanish and English
-// the planned row fits at 360x640, 411x914, 640x360 and 914x411, at text 100% and 130%.
+// the planned row fits every (window, text scale, screen) the contract calls a console (generated
+// from it, see test-utils/consoleRows.ts: phones, a tablet and desktops, up to 200% text).
 import { describe, expect, it } from '@jest/globals';
 import { CONTENT } from '@kinfall/core/content';
 import { effectiveTextScale, layoutSpec } from '@kinfall/core/layout/spec';
 import { setLang, speciesName, t } from '@kinfall/core/platform/i18n';
 
 import { compactChip } from '../../src/ui/Hud';
-import { BUTTON_MIN, hudPlan, titleHeight } from '../../src/ui/hudMetrics';
+import { consoleRows } from '../../test-utils/consoleRows';
+import { textWidth } from '../../src/screens/textFit';
+import { BUTTON_MIN, TITLE_CUT_MIN_CHARS, hudPlan, titleHeight } from '../../src/ui/hudMetrics';
 
-const windows: Array<[string, number, number, number]> = [
-  ['640x360', 640, 360, 1],
-  ['640x360 at 130%', 640, 360, 1.3],
-  ['914x411', 914, 411, 1],
-  ['914x411 at 130%', 914, 411, 1.3],
-  ['360x640', 360, 640, 1],
-  ['360x640 at 130%', 360, 640, 1.3],
-  ['411x914', 411, 914, 1],
-  ['411x914 at 130%', 411, 914, 1.3],
-];
 
 /** The headings each screen puts in the HUD. */
 function headings(screen: 'map' | 'event' | 'end' | 'title'): string[] {
@@ -30,31 +23,34 @@ function headings(screen: 'map' | 'event' | 'end' | 'title'): string[] {
 }
 
 describe.each(['en', 'es'] as const)('HUD plan in %s', (lang) => {
-  it.each(windows)('%s: heading, maximum party and buttons fit the row', (_l, w, h, fs) => {
+  const SCREENS = ['map', 'event', 'end', 'title'] as const;
+  it.each(SCREENS.flatMap((screen) => consoleRows(screen).map((r) => [screen, ...r] as const)))('%s, %s: heading, maximum party and buttons fit the row', (screen, _l, w, h, fs) => {
     setLang(lang);
     const scale = effectiveTextScale(fs, 1);
     const longest = CONTENT.species.map(speciesName).sort((a, b) => b.length - a.length)[0]!;
     const party = [0, 1, 2].map(() => ({ name: longest, hp: 200, maxHp: 200 }));
-    for (const screen of ['map', 'event', 'end', 'title'] as const) {
-      const spec = layoutSpec({ width: w, height: h, textScale: scale }, screen);
-      expect(spec.mode).toBe('console');
-      for (const title of headings(screen)) {
-        // The extra button of each screen: Options on the title, Run on the run screens.
-        for (const buttons of [[screen === 'title' ? t('title.optionsOpen') : t('run.open'), t('hud.settings')]]) {
-          const plan = hudPlan({
-            width: spec.regions.content.width,
-            scale,
-            title,
-            chips: party.map((p) => `${p.name} ${p.hp}/${p.maxHp}`),
-            compact: compactChip(party),
-            buttons,
-          });
-          expect([screen, title, buttons.join('+'), plan.need <= plan.have]).toEqual([screen, title, buttons.join('+'), true]);
-          // The heading's lines and the 48 dp buttons fit the bar.
-          expect(titleHeight(plan.titleLines, scale)).toBeLessThanOrEqual(spec.regions.hud.height);
-          expect(BUTTON_MIN).toBeLessThanOrEqual(spec.regions.hud.height);
-        }
-      }
+    const spec = layoutSpec({ width: w, height: h, textScale: scale }, screen);
+    expect(spec.mode).toBe('console');
+    for (const title of headings(screen)) {
+      // The extra button of each screen: Options on the title, Run on the run screens.
+      const buttons = [screen === 'title' ? t('title.optionsOpen') : t('run.open'), t('hud.settings')];
+      const plan = hudPlan({
+        width: spec.regions.content.width,
+        height: spec.regions.hud.height,
+        scale,
+        title,
+        chips: party.map((p) => `${p.name} ${p.hp}/${p.maxHp}`),
+        compact: compactChip(party),
+        buttons,
+      });
+      // Either the whole heading fits, or it is cut with an ellipsis and still keeps its first characters.
+      const room = textWidth(TITLE_CUT_MIN_CHARS, plan.titleSize, scale);
+      const ok = plan.titleCut ? plan.titleRoom >= room : plan.need <= plan.have;
+      expect([screen, title, buttons.join('+'), plan.titleCut, plan.need, plan.have, plan.titleRoom, ok]).toEqual([screen, title, buttons.join('+'), plan.titleCut, plan.need, plan.have, plan.titleRoom, true]);
+      // The heading's lines and the 48 dp buttons fit the bar.
+      const th = titleHeight(plan.titleLines, scale, plan.titleSize);
+      expect([title, th, th <= spec.regions.hud.height]).toEqual([title, th, true]);
+      expect(BUTTON_MIN).toBeLessThanOrEqual(spec.regions.hud.height);
     }
   });
 
