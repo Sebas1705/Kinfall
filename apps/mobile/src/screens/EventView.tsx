@@ -13,7 +13,8 @@ import { buildEventModel, type EventChoice, type EventModel } from '@kinfall/cor
 import { t } from '@kinfall/core/platform/i18n';
 import type { RunAction, RunState } from '@kinfall/core/sim/run/types';
 import { useEffect, useMemo, useRef, type ComponentRef, type Ref } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AppText } from '../ui/AppText';
 
 import { CreatureSprite } from '../art/CreatureSprite';
 import { ElementIcon } from '../art/ElementIcon';
@@ -65,16 +66,16 @@ function OfferCard({ offer }: { offer: NonNullable<EventModel['offer']> }) {
       <View style={styles.offer} testID="event-offer-row">
         <CreatureSprite species={offer.speciesId} scale={3} />
         <View style={styles.offerText}>
-          <Text style={[styles.offerName, { color: ink.text }]}>{offer.name}</Text>
+          <AppText style={[styles.offerName, { color: ink.text }]}>{offer.name}</AppText>
           <View style={styles.elementRow}>
             {elements.map((e) => (
               <ElementIcon key={e} element={e} scale={2} />
             ))}
-            <Text style={[styles.detail, { color: ink.muted }]}>{offer.elements}</Text>
+            <AppText style={[styles.detail, { color: ink.muted }]}>{offer.elements}</AppText>
           </View>
-          <Text style={[styles.detail, { color: ink.muted }]} testID="event-offer-hp">
+          <AppText style={[styles.detail, { color: ink.muted }]} testID="event-offer-hp">
             {hp}
-          </Text>
+          </AppText>
         </View>
       </View>
     </Plate>
@@ -104,8 +105,8 @@ function ChoiceButton({ choice, index, onPress, theme, ref }: {
         <View style={styles.choiceBody}>
           {/* A replace choice carries a warning stripe; its label says "Replace" in words. */}
           {replace ? <View style={[styles.stripe, { backgroundColor: theme.danger }]} testID={`event-choice-${index}-warning`} /> : null}
-          <Text style={[styles.choiceLabel, { color: textColor }]}>{choice.label}</Text>
-          {choice.detail ? <Text style={[styles.detail, { color: textColor }]}>{choice.detail}</Text> : null}
+          <AppText style={[styles.choiceLabel, { color: textColor }]}>{choice.label}</AppText>
+          {choice.detail ? <AppText style={[styles.detail, { color: textColor }]}>{choice.detail}</AppText> : null}
         </View>
       )}
     </FramePressable>
@@ -143,18 +144,18 @@ export function EventView({ run, confirming, confirmPanel, log }: PhaseViewProps
   const party = <PartyPanel party={model.party} speciesIds={run.party.map((m) => m.speciesId)} souls={model.souls} />;
   const main = (
     <>
-      <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="event-heading">
+      <AppText style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="event-heading">
         {model.title}
-      </Text>
+      </AppText>
       <Vignette kind={model.kind} zone={run.zone} seed={run.seed} width={column} height={height} />
-      <Text style={[styles.desc, { color: theme.text }]} testID="event-desc">
+      <AppText style={[styles.desc, { color: theme.text }]} testID="event-desc">
         {model.description}
-      </Text>
+      </AppText>
       {model.offer ? <OfferCard offer={model.offer} /> : null}
       {model.note ? (
-        <Text style={[styles.note, { color: theme.text, borderColor: theme.danger }]} testID="event-note">
+        <AppText style={[styles.note, { color: theme.text, borderColor: theme.danger }]} testID="event-note">
           {model.note}
-        </Text>
+        </AppText>
       ) : null}
       <View style={styles.choices} testID="event-choices">
         {model.choices.map((c, i) => (

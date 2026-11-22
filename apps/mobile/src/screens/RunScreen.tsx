@@ -10,7 +10,8 @@ import { zoneIdOf } from '@kinfall/core/art/scene';
 import { t } from '@kinfall/core/platform/i18n';
 import type { RunState } from '@kinfall/core/sim/run/types';
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { BackHandler, StyleSheet, Text, type ScrollViewInstance } from 'react-native';
+import { BackHandler, StyleSheet, type ScrollViewInstance } from 'react-native';
+import { AppText } from '../ui/AppText';
 
 import { useLang } from '../platform/LangContext';
 import type { RunView } from '../run/session';
@@ -110,9 +111,9 @@ export function RunScreen({ onExit }: RunScreenProps) {
     />
   ) : null;
   const seedLine = (
-    <Text style={[styles.seed, { color: theme.muted }]} testID="run-seed">
+    <AppText style={[styles.seed, { color: theme.muted }]} testID="run-seed">
       {t('battle.seed', { seed: run.seed })}
-    </Text>
+    </AppText>
   );
 
   // The battle draws its own screen (its layout may pin the choices at the bottom) and its own

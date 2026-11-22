@@ -9,7 +9,8 @@ import { buildMapModel, type MapModel } from '@kinfall/core/models/map';
 import { t } from '@kinfall/core/platform/i18n';
 import type { RunState } from '@kinfall/core/sim/run/types';
 import { useMemo, type ReactNode } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AppText } from '../ui/AppText';
 
 import { ArtScene } from '../art/ArtScene';
 import { nodeIconGrid } from '../art/sceneCache';
@@ -52,8 +53,8 @@ function NodeButton({ node, onPick, basis }: { node: MapNodeModel; onPick: (id: 
     >
       {({ textColor }) => (
         <View style={styles.nodeText}>
-          <Text style={[styles.nodeLabel, { color: textColor }]}>{node.label}</Text>
-          <Text style={[styles.nodeState, { color: textColor }]}>{state}</Text>
+          <AppText style={[styles.nodeLabel, { color: textColor }]}>{node.label}</AppText>
+          <AppText style={[styles.nodeState, { color: textColor }]}>{state}</AppText>
         </View>
       )}
     </FramePressable>
@@ -101,9 +102,9 @@ export function MapView({ run, trail, onPick, onAbandon, confirming, confirmPane
   const basis = NODE_BASIS * Math.max(1, fontScale);
   const model = buildMapModel(run, CONTENT, trail);
   const heading = (
-    <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="map-heading">
+    <AppText style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="map-heading">
       {t('map.zone', { n: model.zoneNo, name: model.zoneName })}
-    </Text>
+    </AppText>
   );
   const banner = (
     <ArtScene
@@ -128,9 +129,9 @@ export function MapView({ run, trail, onPick, onAbandon, confirming, confirmPane
           <View key={layer.layer} style={styles.layerRow} testID={`layer-${layer.layer}`}>
             <PathMarker last={li === last} done={done} theme={theme} />
             <View style={styles.layer}>
-              <Text style={[styles.step, { color: theme.text }]} accessibilityRole="header">
+              <AppText style={[styles.step, { color: theme.text }]} accessibilityRole="header">
                 {t('map.step', { n: layer.layer + 1 })}
-              </Text>
+              </AppText>
               <View style={styles.nodes}>
                 {layer.nodes.map((n) => (
                   <NodeButton key={n.id} node={n} onPick={onPick} basis={basis} />

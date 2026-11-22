@@ -1,4 +1,5 @@
-import { StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { AppText } from './AppText';
 
 import { useTheme } from '../theme';
 import { FramePressable } from './PixelFrame';
@@ -35,7 +36,7 @@ export function Button({ label, onPress, variant = 'secondary', disabled = false
       padX={8}
     >
       {({ pressed, textColor }) => (
-        <Text
+        <AppText
           style={[
             styles.text,
             variant === 'primary' && styles.primary,
@@ -43,7 +44,7 @@ export function Button({ label, onPress, variant = 'secondary', disabled = false
           ]}
         >
           {label}
-        </Text>
+        </AppText>
       )}
     </FramePressable>
   );

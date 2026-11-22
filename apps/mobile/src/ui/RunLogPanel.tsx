@@ -1,6 +1,7 @@
 import { CONTENT } from '@kinfall/core/content';
 import { t } from '@kinfall/core/platform/i18n';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText } from './AppText';
 
 import { useAnnounce } from '../platform/announce';
 import { useLang } from '../platform/LangContext';
@@ -31,19 +32,19 @@ export function RunLogPanel() {
   const lineStyle = [styles.line, { color: ink.text }];
   return (
     <Plate style={styles.panel} testID="run-log">
-      <Text style={[styles.heading, { color: ink.text }]} accessibilityRole="header">
+      <AppText style={[styles.heading, { color: ink.text }]} accessibilityRole="header">
         {t('map.log')}
-      </Text>
+      </AppText>
       {older.map((line, i) => (
-        <Text key={`o${i}`} style={[lineStyle, { color: ink.muted }]} testID="run-log-line">
+        <AppText key={`o${i}`} style={[lineStyle, { color: ink.muted }]} testID="run-log-line">
           {line}
-        </Text>
+        </AppText>
       ))}
       <View accessibilityLiveRegion="polite" testID="run-log-fresh">
         {latest.map((line, i) => (
-          <Text key={`n${i}`} style={lineStyle} testID="run-log-line">
+          <AppText key={`n${i}`} style={lineStyle} testID="run-log-line">
             {line}
-          </Text>
+          </AppText>
         ))}
       </View>
     </Plate>

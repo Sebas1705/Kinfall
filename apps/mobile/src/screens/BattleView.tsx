@@ -21,7 +21,8 @@ import { speciesName, t } from '@kinfall/core/platform/i18n';
 import type { RunState } from '@kinfall/core/sim/run/types';
 import type { BattleState, Side } from '@kinfall/core/sim/state';
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode, type Ref } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
+import { AppText } from '../ui/AppText';
 
 import { BattleStage, STAGE_SPRITE_SIZE } from '../art/BattleStage';
 import { ElementIcon } from '../art/ElementIcon';
@@ -117,51 +118,51 @@ function Hud({ side, c, motion, intent, theme, compact }: { side: Side; c: Shown
       pad={compact ? 2 : 4}
     >
       <View style={styles.hudTop}>
-        <Text style={[styles.hudName, { color: ink.text }]} testID={`hud-${side}-name`}>
+        <AppText style={[styles.hudName, { color: ink.text }]} testID={`hud-${side}-name`}>
           {speciesLabel(c.speciesId)}
-        </Text>
+        </AppText>
         <View style={styles.hudElements}>
           {elements.map((el) => (
             <ElementIcon key={el} element={el} scale={2} />
           ))}
-          <Text style={[styles.hudSide, { color: ink.muted }]}>{elements.map((el) => t(`element.${el}`)).join(' / ')}</Text>
+          <AppText style={[styles.hudSide, { color: ink.muted }]}>{elements.map((el) => t(`element.${el}`)).join(' / ')}</AppText>
         </View>
-        <Text style={[styles.hudSide, styles.hudSideName, { color: ink.muted }]}>{sideName}</Text>
+        <AppText style={[styles.hudSide, styles.hudSideName, { color: ink.muted }]}>{sideName}</AppText>
       </View>
       {compact ? (
         <>
-          <Text style={[styles.hudValue, { color: ink.text }]}>
-            <Text testID={`hud-${side}-hp`}>{hp}</Text>
+          <AppText style={[styles.hudValue, { color: ink.text }]}>
+            <AppText testID={`hud-${side}-hp`}>{hp}</AppText>
             {' · '}
-            <Text testID={`hud-${side}-focus`}>{focus}</Text>
-          </Text>
+            <AppText testID={`hud-${side}-focus`}>{focus}</AppText>
+          </AppText>
           <PixelBar kind="hp" value={c.hp} max={c.maxHp} progress={motion.hp} />
         </>
       ) : (
         <View style={styles.meters}>
           <View style={styles.meter}>
-            <Text style={[styles.hudValue, { color: ink.text }]} testID={`hud-${side}-hp`}>
+            <AppText style={[styles.hudValue, { color: ink.text }]} testID={`hud-${side}-hp`}>
               {hp}
-            </Text>
+            </AppText>
             <PixelBar kind="hp" value={c.hp} max={c.maxHp} progress={motion.hp} />
           </View>
           <View style={styles.meter}>
-            <Text style={[styles.hudValue, { color: ink.text }]} testID={`hud-${side}-focus`}>
+            <AppText style={[styles.hudValue, { color: ink.text }]} testID={`hud-${side}-focus`}>
               {focus}
-            </Text>
+            </AppText>
             <PixelBar kind="focus" value={c.focus} max={c.maxFocus} />
           </View>
         </View>
       )}
       {c.status ? (
         <Animated.View style={[styles.chip, { borderColor: theme.danger, transform: [{ scale: motion.chip }] }]} testID={`hud-${side}-status`}>
-          <Text style={[styles.chipText, { color: theme.danger }]}>{t(`status.${c.status}`)}</Text>
+          <AppText style={[styles.chipText, { color: theme.danger }]}>{t(`status.${c.status}`)}</AppText>
         </Animated.View>
       ) : null}
       {intent ? (
-        <Text style={[styles.intent, { color: ink.text }]} testID="battle-intent">
+        <AppText style={[styles.intent, { color: ink.text }]} testID="battle-intent">
           {intent}
-        </Text>
+        </AppText>
       ) : null}
     </Plate>
   );
@@ -188,8 +189,8 @@ function ChoiceButton({ entry, detail, disabled, onPress, element }: {
     >
       {({ textColor }) => (
         <View style={styles.choiceText}>
-          <Text style={[styles.choiceLabel, { color: textColor }]}>{entry.label}</Text>
-          {detail ? <Text style={[styles.choiceDetail, { color: textColor }]}>{detail}</Text> : null}
+          <AppText style={[styles.choiceLabel, { color: textColor }]}>{entry.label}</AppText>
+          {detail ? <AppText style={[styles.choiceDetail, { color: textColor }]}>{detail}</AppText> : null}
         </View>
       )}
     </FramePressable>
@@ -205,19 +206,19 @@ function LogPanel({ log }: { log: BattleLog }) {
   const older = (hasFresh ? log.turns.slice(0, -1) : log.turns).slice(-(BATTLE_LOG_VISIBLE - (hasFresh ? 1 : 0)));
   return (
     <Plate style={styles.log} testID="battle-log">
-      <Text style={[styles.logHeading, { color: ink.text }]} accessibilityRole="header">
+      <AppText style={[styles.logHeading, { color: ink.text }]} accessibilityRole="header">
         {t('battle.log')}
-      </Text>
+      </AppText>
       {older.flat().map((line, i) => (
-        <Text key={`o${i}`} style={[styles.logLine, { color: ink.muted }]} testID="battle-log-line">
+        <AppText key={`o${i}`} style={[styles.logLine, { color: ink.muted }]} testID="battle-log-line">
           {line}
-        </Text>
+        </AppText>
       ))}
       <View accessibilityLiveRegion="polite" testID="battle-log-fresh">
         {log.fresh.map((line, i) => (
-          <Text key={`n${i}`} style={[styles.logLine, { color: ink.text }]} testID="battle-log-line">
+          <AppText key={`n${i}`} style={[styles.logLine, { color: ink.text }]} testID="battle-log-line">
             {line}
-          </Text>
+          </AppText>
         ))}
       </View>
     </Plate>
@@ -262,7 +263,7 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
   }, [lang, controller]);
 
   // After a settled turn, screen-reader focus goes to the choices, unless the abandon confirmation is open.
-  const prompt = useRef<ComponentRef<typeof Text>>(null);
+  const prompt = useRef<ComponentRef<typeof AppText>>(null);
   const confirmingRef = useRef(confirming);
   confirmingRef.current = confirming;
   useEffect(() => {
@@ -280,9 +281,9 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
   const renderGroup = (heading: string, entries: MenuEntry[], kind: 'move' | 'swap') =>
     entries.length === 0 || !state ? null : (
       <View style={styles.group} testID={`choices-${kind}`}>
-        <Text style={[styles.groupHeading, { color: theme.muted }]} accessibilityRole="header">
+        <AppText style={[styles.groupHeading, { color: theme.muted }]} accessibilityRole="header">
           {heading}
-        </Text>
+        </AppText>
         <View style={styles.groupList}>
           {entries.map((entry, i) => {
             const element = entry.action.type === 'move' ? lookup(CONTENT).move(moveIds[entry.action.moveIndex]!).element : null;
@@ -302,9 +303,9 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
     );
 
   const heading = (
-    <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="battle-heading">
+    <AppText style={[styles.heading, { color: theme.text }]} accessibilityRole="header" testID="battle-heading">
       {phaseHeading(opened)}
-    </Text>
+    </AppText>
   );
   const share = layout.twoPane ? STAGE_HEIGHT_SHARE.twoPane : compact ? STAGE_HEIGHT_SHARE.compact : STAGE_HEIGHT_SHARE.stacked;
   // Phones: the stage runs edge to edge (the screen's 16dp side padding is bled out).
@@ -346,9 +347,9 @@ export function BattleView({ run, onEnd, onAbandon, confirming, confirmPanel, he
     <View style={styles.actions} testID="battle-actions">
       <View style={styles.choices} accessibilityState={{ busy }} testID="battle-choices">
         {model?.prompt ? (
-          <Text ref={prompt} style={[styles.prompt, { color: theme.text }]} accessibilityRole="header" testID="battle-prompt">
+          <AppText ref={prompt} style={[styles.prompt, { color: theme.text }]} accessibilityRole="header" testID="battle-prompt">
             {model.prompt}
-          </Text>
+          </AppText>
         ) : null}
         {renderGroup(t('menu.moves'), moves, 'move')}
         {renderGroup(t('menu.team'), swaps, 'swap')}

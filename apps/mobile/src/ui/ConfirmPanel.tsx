@@ -1,5 +1,6 @@
 import { useRef, type ComponentRef } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AppText } from './AppText';
 
 import { useAnnounce } from '../platform/announce';
 import { useTheme } from '../theme';
@@ -38,9 +39,9 @@ export function ConfirmPanel({ question, yes, no, onYes, onNo, testID }: Confirm
     <Plate ref={panel} style={styles.panel} onLayout={() => reveal(panel.current)} testID={testID}>
       {/* Warning stripe; the question says what is at stake. */}
       <View style={[styles.stripe, { backgroundColor: theme.danger }]} />
-      <Text style={[styles.question, { color: ink.text }]} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+      <AppText style={[styles.question, { color: ink.text }]} accessibilityRole="alert" accessibilityLiveRegion="assertive">
         {question}
-      </Text>
+      </AppText>
       <View style={styles.row}>
         <Button label={no} onPress={onNo} testID={`${testID}-no`} style={[styles.choice, basis]} />
         <Button label={yes} onPress={onYes} variant="danger" testID={`${testID}-yes`} style={[styles.choice, basis]} />

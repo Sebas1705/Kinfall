@@ -5,7 +5,8 @@ import { lookup } from '@kinfall/core/content/lookup';
 import { speciesName, t, type StringKey } from '@kinfall/core/platform/i18n';
 import { SEED_MAX, cleanSeed } from '@kinfall/core/platform/seed';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { AppText } from '../ui/AppText';
 
 import { CreatureSprite } from '../art/CreatureSprite';
 import { ElementIcon } from '../art/ElementIcon';
@@ -57,17 +58,17 @@ function StarterCard({ id, checked, onSelect }: { id: string; checked: boolean; 
         <View style={styles.card}>
           <CreatureSprite species={sp} scale={3} />
           <View style={styles.cardText}>
-            <Text style={[styles.cardName, { color: textColor }]}>
+            <AppText style={[styles.cardName, { color: textColor }]}>
               {checked ? '● ' : '○ '}
               {name}
-            </Text>
+            </AppText>
             <View style={styles.elementRow}>
               {sp.elements.map((e) => (
                 <ElementIcon key={e} element={e} scale={2} />
               ))}
-              <Text style={[styles.elementText, { color: textColor }]}>{elements}</Text>
+              <AppText style={[styles.elementText, { color: textColor }]}>{elements}</AppText>
             </View>
-            {hint ? <Text style={[styles.hint, { color: textColor }]}>{hint}</Text> : null}
+            {hint ? <AppText style={[styles.hint, { color: textColor }]}>{hint}</AppText> : null}
           </View>
         </View>
       )}
@@ -134,9 +135,9 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
   const intro = (
     <>
       <View style={styles.topRow}>
-        <Text style={[styles.heading, { color: theme.text }]} accessibilityRole="header">
+        <AppText style={[styles.heading, { color: theme.text }]} accessibilityRole="header">
           {t('screen.title')}
-        </Text>
+        </AppText>
         <View style={styles.settings}>
           <LangToggle />
           <MotionToggle />
@@ -144,13 +145,13 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
       </View>
 
       {saved?.kind === 'unavailable' ? (
-        <Text style={[styles.notice, { color: theme.text, borderColor: theme.border }]} testID="saves-unavailable">
+        <AppText style={[styles.notice, { color: theme.text, borderColor: theme.border }]} testID="saves-unavailable">
           {t('title.savesUnavailableDevice')}
-        </Text>
+        </AppText>
       ) : null}
       {saved?.kind === 'corrupt' ? (
         <View style={[styles.warn, { borderColor: theme.danger, backgroundColor: theme.surface }]} testID="corrupt-notice">
-          <Text style={[styles.noticeText, { color: theme.text }]}>{t('title.corrupt', { reason: saved.error })}</Text>
+          <AppText style={[styles.noticeText, { color: theme.text }]}>{t('title.corrupt', { reason: saved.error })}</AppText>
           {confirmDiscard ? (
             <ConfirmPanel
               question={t('title.discardConfirm')}
@@ -169,9 +170,9 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
       <Button label={t('title.continue')} variant="primary" disabled={!canContinue} onPress={() => void onContinue()} testID="continue" />
 
       <View style={styles.field}>
-        <Text style={[styles.label, { color: theme.text }]} nativeID="title-seed-label">
+        <AppText style={[styles.label, { color: theme.text }]} nativeID="title-seed-label">
           {t('title.seed')}
-        </Text>
+        </AppText>
         <TextInput
           value={seed}
           onChangeText={setSeed}
@@ -187,18 +188,18 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
           style={[styles.input, { color: theme.text, borderTopColor: theme.text, borderLeftColor: theme.text, borderRightColor: theme.outline, borderBottomColor: theme.outline, backgroundColor: theme.surface }]}
         />
         {/* Read once, as the field's hint; hidden here so screen readers do not repeat it. */}
-        <Text style={[styles.hint, { color: theme.muted }]} importantForAccessibility="no" accessibilityElementsHidden>
+        <AppText style={[styles.hint, { color: theme.muted }]} importantForAccessibility="no" accessibilityElementsHidden>
           {t('title.seedHint')}
-        </Text>
+        </AppText>
       </View>
     </>
   );
   const pickAndStart = (
     <>
       <View style={styles.starters} accessibilityRole="radiogroup" accessibilityLabel={t('title.starter')} testID="starters">
-        <Text style={[styles.label, { color: theme.text }]} accessibilityRole="header">
+        <AppText style={[styles.label, { color: theme.text }]} accessibilityRole="header">
           {t('title.starter')}
-        </Text>
+        </AppText>
         {starters.map((id) => (
           <StarterCard key={id} id={id} checked={id === starter} onSelect={() => setStarter(id)} />
         ))}
@@ -209,13 +210,13 @@ export function TitleScreen({ onRunReady, onOpenDevTools, randomSeed = defaultRa
   );
   const notes = (
     <>
-      <Text style={[styles.hint, { color: theme.muted }]} testID="saves-note">
+      <AppText style={[styles.hint, { color: theme.muted }]} testID="saves-note">
         {t('title.savesNoteDevice')}
-      </Text>
+      </AppText>
 
       {onOpenDevTools ? (
         <Pressable onPress={onOpenDevTools} accessibilityRole="link" testID="dev-tools" style={styles.devLink}>
-          <Text style={[styles.devText, { color: theme.accent }]}>Dev tools</Text>
+          <AppText style={[styles.devText, { color: theme.accent }]}>Dev tools</AppText>
         </Pressable>
       ) : null}
     </>

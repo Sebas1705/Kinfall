@@ -10,6 +10,7 @@ import { defaultAsyncStorage } from './src/platform/asyncStorage';
 import { LangContext } from './src/platform/LangContext';
 import { installMobileI18n } from './src/platform/mobileI18n';
 import { loadMotionSetting } from './src/platform/motionSetting';
+import { loadTextSizeSetting } from './src/platform/textSizeSetting';
 import { randomSeed } from './src/platform/random';
 import { createRunSession, type RunSession } from './src/run/session';
 import { RunSessionProvider } from './src/run/useRunSession';
@@ -57,7 +58,7 @@ export function AppShell({ session: injected, devTools }: AppProps) {
   useEffect(() => {
     let active = true;
     const request = () => openSelfTest(++autoRuns.current);
-    Promise.all([installMobileI18n({ onChange: (l) => setLangState(l) }), initialUrl(), loadMotionSetting()]).then(([, url]) => {
+    Promise.all([installMobileI18n({ onChange: (l) => setLangState(l) }), initialUrl(), loadMotionSetting(), loadTextSizeSetting()]).then(([, url]) => {
       if (!active) return;
       setLangState(getLang());
       if (shouldAutorunSelfTest(url, selfTestEnvFlag())) request();

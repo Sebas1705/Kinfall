@@ -6,7 +6,8 @@ import { CONTENT } from '@kinfall/core/content';
 import { buildEndModel } from '@kinfall/core/models/end';
 import { t } from '@kinfall/core/platform/i18n';
 import { useEffect, useRef, type ComponentRef } from 'react';
-import { AccessibilityInfo, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AppText } from '../ui/AppText';
 
 import { EndScene } from '../art/EndScene';
 
@@ -28,7 +29,7 @@ export function EndView({ run, onToTitle, log }: PhaseViewProps) {
   useLang();
   const { session } = useRunSession();
   const model = buildEndModel(run, CONTENT);
-  const heading = useRef<ComponentRef<typeof Text>>(null);
+  const heading = useRef<ComponentRef<typeof AppText>>(null);
   /** One way out per end screen: a double tap never starts two runs. */
   const left = useRef(false);
 
@@ -61,21 +62,21 @@ export function EndView({ run, onToTitle, log }: PhaseViewProps) {
   );
   const result = (
     <>
-      <Text
+      <AppText
         ref={heading}
         style={[styles.heading, { color: won ? theme.good : theme.danger }]}
         accessibilityRole="header"
         testID="end-heading"
       >
         {model.title}
-      </Text>
-      <Text style={[styles.note, { color: theme.text }]}>{t('end.canRestart')}</Text>
+      </AppText>
+      <AppText style={[styles.note, { color: theme.text }]}>{t('end.canRestart')}</AppText>
       <Plate accessible accessibilityLabel={`${t('end.score')}: ${model.score}`} testID="end-score">
         <View style={styles.score}>
-          <Text style={[styles.scoreLabel, { color: ink.text }]}>{t('end.score')}</Text>
-          <Text style={[styles.scoreValue, { color: ink.text }]} testID="end-score-value">
+          <AppText style={[styles.scoreLabel, { color: ink.text }]}>{t('end.score')}</AppText>
+          <AppText style={[styles.scoreValue, { color: ink.text }]} testID="end-score-value">
             {String(model.score)}
-          </Text>
+          </AppText>
         </View>
       </Plate>
     </>
@@ -84,8 +85,8 @@ export function EndView({ run, onToTitle, log }: PhaseViewProps) {
       <Plate style={styles.stats} testID="end-stats">
         {model.stats.map((s, i) => (
           <View key={i} style={styles.stat} accessible accessibilityLabel={`${s.label}: ${s.value}`} testID={`end-stat-${i}`}>
-            <Text style={[styles.statLabel, { color: ink.muted }]}>{s.label}</Text>
-            <Text style={[styles.statValue, { color: ink.text }]}>{String(s.value)}</Text>
+            <AppText style={[styles.statLabel, { color: ink.muted }]}>{s.label}</AppText>
+            <AppText style={[styles.statValue, { color: ink.text }]}>{String(s.value)}</AppText>
           </View>
         ))}
       </Plate>

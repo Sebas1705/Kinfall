@@ -1,6 +1,7 @@
 import type { PartyRow } from '@kinfall/core/models/party';
 import { t } from '@kinfall/core/platform/i18n';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText } from './AppText';
 
 import { CreatureSprite } from '../art/CreatureSprite';
 import { PixelBar } from './PixelBar';
@@ -19,9 +20,9 @@ export function PartyPanel({ party, speciesIds, souls }: PartyPanelProps) {
   const ink = usePlateText();
   return (
     <Plate style={styles.panel} testID="party">
-      <Text style={[styles.heading, { color: ink.text }]} accessibilityRole="header">
+      <AppText style={[styles.heading, { color: ink.text }]} accessibilityRole="header">
         {t('map.party')}
-      </Text>
+      </AppText>
       {party.map((p, i) => {
         const label = t('map.partyMember', { species: p.name, hp: p.hp, max: p.maxHp });
         const id = speciesIds[i];
@@ -30,20 +31,20 @@ export function PartyPanel({ party, speciesIds, souls }: PartyPanelProps) {
             {id ? <CreatureSprite species={id} scale={2} /> : null}
             <View style={styles.memberText}>
               <View style={styles.nameRow}>
-                <Text style={[styles.name, { color: ink.text }]}>{p.name}</Text>
-                <Text style={[styles.hp, { color: ink.muted }]} testID={`party-hp-${i}`}>
+                <AppText style={[styles.name, { color: ink.text }]}>{p.name}</AppText>
+                <AppText style={[styles.hp, { color: ink.muted }]} testID={`party-hp-${i}`}>
                   {`${p.hp}/${p.maxHp}`}
-                </Text>
+                </AppText>
               </View>
               <PixelBar kind="hp" value={p.hp} max={p.maxHp} />
             </View>
           </View>
         );
       })}
-      <Text style={[styles.souls, { color: ink.text }]} testID="souls">
+      <AppText style={[styles.souls, { color: ink.text }]} testID="souls">
         {`${t('map.souls')}: `}
-        <Text style={styles.soulsValue}>{String(souls)}</Text>
-      </Text>
+        <AppText style={styles.soulsValue}>{String(souls)}</AppText>
+      </AppText>
     </Plate>
   );
 }
