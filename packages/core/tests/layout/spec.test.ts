@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   effectiveTextScale,
   heightClass,
+  INFO_LINE,
   layoutSpec,
   widthClass,
   type LayoutMode,
@@ -75,28 +76,81 @@ describe('device matrix', () => {
   });
 });
 
+type Regions = ReturnType<typeof layoutSpec>['regions'];
+
+function rectsOf(regions: Regions): Rect[] {
+  const rects = [regions.hud, regions.primary, regions.actions];
+  if (regions.info) rects.push(regions.info);
+  return rects;
+}
+
+function expectTiling(regions: Regions, strict: boolean): void {
+  const rects = rectsOf(regions);
+  const area = rects.reduce((sum, r) => sum + r.width * r.height, 0);
+  expect(area).toBe(regions.content.width * regions.content.height);
+  for (const r of rects) {
+    for (const v of [r.x, r.y, r.width, r.height]) {
+      expect(Number.isFinite(v)).toBe(true);
+      expect(v).toBeGreaterThanOrEqual(0);
+    }
+    if (strict) {
+      expect(r.width).toBeGreaterThan(0);
+      expect(r.height).toBeGreaterThan(0);
+    }
+    expect(r.x).toBeGreaterThanOrEqual(regions.content.x);
+    expect(r.y).toBeGreaterThanOrEqual(regions.content.y);
+    expect(r.x + r.width).toBeLessThanOrEqual(regions.content.x + regions.content.width);
+    expect(r.y + r.height).toBeLessThanOrEqual(regions.content.y + regions.content.height);
+  }
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      expect(overlaps(rects[i]!, rects[j]!)).toBe(false);
+    }
+  }
+}
+
 describe('regions tile the content box', () => {
-  it.each(MATRIX)('%s', (_name, w, h, textScale) => {
+  it.each(MATRIX)('%s', (_name, w, h, textScale, _o, mode) => {
     for (const screen of SCREENS) {
       const { regions } = layoutSpec({ width: w, height: h, textScale }, screen);
-      const rects = [regions.hud, regions.primary, regions.actions];
-      if (regions.info) rects.push(regions.info);
-      const area = rects.reduce((sum, r) => sum + r.width * r.height, 0);
-      expect(area).toBe(regions.content.width * regions.content.height);
-      for (const r of rects) {
-        expect(r.width).toBeGreaterThan(0);
-        expect(r.height).toBeGreaterThan(0);
-        expect(r.x).toBeGreaterThanOrEqual(regions.content.x);
-        expect(r.y).toBeGreaterThanOrEqual(regions.content.y);
-        expect(r.x + r.width).toBeLessThanOrEqual(regions.content.x + regions.content.width);
-        expect(r.y + r.height).toBeLessThanOrEqual(regions.content.y + regions.content.height);
-      }
-      for (let i = 0; i < rects.length; i++) {
-        for (let j = i + 1; j < rects.length; j++) {
-          expect(overlaps(rects[i]!, rects[j]!)).toBe(false);
-        }
-      }
+      expectTiling(regions, mode === 'console');
     }
+  });
+});
+
+describe('degenerate input', () => {
+  it.each([
+    [100, 80, 1],
+    [100, 80, 2],
+    [150, 100, 1],
+    [150, 100, 2],
+    [0, 0, 1],
+    [0, 100, 1],
+    [100, 0, 2],
+  ])('tiny window %ix%i @%f', (w, h, textScale) => {
+    for (const screen of SCREENS) {
+      const spec = layoutSpec({ width: w, height: h, textScale }, screen);
+      expect(spec.mode).toBe('fallback');
+      expectTiling(spec.regions, false);
+    }
+  });
+  it.each([NaN, -1, 0, Infinity])('text scale %f is treated as 1', (textScale) => {
+    const spec = layoutSpec({ width: 360, height: 640, textScale }, 'battle');
+    expect(spec.mode).toBe('console');
+    expectTiling(spec.regions, true);
+  });
+  it('non-finite sizes become 0', () => {
+    const spec = layoutSpec({ width: NaN, height: Infinity, textScale: 1 }, 'map');
+    expectTiling(spec.regions, false);
+  });
+  it('floors fractional windows to integer edges', () => {
+    const spec = layoutSpec({ width: 640.5, height: 360.5, textScale: 1 }, 'map');
+    for (const r of rectsOf(spec.regions)) {
+      for (const v of [r.x, r.y, r.width, r.height]) expect(Number.isInteger(v)).toBe(true);
+    }
+    expect(spec.regions.content.width).toBe(640);
+    expect(spec.regions.content.height).toBe(360);
+    expectTiling(spec.regions, true);
   });
 });
 
@@ -112,6 +166,8 @@ describe('plans', () => {
     expect(regions.primary.height).toBeGreaterThanOrEqual(0.38 * h);
     expect(regions.primary.height).toBeLessThanOrEqual(0.45 * h);
     expect(regions.info).not.toBeNull();
+    expect(regions.actions.height).toBeGreaterThan(0);
+    expect(regions.info!.height).toBeGreaterThanOrEqual(INFO_LINE);
   });
 });
 

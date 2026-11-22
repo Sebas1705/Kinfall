@@ -59,8 +59,10 @@ export const MIN_BUDGET: Record<ScreenId, number> = {
   end: 270,
 };
 
-const HUD_LINE = 28;
-const INFO_LINE = 18;
+// Provisional line heights (px at text scale 1); the HUD and info bands grow with the text scale
+// (spec 7.1). Tune them when the screens are built.
+export const HUD_LINE = 28;
+export const INFO_LINE = 18;
 const PRIMARY_PORTRAIT_SHARE = 0.41;
 const ACTIONS_SHARE = 0.32;
 const ACTIONS_MIN = 200;
@@ -92,7 +94,7 @@ function planRegions(info: WindowInfo, landscape: boolean): RegionPlan {
   const hud: Rect = { x: content.x, y: 0, width: cw, height: hudH };
 
   if (landscape) {
-    const actionsW = Math.round(clamp(ACTIONS_SHARE * cw, ACTIONS_MIN, ACTIONS_MAX));
+    const actionsW = Math.min(cw, Math.round(clamp(ACTIONS_SHARE * cw, ACTIONS_MIN, ACTIONS_MAX)));
     const bodyH = height - hudH;
     return {
       content,
@@ -103,8 +105,8 @@ function planRegions(info: WindowInfo, landscape: boolean): RegionPlan {
     };
   }
 
-  const primaryH = Math.round(PRIMARY_PORTRAIT_SHARE * height);
-  const infoH = Math.round(2 * INFO_LINE * scale);
+  const primaryH = Math.min(Math.round(PRIMARY_PORTRAIT_SHARE * height), height - hudH);
+  const infoH = Math.min(Math.round(2 * INFO_LINE * scale), height - hudH - primaryH);
   const actionsY = hudH + primaryH + infoH;
   return {
     content,
@@ -115,12 +117,22 @@ function planRegions(info: WindowInfo, landscape: boolean): RegionPlan {
   };
 }
 
-export function layoutSpec(info: WindowInfo, screen: ScreenId): LayoutSpec {
+/** Non-finite or negative sizes become 0; fractions are floored so rect edges are integers. */
+function sanitizeSize(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+export function layoutSpec(raw: WindowInfo, screen: ScreenId): LayoutSpec {
+  const info: WindowInfo = {
+    width: sanitizeSize(raw.width),
+    height: sanitizeSize(raw.height),
+    textScale: Number.isFinite(raw.textScale) && raw.textScale > 0 ? raw.textScale : 1,
+  };
   const landscape = info.width > info.height;
   const fits =
     info.height >= MIN_HEIGHT_PX &&
     info.textScale <= TEXT_SCALE_MAX &&
-    info.height / Math.max(info.textScale, Number.EPSILON) >= MIN_BUDGET[screen];
+    info.height / info.textScale >= MIN_BUDGET[screen];
   return {
     orientation: landscape ? 'landscape' : 'portrait',
     width: widthClass(info.width),
