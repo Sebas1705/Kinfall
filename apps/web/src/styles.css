@@ -74,10 +74,82 @@ body {
   outline-offset: 2px;
 }
 
+/* ---- app shell: the console layout (see src/view/layout.ts) ----
+   layout.ts publishes data-orientation, data-mode and --hud-h / --rail-w / --stage-h on .app. In
+   `console` mode the shell is exactly one viewport tall and the page itself never scrolls; in
+   `fallback` mode (huge text or a very short window) the page scrolls, with the HUD pinned. The
+   content is capped at 1200 px (landscape) / 720 px (portrait); the backdrop (body) continues
+   outside. Until the screens are recomposed into regions, the topbar fills `hud`, the existing
+   screens fill the rest of the grid (`primary` plus the still empty `actions` / `info`) and
+   scroll inside it, and the footer takes the bottom row. */
 .app {
-  max-width: 64rem;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0.5rem 1rem 1rem;
+  padding: calc(0.5rem + env(safe-area-inset-top)) calc(1rem + env(safe-area-inset-right))
+    calc(1rem + env(safe-area-inset-bottom)) calc(1rem + env(safe-area-inset-left));
+}
+
+.app[data-orientation='portrait'] {
+  max-width: 720px;
+}
+
+.app[data-mode] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail-w, 0px);
+  grid-template-rows: minmax(var(--hud-h, 0px), auto) minmax(0, 1fr) auto;
+  grid-template-areas:
+    'hud hud'
+    'primary actions'
+    'info info';
+}
+
+.app[data-orientation='portrait'][data-mode] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(var(--hud-h, 0px), auto) minmax(0, 1fr) 0 auto;
+  grid-template-areas:
+    'hud'
+    'primary'
+    'actions'
+    'info';
+}
+
+.app[data-mode] > .topbar {
+  grid-area: hud;
+}
+
+/* The old screens span primary and the still empty actions area until they are recomposed. */
+.app[data-mode] > .screens {
+  grid-area: 2 / 1 / 3 / -1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.app[data-mode] > .footer {
+  grid-area: info;
+  margin-top: 0.25rem;
+}
+
+.app[data-mode='console'] {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app[data-mode='fallback'] {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app[data-mode='fallback'] > .screens {
+  overflow: visible;
+}
+
+.app[data-mode='fallback'] > .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
 }
 
 /* ---- top bar and settings ---- */

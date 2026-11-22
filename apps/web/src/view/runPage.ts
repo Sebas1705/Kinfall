@@ -6,6 +6,8 @@ import { defaultStorage } from '../platform/webStorage';
 import { createBattleDom } from './battleDom';
 import { createBattleController } from './controller';
 import { lazyBattleView } from './lazyView';
+import { startLayout } from './layout';
+import type { LayoutHandle } from './layout';
 import { createRouter } from './router';
 import { createRunController } from './runController';
 import { createRunUi } from './runUi';
@@ -15,7 +17,9 @@ import { applyI18nAttributes, byId, wireTextSize } from './settings';
 
 export function startRunPage(): void {
   const root = byId<HTMLElement>('screens');
-  const router = createRouter(root);
+  // The layout driver reads the visible screen from the router, so the router pings it on every change.
+  let layout: LayoutHandle | null = null;
+  const router = createRouter(root, () => layout?.refresh());
   const ui = createRunUi({
     title: byId('screen-title'),
     map: byId('screen-map'),
@@ -77,7 +81,16 @@ export function startRunPage(): void {
       }),
   });
 
-  wireTextSize(() => controller.refreshText());
+  wireTextSize(() => {
+    controller.refreshText();
+    layout?.refresh();
+  });
+  // The effective text scale on the web is the app text size (the #text-size slider) over 100.
+  const textSize = byId<HTMLInputElement>('text-size');
+  layout = startLayout(byId('app'), {
+    screen: () => router.current(),
+    textScale: () => Number(textSize.value) / 100 || 1,
+  });
 
   const langSelect = byId<HTMLSelectElement>('lang');
   langSelect.value = getLang();

@@ -50,7 +50,8 @@ function announcer(root: HTMLElement): HTMLElement {
   return live;
 }
 
-export function createRouter(root: HTMLElement): Router {
+/** `onShow` runs after every screen change (the layout driver re-reads the current screen there). */
+export function createRouter(root: HTMLElement, onShow?: () => void): Router {
   const live = announcer(root);
   let currentId: ScreenId = 'title';
 
@@ -65,6 +66,7 @@ export function createRouter(root: HTMLElement): Router {
       currentId = id;
       const section = isolateScreen(root, id);
       announce();
+      onShow?.();
       if (!section || options?.focus === false) return;
       const target = section.querySelector<HTMLElement>(focusSelector ?? HEADING) ?? section;
       if (target.tabIndex < 0 && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
