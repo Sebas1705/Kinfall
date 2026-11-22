@@ -3,29 +3,76 @@ import type { Page } from '@playwright/test';
 import { continueSavedRun, setTextSize, startRunWithKeyboard, writeCraftedSave } from './run-helpers';
 
 // The shell never scrolls the page: in the console layout and in the fallback only the primary
-// area (`.screens`) scrolls, so the HUD stays in view.
-test('fallback: the page does not scroll, only the primary area does', async ({ page }, info) => {
+// area (`.screens`) scrolls, so the HUD stays in view; in the fallback the rail (the choices, the
+// actions) is pinned at the bottom too (spec 7.5), capped at 55% of the window.
+
+/** The fallback promise on the visible screen: the page does not scroll, the HUD and the rail are
+ *  inside the window, the rail is at most 55% of it and the primary area keeps at least 25%. */
+async function expectPinnedRail(page: Page, railSelector: string): Promise<void> {
+  const m = await page.evaluate((sel) => {
+    const doc = document.scrollingElement!;
+    const screens = document.getElementById('screens')!.getBoundingClientRect();
+    const hud = document.querySelector('.hud')!.getBoundingClientRect();
+    const rail = document.querySelector(sel)!.getBoundingClientRect();
+    return {
+      pageScroll: doc.scrollHeight,
+      pageWide: doc.scrollWidth,
+      inner: window.innerHeight,
+      innerW: window.innerWidth,
+      hudTop: hud.top,
+      hudBottom: hud.bottom,
+      railTop: rail.top,
+      railBottom: rail.bottom,
+      railHeight: rail.height,
+      screensTop: screens.top,
+    };
+  }, railSelector);
+  expect(m.pageScroll).toBeLessThanOrEqual(m.inner);
+  expect(m.pageWide).toBeLessThanOrEqual(m.innerW);
+  expect(m.hudTop).toBeGreaterThanOrEqual(0);
+  expect(m.hudBottom).toBeLessThanOrEqual(m.inner);
+  expect(m.railTop).toBeGreaterThanOrEqual(0);
+  expect(m.railBottom).toBeLessThanOrEqual(m.inner + 0.5);
+  expect(m.railHeight).toBeLessThanOrEqual(m.inner * 0.55 + 1);
+  expect(m.railTop - m.screensTop).toBeGreaterThanOrEqual(m.inner * 0.25 - 1);
+}
+
+test('fallback: the page does not scroll, only the primary area does, the rail is pinned', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone-landscape', 'sized for the 640x360 project');
   await page.goto('/');
   await startRunWithKeyboard(page, 'e2e-layout');
   await setTextSize(page, 150);
   await expect(page.locator('#app')).toHaveAttribute('data-mode', 'fallback');
-
   const m = await page.evaluate(() => {
-    const doc = document.scrollingElement!;
     const screens = document.getElementById('screens')!;
-    const top = document.querySelector('.hud')!.getBoundingClientRect();
-    return {
-      pageScroll: doc.scrollHeight,
-      inner: window.innerHeight,
-      screensScroll: screens.scrollHeight,
-      screensClient: screens.clientHeight,
-      hudTop: top.top,
-    };
+    return { screensScroll: screens.scrollHeight, screensClient: screens.clientHeight };
   });
-  expect(m.pageScroll).toBeLessThanOrEqual(m.inner);
   expect(m.screensScroll).toBeGreaterThan(m.screensClient);
-  expect(m.hudTop).toBeGreaterThanOrEqual(0);
+  await expectPinnedRail(page, '#screen-map .screen-rail');
+  // Scrolling the primary area keeps the rail where it is (the inline run details come after the
+  // rail in the DOM and tab order, so at the very end they scroll it away: not asserted there).
+  await page.locator('#screens').evaluate((el) => el.scrollTo(0, 40));
+  await expectPinnedRail(page, '#screen-map .screen-rail');
+});
+
+test('fallback: the map at 914x411 and text 150% pins the rail', async ({ page }, info) => {
+  test.skip(info.project.name !== 'chromium', 'sets its own window');
+  await page.setViewportSize({ width: 914, height: 411 });
+  await startRunWithKeyboard(page, 'e2e-layout');
+  await setTextSize(page, 150);
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'fallback');
+  await expectPinnedRail(page, '#screen-map .screen-rail');
+});
+
+test('fallback: the event at 640x360 and text 150% pins the rail', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone-landscape', 'sized for the 640x360 project');
+  await page.goto('/');
+  await writeCraftedSave(page, 'recruit');
+  await continueSavedRun(page);
+  await setTextSize(page, 150);
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'fallback');
+  await expect(page.locator('#screen-event')).toBeVisible();
+  await expectPinnedRail(page, '#screen-event .screen-rail');
 });
 
 /** Page never scrolls or overflows, every visible button is a real target; returns the layout rects. */
@@ -183,7 +230,7 @@ test('battle: keys do not reach the battle while a sheet is open', async ({ page
 });
 
 // Huge text: the page still does not scroll, only the primary area does, and the log is a plain panel.
-test('battle fallback: only the primary area scrolls and the log stays in the flow', async ({ page }, info) => {
+test('battle fallback: only the primary area scrolls, the choices are pinned and the log stays in the flow', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone-landscape', 'sized for the 640x360 project');
   await page.goto('/');
   await enterBattle(page, 'e2e-layout');
@@ -198,9 +245,9 @@ test('battle fallback: only the primary area scrolls and the log stays in the fl
   }));
   expect(m.page).toBeLessThanOrEqual(m.inner);
   expect(m.wide).toBeLessThanOrEqual(m.innerW);
-  // The rail is reachable by scrolling the primary area, and its buttons are real targets.
+  // The rail (the choices) is pinned at the bottom, its buttons are real targets.
+  await expectPinnedRail(page, '#menu-panel');
   const first = page.locator('#choices button:not([disabled])').first();
-  await first.scrollIntoViewIfNeeded();
   await expect(first).toBeInViewport();
   const box = await first.boundingBox();
   expect(box!.width).toBeGreaterThanOrEqual(44);

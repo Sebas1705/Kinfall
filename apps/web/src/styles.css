@@ -145,6 +145,35 @@ body {
 
 .app[data-mode='fallback'] > .screens {
   overflow-y: auto;
+  /* Its height comes from the grid (never from its content), so descendants can size against it
+     with cqh: the pinned rail below leaves the primary area a quarter of the window. */
+  container-type: size;
+}
+
+/* Spec 7.5: in the fallback the rail (the battle's choices, a run screen's actions) is pinned to the
+   bottom of the primary area, capped at 55% of the window height (and at what leaves the primary a
+   quarter of the window) with its own inner scroll. A sticky element is bounded by its flex parent's
+   box, so the battle (a grid by default) becomes a column here. */
+.app[data-mode='fallback'] .battle:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+}
+
+.app[data-mode='fallback'] .battle:not([hidden]) > .stage {
+  flex: none;
+}
+
+.app[data-mode='fallback'] .menu-panel,
+.app[data-mode='fallback'] .screen-rail {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  max-height: 55vh;
+  max-height: min(55dvh, calc(100cqh - 25dvh));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  box-shadow: 0 -0.5rem 0.5rem -0.25rem var(--bg);
 }
 
 /* ---- HUD and settings ---- */
@@ -569,8 +598,9 @@ button {
    log line floats over its bottom edge next to the Log button, and the choices are a one- or
    two-column rail in the actions region: right of the stage in landscape, a band under it in
    portrait. The d-pad (touch only) is one compact strip under the stage, the abandon footer goes
-   under the rail. In `fallback` none of this applies: the old stacked flow scrolls inside
-   `.screens`. */
+   under the rail. In `fallback` this does not apply: the old stacked flow scrolls inside
+   `.screens` and only the rail (the choices) stays pinned at the bottom (see the fallback rules
+   in the shell section). */
 .app[data-mode='console'] .battle:not([hidden]) {
   height: 100%;
   min-height: 0;
@@ -1353,8 +1383,9 @@ button {
    Each run screen is a primary region (heading and the art or board) plus a rail (the actions): the
    rail is a column right of the primary region in landscape and a two-column band under it in
    portrait. What does not fit moves into a sheet (`.sheet-store`, opened from the HUD button, see
-   src/view/screenSheets.ts). In `fallback` none of this applies: the screens stack as before and
-   scroll inside `.screens`, with the stores shown inline. */
+   src/view/screenSheets.ts). In `fallback` this does not apply: the screens stack as before and
+   scroll inside `.screens`, with the stores shown inline and the rail pinned at the bottom (see
+   the fallback rules in the shell section). */
 .screen-primary,
 .screen-rail {
   display: flex;
