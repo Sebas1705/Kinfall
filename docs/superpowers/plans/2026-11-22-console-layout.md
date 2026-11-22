@@ -52,7 +52,7 @@
 - [ ] **Step 1: Write the failing tests** in `packages/core/tests/layout/spec.test.ts`:
   - `effectiveTextScale caps at 2`: `(1.5, 1.5)` is 2; `(1, 0.8)` is 0.8; `(1.3, 1)` is 1.3.
   - `class boundaries`: `widthClass(599)` compact, `(600)` medium, `(840)` expanded; `heightClass(479)` compact, `(480)` medium, `(900)` expanded.
-  - A device matrix table `[name, w, h, textScale, orientation, mode]`: 320x640 and 360x640 at 1.0 and 1.3 are portrait console; 360x640 at 2.0 is portrait console; 640x360 at 1.0 and 1.3 are landscape console; 640x360 at 2.0 is fallback; 914x411 at 1.0 and 2.0 landscape console; 560x300 at 1.0 landscape fallback (height < 320); 600x800, 800x1280, 1280x800, 1366x768, 1920x1080 at 1.0 and 2.0 console.
+  - A device matrix table `[name, w, h, textScale, orientation, mode]`: 320x640 and 360x640 at 1.0 and 1.3 are portrait console; 360x640 at 2.0 is portrait console; 640x360 at 1.0 and 1.3 are landscape console; 640x360 at 2.0 is fallback; 914x411 at 1.0 landscape console and at 2.0 landscape fallback (411 / 2 is below the 270 budget); 560x300 at 1.0 landscape fallback (height < 320); 600x800, 800x1280, 1280x800, 1366x768, 1920x1080 at 1.0 and 2.0 console.
   - `regions tile the content box`: for every matrix row and every `ScreenId`, the area of `hud + primary + actions + info` equals `content` width x height and no two rects overlap.
   - `landscape plan`: `primary.width >= 0.55 * content.width`, `actions.width >= 200`, `info` is null. `portrait plan`: `primary.height` between 0.38 and 0.45 of the window height, `info` not null.
   - `content is capped and centred`: 1920x1080 gives `content.width === 1200` and `content.x === 360`; 1000x1600 gives `content.width === 720`.
@@ -166,7 +166,7 @@
 
 **Files:**
 - Create: `apps/mobile/src/platform/textSizeSetting.ts`, `apps/mobile/__tests__/platform/textSizeSetting.test.ts`, `apps/mobile/src/ui/useLayoutSpec.ts`, `apps/mobile/__tests__/ui/useLayoutSpec.test.ts`
-- Modify: `apps/mobile/src/ui/windowSize.ts` (re-export the class helpers from core; keep `layoutFor` and `Layout` until Task 12 migrates the screens)
+- Modify: `apps/mobile/src/ui/windowSize.ts` (re-export the class helpers from core; keep `layoutFor` and `Layout` until Task 13 removes them)
 
 **Interfaces:**
 - Consumes: `layoutSpec`, `effectiveTextScale` (Task 1).
@@ -195,7 +195,7 @@
 ### Task 10: Mobile shell without page scroll, HUD, immersive mode
 
 **Files:**
-- Modify: `apps/mobile/src/ui/Screen.tsx` (console mode renders fixed regions with no `ScrollView`; fallback scrolls only the primary region and pins HUD and actions; safe-area insets respected), `apps/mobile/src/screens/RunScreen.tsx`, `apps/mobile/package.json` (add `expo-navigation-bar` with `npx expo install expo-navigation-bar` in `apps/mobile`)
+- Modify: `apps/mobile/src/ui/Screen.tsx` (console mode renders fixed regions with no `ScrollView`; fallback scrolls only the primary region and pins HUD and actions; safe-area insets respected; the new shell is opt-in through a `screen: ScreenId` prop, and screens that do not pass it keep the legacy ScrollView path until Tasks 12 and 13 migrate them), `apps/mobile/src/screens/RunScreen.tsx`, `apps/mobile/package.json` (add `expo-navigation-bar` with `npx expo install expo-navigation-bar` in `apps/mobile`)
 - Create: `apps/mobile/src/platform/immersiveSetting.ts`, `apps/mobile/src/platform/immersive.ts`, `apps/mobile/__tests__/platform/immersive.test.ts`, `apps/mobile/src/ui/Hud.tsx`
 - Test: `apps/mobile/__tests__/ui/Screen.test.tsx` (extend)
 
@@ -251,7 +251,7 @@
 - Consumes: `useLayoutSpec`, `Hud`, `Sheet`.
 - Produces: the same screen compositions as Task 6 (title strip of starters, map as a fixed board, event vignette and rail, end score and rail), with log, party details and stats in sheets.
 
-- [ ] **Step 1: Extend the tests**: for each screen at 640x360 and 360x640 (fontScale 1 and 1.3) assert no page ScrollView, every touchable at least 48 dp, and all map nodes reachable and labelled; the old two-pane assertions are replaced by the region assertions.
+- [ ] **Step 1: Extend the tests**: for each screen at 640x360 and 360x640 (fontScale 1 and 1.3) assert no page ScrollView, every touchable at least 48 dp, and all map nodes reachable and labelled; the old two-pane assertions are replaced by the region assertions. Once every screen is migrated, remove the legacy path: `layoutFor`, `Layout`, `compactBattle`, `twoPane` and the legacy `Screen` ScrollView branch.
 - [ ] **Step 2: Run** `npm run test:mobile -- screens`, expect FAIL.
 - [ ] **Step 3: Implement** the compositions; fix the composition rather than the budget, recording any measured minimum in `MIN_BUDGET`.
 - [ ] **Step 4: Run** `npm run test:mobile` and `npm run typecheck -w @kinfall/mobile`, expect PASS.
