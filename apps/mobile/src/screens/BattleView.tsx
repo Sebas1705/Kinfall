@@ -47,16 +47,39 @@ import { PixelBar } from '../ui/PixelBar';
 import { Screen } from '../ui/Screen';
 import { Sheet, useSheetBackdropProps } from '../ui/Sheet';
 import { useLayoutSpec } from '../ui/useLayoutSpec';
-import { useSettingsSheet } from '../ui/useSettingsSheet';
+import { effectiveTextScale } from '@kinfall/core/layout/spec';
+import { useTextSize } from '../platform/textSizeSetting';
+import {
+  CHOICE_COLUMNS,
+  COMPACT_CROP_TOP,
+  DETAIL_SIZE,
+  DIVIDER,
+  GROUP_GAP,
+  INTENT_SIZE,
+  LABEL_SIZE,
+  MAIN_GAP,
+  MAIN_PAD,
+  MESSAGE_BORDER,
+  MESSAGE_SIZE,
+  NAME_SIZE,
+  PLATE_GAP,
+  PROMPT_SIZE,
+  RAIL_GAP,
+  RAIL_PAD,
+  ROW_GAP,
+  STAGE_MIN_DP,
+  VALUE_SIZE,
+  choiceCellHeight,
+  lineHeight,
+  plateHeight,
+  stageBoxHeight,
+} from './battleMetrics';
 
-/** Sky rows the short stage crops (the band keeps both creatures and their platforms). */
-export const COMPACT_CROP_TOP = 50;
+export { COMPACT_CROP_TOP, CHOICE_COLUMNS };
+import { useSettingsSheet } from '../ui/useSettingsSheet';
 
 /** Below this stage height (dp) the stage crops more sky. */
 const SHORT_STAGE_DP = 160;
-
-/** Columns of the choice grid (a rail is too narrow and a band too short for one). */
-export const CHOICE_COLUMNS = 2;
 
 export interface BattleViewProps {
   /** The run as it was when the battle screen opened (its phase is this battle). */
@@ -110,55 +133,69 @@ export function choiceDetail(entry: MenuEntry, state: BattleState): string {
   return parts.join(' · ');
 }
 
-function CreaturePlate({ side, c, motion, intent, theme }: { side: Side; c: ShownCreature; motion: SideMotion; intent: string | null; theme: Theme }) {
+/** The visible detail of a move: power and focus cost (the element is the icon; the label keeps the full text). */
+export function choiceShortDetail(entry: MenuEntry, state: BattleState): string {
+  if (entry.action.type !== 'move') return entry.detail ?? '';
+  const active = state.teams.player[state.active.player];
+  const id = active ? lookup(CONTENT).species(active.speciesId).moves[entry.action.moveIndex] : undefined;
+  if (id === undefined) return entry.detail ?? '';
+  const m = lookup(CONTENT).move(id);
+  const parts: string[] = [];
+  if (m.kind === 'damage' && m.power > 0) parts.push(t('battle.power', { power: m.power }));
+  parts.push(t('menu.focusCost', { cost: m.focusCost }));
+  return parts.join(' · ');
+}
+
+function CreaturePlate({ side, c, motion, intent, theme, scale }: { side: Side; c: ShownCreature; motion: SideMotion; intent: string | null; theme: Theme; scale: number }) {
   const ink = usePlateText();
-  const sideName = t(side === 'player' ? 'hud.player' : 'hud.enemy');
   const hp = `${t('hud.hp')} ${c.hp}/${c.maxHp}`;
   const focus = `${t('hud.focus')} ${c.focus}/${c.maxFocus}`;
   const elements = lookup(CONTENT).species(c.speciesId).elements;
   return (
     <Plate
-      style={styles.hud}
+      style={[styles.hud, { height: plateHeight(scale, side === 'enemy') }]}
       accessible
       accessibilityLabel={intent ? `${hudLabel(side, c)} ${intent}` : hudLabel(side, c)}
       testID={`hud-${side}`}
-      pad={2}
+      pad={0}
     >
-      <View style={styles.hudTop}>
-        <AppText style={[styles.hudName, { color: ink.text }]} testID={`hud-${side}-name`}>
+      <View style={[styles.hudTop, { height: lineHeight(NAME_SIZE, scale) }]}>
+        <AppText style={[styles.hudName, { color: ink.text }]} numberOfLines={1} testID={`hud-${side}-name`}>
           {speciesLabel(c.speciesId)}
         </AppText>
         <View style={styles.hudElements}>
           {elements.map((el) => (
             <ElementIcon key={el} element={el} scale={2} />
           ))}
-          <AppText style={[styles.hudSide, { color: ink.muted }]}>{elements.map((el) => t(`element.${el}`)).join(' / ')}</AppText>
         </View>
-        <AppText style={[styles.hudSide, styles.hudSideName, { color: ink.muted }]}>{sideName}</AppText>
+        {c.status ? (
+          <Animated.View style={[styles.chip, { borderColor: theme.danger, transform: [{ scale: motion.chip }] }]} testID={`hud-${side}-status`}>
+            <AppText style={[styles.chipText, { color: theme.danger }]} numberOfLines={1}>
+              {t(`status.${c.status}`)}
+            </AppText>
+          </Animated.View>
+        ) : null}
       </View>
-      <AppText style={[styles.hudValue, { color: ink.text }]}>
+      <AppText style={[styles.hudValue, { color: ink.text }]} numberOfLines={1}>
         <AppText testID={`hud-${side}-hp`}>{hp}</AppText>
         {' · '}
         <AppText testID={`hud-${side}-focus`}>{focus}</AppText>
       </AppText>
       <PixelBar kind="hp" value={c.hp} max={c.maxHp} progress={motion.hp} />
-      {c.status ? (
-        <Animated.View style={[styles.chip, { borderColor: theme.danger, transform: [{ scale: motion.chip }] }]} testID={`hud-${side}-status`}>
-          <AppText style={[styles.chipText, { color: theme.danger }]}>{t(`status.${c.status}`)}</AppText>
-        </Animated.View>
-      ) : null}
-      {intent ? (
-        <AppText style={[styles.intent, { color: ink.text }]} testID="battle-intent">
-          {intent}
+      {side === 'enemy' ? (
+        <AppText style={[styles.intent, { color: ink.text }]} numberOfLines={1} testID={intent ? 'battle-intent' : undefined}>
+          {intent ?? ''}
         </AppText>
       ) : null}
     </Plate>
   );
 }
 
-function ChoiceButton({ entry, detail, disabled, onPress, element }: {
+function ChoiceButton({ entry, detail, shortDetail, disabled, onPress, element, scale }: {
   entry: MenuEntry;
   detail: string;
+  shortDetail: string;
+  scale: number;
   disabled: boolean;
   onPress: () => void;
   element: ElementId | null;
@@ -173,18 +210,18 @@ function ChoiceButton({ entry, detail, disabled, onPress, element }: {
       testID="battle-choice"
       icon={icon}
       iconTestID={element ? `element-${element}-icon` : undefined}
-      style={styles.choice}
+      style={[styles.choice, { height: choiceCellHeight(scale) }]}
       padX={2}
       padY={0}
     >
       {({ textColor }) => (
         <View style={styles.choiceText}>
-          <AppText style={[styles.choiceLabel, { color: textColor }]} numberOfLines={2}>
+          <AppText style={[styles.choiceLabel, { color: textColor }]} numberOfLines={1}>
             {entry.label}
           </AppText>
-          {detail ? (
-            <AppText style={[styles.choiceDetail, { color: textColor }]} numberOfLines={3}>
-              {detail}
+          {shortDetail ? (
+            <AppText style={[styles.choiceDetail, { color: textColor }]} numberOfLines={1}>
+              {shortDetail}
             </AppText>
           ) : null}
         </View>
@@ -205,7 +242,7 @@ function BattleMessage({ log, landscape }: { log: BattleLog; landscape: boolean 
   const lines = landscape ? 1 : 2;
   return (
     <View
-      style={[styles.message, shown ? { backgroundColor: theme.surface, borderColor: theme.border, borderTopWidth: 2 } : null]}
+      style={[styles.message, shown ? { backgroundColor: theme.surface, borderColor: theme.border, borderTopWidth: MESSAGE_BORDER } : null]}
       testID="battle-message"
     >
       <View accessibilityLiveRegion="polite" testID="battle-log-fresh">
@@ -244,6 +281,8 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
   const { session } = useRunSession();
   const reduceMotion = useReducedMotion();
   const { fontScale } = useWindowDimensions();
+  const appSize = useTextSize();
+  const textScale = effectiveTextScale(fontScale, appSize / 100);
   const spec = useLayoutSpec('battle');
   const landscape = spec.orientation === 'landscape';
   const consoleMode = spec.mode === 'console';
@@ -284,25 +323,31 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
   const confirmingRef = useRef(confirming);
   confirmingRef.current = confirming;
   const closeSettings = useRef<() => void>(() => {});
-  const abandonRow = confirming ? (
-    (confirmPanel ?? null)
-  ) : (
-    <Button
-      label={t('map.abandon')}
-      onPress={() => {
-        autoOpened.current = false;
-        onAbandon();
-      }}
-      testID="abandon"
-    />
-  );
-  const settings = useSettingsSheet({
-    extra: (
+  // Memoised, so the Settings sheet's own memo holds between renders.
+  const settingsExtra = useMemo(
+    () => (
       <>
-        {abandonRow}
+        {confirming ? (
+          (confirmPanel ?? null)
+        ) : (
+          <Button
+            label={t('map.abandon')}
+            onPress={() => {
+              autoOpened.current = false;
+              onAbandon();
+            }}
+            testID="abandon"
+          />
+        )}
         {trailer}
       </>
     ),
+    // `lang` rebuilds the Abandon label.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [confirming, confirmPanel, trailer, onAbandon, lang],
+  );
+  const settings = useSettingsSheet({
+    extra: settingsExtra,
     // Closing the sheet with the confirmation open (Close, Back, a tap outside) cancels it.
     onClose: () => {
       autoOpened.current = false;
@@ -365,9 +410,13 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
     for (let i = 0; i < entries.length; i += CHOICE_COLUMNS) rows.push(entries.slice(i, i + CHOICE_COLUMNS));
     return (
       <View style={styles.group} testID={`choices-${kind}`}>
-        <AppText style={[styles.groupHeading, { color: theme.muted }]} accessibilityRole="header">
-          {heading}
-        </AppText>
+        {/* A thin divider stands for the text header; the header role and name stay for screen readers. */}
+        <View
+          style={[styles.divider, { backgroundColor: theme.border }]}
+          accessible
+          accessibilityRole="header"
+          accessibilityLabel={heading}
+        />
         <View style={styles.groupList}>
           {rows.map((row, r) => (
             <View key={r} style={styles.choiceRow}>
@@ -378,6 +427,8 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
                     <ChoiceButton
                       entry={entry}
                       detail={choiceDetail(entry, state)}
+                      shortDetail={choiceShortDetail(entry, state)}
+                      scale={textScale}
                       disabled={entry.disabled || busy}
                       onPress={() => choices!.pick(entry.action)}
                       element={element}
@@ -396,8 +447,10 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
   // The stage fills what the plates leave of the primary region: measured once laid out, estimated
   // from the contract's primary rect before that (and in the fallback, where the region scrolls).
   const [box, setBox] = useState<{ width: number; height: number } | null>(null);
-  const plateEstimate = Math.round(2 * 64 * Math.max(1, fontScale));
-  const stageHeight = Math.max(consoleMode ? 48 : 120, Math.round(box && consoleMode ? box.height : primary.height - (consoleMode ? plateEstimate : 0)));
+  // Both plates have bounded heights, so the stage box is known before any layout: the primary
+  // region less the plates (battleMetrics proves it never drops below the art's own height).
+  const planned = stageBoxHeight(primary.height, textScale);
+  const stageHeight = consoleMode ? Math.max(STAGE_MIN_DP, Math.round(box?.height ?? planned)) : Math.max(120, primary.height);
   const stageWidth = box?.width ?? primary.width;
   const stage = (
     <BattleStage
@@ -414,8 +467,8 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
       style={styles.stage}
     />
   );
-  const enemyPlate = shown.enemy ? <CreaturePlate side="enemy" c={shown.enemy} motion={motion.enemy} intent={model?.intent ?? null} theme={theme} /> : null;
-  const playerPlate = shown.player ? <CreaturePlate side="player" c={shown.player} motion={motion.player} intent={null} theme={theme} /> : null;
+  const enemyPlate = shown.enemy ? <CreaturePlate side="enemy" c={shown.enemy} motion={motion.enemy} intent={model?.intent ?? null} theme={theme} scale={textScale} /> : null;
+  const playerPlate = shown.player ? <CreaturePlate side="player" c={shown.player} motion={motion.player} intent={null} theme={theme} scale={textScale} /> : null;
   const main = (
     <View style={consoleMode ? styles.mainFill : styles.main} testID="battle-screen">
       {header}
@@ -440,7 +493,7 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
     <View style={styles.actions} testID="battle-actions">
       <View style={styles.choices} accessibilityState={{ busy }} testID="battle-choices">
         {model?.prompt ? (
-          <AppText ref={prompt} style={[styles.prompt, { color: theme.text }]} accessibilityRole="header" testID="battle-prompt">
+          <AppText ref={prompt} style={[styles.prompt, { color: theme.text }]} numberOfLines={1} accessibilityRole="header" testID="battle-prompt">
             {model.prompt}
           </AppText>
         ) : null}
@@ -488,33 +541,31 @@ export function BattleView({ run, onEnd, onAbandon, onCancelAbandon, confirming,
 const styles = StyleSheet.create({
   root: { flex: 1 },
   main: { gap: 8 },
-  mainFill: { flex: 1, minHeight: 0, gap: 4, padding: 4 },
+  mainFill: { flex: 1, minHeight: 0, gap: MAIN_GAP, padding: MAIN_PAD },
   stageBox: { flex: 1, minHeight: 0, justifyContent: 'center', overflow: 'hidden' },
   stage: { borderRadius: 4 },
-  actions: { gap: 4, padding: 4, flexShrink: 1 },
-  hud: { gap: 2 },
-  hudTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 0 },
-  hudElements: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  hudSide: { fontSize: 12, fontWeight: '600' },
-  hudSideName: { marginLeft: 'auto', textTransform: 'uppercase', letterSpacing: 0.5 },
-  hudName: { fontSize: 16, fontWeight: '700' },
-  hudValue: { fontSize: 14 },
-  chip: { alignSelf: 'flex-start', borderWidth: 2, paddingHorizontal: 8, paddingVertical: 0 },
+  actions: { gap: RAIL_GAP, padding: RAIL_PAD, flexShrink: 1 },
+  hud: { gap: PLATE_GAP, overflow: 'hidden' },
+  hudTop: { flexDirection: 'row', alignItems: 'center', columnGap: 8, overflow: 'hidden' },
+  hudElements: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  hudName: { fontSize: NAME_SIZE, fontWeight: '700', flexShrink: 1 },
+  hudValue: { fontSize: VALUE_SIZE },
+  chip: { borderWidth: 1, paddingHorizontal: 6, paddingVertical: 0, flexShrink: 0 },
   chipText: { fontSize: 13, fontWeight: '700' },
-  intent: { fontSize: 14, fontWeight: '700' },
-  message: { paddingHorizontal: 8 },
-  messageText: { fontSize: 14, paddingVertical: 2 },
+  intent: { fontSize: INTENT_SIZE, fontWeight: '700' },
+  message: { paddingHorizontal: 8, overflow: 'hidden' },
+  messageText: { fontSize: MESSAGE_SIZE },
   log: { gap: 6 },
   logLine: { fontSize: 15 },
-  choices: { gap: 4 },
-  prompt: { fontSize: 15, fontWeight: '700' },
-  group: { gap: 2 },
-  groupHeading: { fontSize: 12, fontWeight: '700' },
-  groupList: { gap: 4 },
-  choiceRow: { flexDirection: 'row', gap: 4 },
+  choices: { gap: RAIL_GAP },
+  prompt: { fontSize: PROMPT_SIZE, fontWeight: '700' },
+  group: { gap: GROUP_GAP },
+  divider: { height: DIVIDER },
+  groupList: { gap: ROW_GAP },
+  choiceRow: { flexDirection: 'row', gap: ROW_GAP },
   cell: { flex: 1, minWidth: 0 },
-  choice: { alignItems: 'stretch' },
+  choice: { alignItems: 'stretch', overflow: 'hidden' },
   choiceText: { flexShrink: 1, gap: 0 },
-  choiceLabel: { fontSize: 15, fontWeight: '600' },
-  choiceDetail: { fontSize: 12 },
+  choiceLabel: { fontSize: LABEL_SIZE, fontWeight: '600' },
+  choiceDetail: { fontSize: DETAIL_SIZE },
 });

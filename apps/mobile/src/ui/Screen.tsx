@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   shellRow: { flex: 1, flexDirection: 'row', minHeight: 0 },
   shellFlex: { flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' },
   shellActions: { flexShrink: 0, overflow: 'hidden' },
-  overlay: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  overlay: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden' },
   strip: { flexShrink: 0 },
   body: { gap: 16, width: '100%', alignSelf: 'center' },
   footer: { borderTopWidth: 2, flexShrink: 0 },

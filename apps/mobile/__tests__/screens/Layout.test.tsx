@@ -294,6 +294,31 @@ describe('battle in the console layout', () => {
   });
 });
 
+describe('battle crossing the console and fallback boundary', () => {
+  it('keeps the same BattleView when the text grows from 130% to 200% on a landscape phone', async () => {
+    windowIs({ width: 640, height: 360, fontScale: 1.3 });
+    const { session } = sessionInBattle('MAPSEED1');
+    await renderRun(session);
+    expect(contract({ width: 640, height: 360, fontScale: 1.3 }).mode).toBe('console');
+    await fireEvent.press(screen.getAllByTestId('battle-choice')[0]!);
+    await flush();
+    const message = screen.getByTestId('battle-message-text').props.children;
+    const directors = mockDirectorsCreated.count;
+    const grown = { width: 640, height: 360, fontScale: 2 };
+    windowIs(grown);
+    await act(async () => {
+      Dimensions.set({ window: { ...grown, scale: 2.625 }, screen: { ...grown, scale: 2.625 } });
+    });
+    await flush();
+    expect(contract(grown).mode).toBe('fallback');
+    expect(screen.queryByTestId('run-battle-scroll')).not.toBeNull();
+    // The stage may be drawn again, the view and its log are the same.
+    expect(mockDirectorsCreated.count).toBe(directors);
+    expect(screen.getByTestId('battle-message-text').props.children).toBe(message);
+    expect(screen.getByTestId('battle-prompt')).toBeTruthy();
+  });
+});
+
 describe('fallback battle (200% text on a small phone)', () => {
   it('pins the HUD and the choices around a scrolling stage', async () => {
     windowIs(SMALL_BIG_TEXT);
@@ -323,6 +348,18 @@ describe('fallback battle (200% text on a small phone)', () => {
 });
 
 describe('abandon from the battle', () => {
+  it('scrolls inside the Settings sheet on a landscape phone, so the confirmation stays reachable', async () => {
+    windowIs({ width: 640, height: 360, fontScale: 1 });
+    const { session } = sessionInBattle('MAPSEED1');
+    await renderRun(session);
+    await fireEvent.press(screen.getByTestId('hud-settings'));
+    await fireEvent.press(screen.getByTestId('abandon'));
+    const body = screen.getByTestId('settings-sheet-body');
+    expect(body.type).toBe('RCTScrollView');
+    expect(within(body).getByTestId('abandon-confirm')).toBeTruthy();
+    expect(within(body).getByTestId('abandon-confirm-yes')).toBeTruthy();
+  });
+
   it('lives in the Settings sheet; its confirmation replaces the button there, and Back closes it', async () => {
     windowIs(PHONE);
     const { session } = sessionInBattle('MAPSEED1');
