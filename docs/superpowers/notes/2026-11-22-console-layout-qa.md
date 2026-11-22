@@ -10,10 +10,10 @@ Date: 2026-11-22. Branch `console-ui`. Plan: [console layout](../plans/2026-11-2
 | Mobile unit tests | `npm run test:mobile` (Jest) | 46 suites, 603 tests passed |
 | Typecheck, all workspaces | `npm run typecheck` | clean |
 | Golden files | `npm run golden:update` + `npm run golden:runs`, then `git diff --exit-code -- packages/core/tests/golden` (the CI step "Golden files are up to date") | byte-identical, no diff |
-| Web e2e | `npx playwright test --project=chromium --project=mobile --project=phone-landscape --project=phone-portrait` in `apps/web` | 363 passed, 53 skipped (project-scoped skips), 0 failed, 6.4 min. Run against a Vite dev server already listening on port 5199 and started from this checkout (`reuseExistingServer`), which serves the current files from disk |
+| Web e2e | `npx playwright test --project=chromium --project=mobile --project=phone-landscape --project=phone-portrait` in `apps/web` | 363 passed, 53 skipped (project-scoped skips), 0 failed, 6.4 min. Run against a Vite dev server that was already listening on port 5199 (`reuseExistingServer`). Evidence that it served this checkout: the listening process was `node ...\Sebas1705\kinfall\node_modules\.bin\..\vite\bin\vite.js --port 5199 --strictPort`, which serves the files of this working tree from disk |
 | Android release APK | `bash scripts/distribute-android.sh --dry-run` (Doppler `kinfall/prd`; signs and builds, uploads nothing) | BUILD SUCCESSFUL in 3 min 21 s, including the prebuild with the new `expo-navigation-bar` module: signed release APK `apps/mobile/android/kinfall-0.3.0-186.apk`, 131,811,429 bytes (about 126 MB), versionName 0.3.0, versionCode 186 (the commit count of the tree before this note's commit; the committed tree gets 187). Nothing uploaded. The Android build needed `JAVA_HOME` (JDK 21) and `ANDROID_HOME` exported first, as in the environment notes |
 
-Firefox and WebKit e2e projects were not run (CI runs them); the golden check and Jest are the cross-engine determinism guard.
+Firefox and WebKit e2e projects were not run locally. CI now runs the new `phone-landscape` and `phone-portrait` projects too (the "Mobile viewport" job), but nothing from this branch has run in CI yet: push the branch once and read the results, including Firefox and WebKit, where `inert`, `100dvh` and the CSS `content: '...' / ''` alternative text were never exercised on those engines. The golden check shows the simulation output is byte-identical on this machine's Node; it says nothing about other engines.
 
 ## What was not run
 
@@ -28,7 +28,9 @@ There is no emulator, device or desktop browser session in this environment, so 
 - Safe-area insets on a notched phone, in landscape too.
 - Immersive mode (swipe to reveal) on Android 13, 14 and 15; the Settings switch.
 - The battle stage at 360x640 with 130% text (creatures about 12 dp tall).
-- A screen density below 2.
+- A screen density below 2 (the battle stage floor is only proven for density 2 or more).
+- The live region while a sheet is open: paused on the web (the screens are inert), still announcing on mobile (see Rulings); check both with a screen reader.
+- Rebuild the APK from the committed (and rebased) HEAD before testing or distributing: the dry-run build kinfall-0.3.0-186 came from the uncommitted tree (the committed HEAD gives a different versionCode).
 - The web: removal of the html `scrollbar-gutter` on a desktop browser (no layout shift when a scrollbar appears), and the Fullscreen button in a real browser (Chrome, Firefox, Safari).
 - Near-square landscape windows and HUD chips at 320 px with 150% text, which were never measured.
 - The first build that contains the new native module `expo-navigation-bar`: install the APK and start it.
@@ -36,7 +38,7 @@ There is no emulator, device or desktop browser session in this environment, so 
 ## Known limitations (from the task ledger)
 
 ### Layout contract and budgets
-- The HUD is about 52 px in the real web shell while the original contract planned 28; the contract was made honest in Task 6 (`HUD_LINE` and `MIN_BUDGET` per measured screen). Budgets are split by orientation: landscape title 220, map 275, battle 270, event 250, end 210; portrait title 380, map 470, battle 480, event 380, end 310.
+- The HUD is about 52 px in the real web shell while the original contract planned 28; the contract was made honest in Task 6 (`HUD_LINE` and `MIN_BUDGET` per measured screen). Budgets are split by orientation: landscape title 220, map 275, battle 270, event 250, end 210; portrait title 380, map 470, battle 480, event 380, end 310, as measured on the web. The final fix wave raised title landscape to 245, title and event portrait to 460 and end portrait to 330 after the mobile proofs (see Rulings).
 - 914x411 at 200% text is the fallback layout (spec 7.5), and so is 360x640 at 200% for the screens that need more height: they scroll inside the primary region instead of fitting. The console layout is promised at 1.0 and 1.3 for 640x360 and 360x640.
 - In the fallback the HUD and the actions stay pinned (spec 7.5); their caps are shares of the raw window height while the root is padded by the insets, so with insets the primary region keeps less than 25%.
 - The contract does not know the safe-area insets (regions come from the raw window, the root is padded by them): on a notched landscape phone the primary region can be smaller than promised.
@@ -58,10 +60,10 @@ There is no emulator, device or desktop browser session in this environment, so 
 - The HUD shows full party chips only when they fit, else one compact chip or none (the Run sheet always lists the party). The save-failure banner floats over the primary region until dismissed.
 
 ### Sheets, immersive mode, accessibility
-- Sheet orientation is read once at open (rotating while open keeps the old form); the Close button is last in the tab order (accepted by the APG).
+- The sheet follows rotation while open on web and mobile; the Close button is last in the tab order (accepted by the APG).
 - Touch users cannot read the map node types except through the accessible name (Task 6 added a fix; reverify on a device).
 - Task 9: the Task 10 wiring keeps the live region outside the root that gets the sheet backdrop props, with a test; the real TalkBack behaviour is unverified.
-- Immersive mode defaults to on; `setVisibilityAsync` is deprecated in `expo-navigation-bar` (use `setHidden` later).
+- Immersive mode defaults to on.
 - Fullscreen on web uses only the unprefixed API; the button is hidden where it is unsupported.
 
 ## Deferred minors (copied from the ledger, by area)
@@ -91,5 +93,44 @@ There is no emulator, device or desktop browser session in this environment, so 
 
 ### Process notes
 - Main advanced locally (f9f01a6 to 8cf0484) while this branch stayed on f9f01a6: merge or rebase at the end.
-- The web e2e reused the dev server on port 5199; it was started from this checkout, so the results are valid.
+- The web e2e reused the dev server on port 5199; the evidence that it was this checkout is in the table above.
 - `expo-navigation-bar` is a new native module: the generated `android/` folder needs a fresh prebuild (the distribution script does it).
+
+## Rulings
+
+Copied in order from the ledger (`.superpowers/sdd/2026-11-22-console-layout/progress.md`), which is the source, each with what it costs if wrong.
+
+### Pre-flight
+1. Ruling: 914x411 at 2.0 is fallback, matching the spec 7.5 example (a landscape phone at 200%). Cost if wrong: one table row.
+2. Ruling: remove the legacy `layoutFor` in Task 13 (Task 12 leaves the other screens on it). Cost if wrong: none.
+3. Ruling: the new `Screen` shell is opt-in through a prop, with the legacy path kept until Task 13. Cost if wrong: a temporary dual path.
+
+### Tasks
+4. Task 1: fallback still returns a region plan and consumers use it (HUD and actions stay pinned, spec 7.5). Cost if wrong: none.
+5. Task 5: the d-pad is hidden for coarse pointers only when landscape height is under 480 or portrait height under 800 (the rail buttons are directly tappable). Cost if wrong: the d-pad is missing on small phones.
+6. Task 6 dispatch: the HUD is about 52 px in the real web shell while the contract said `HUD_LINE` 28; the contract is made honest (`HUD_LINE` and `MIN_BUDGET` per measured screen) while keeping 640x360 and 360x640 console at 1.0 and 1.3. Cost if wrong: core test churn.
+7. Task 6: orientation-split `MIN_BUDGET` accepted with the measured values (landscape title 220, map 275, battle 270, event 250, end 210; portrait title 380, map 470, battle 480, event 380, end 310); 360x640 at 2.0 is fallback for the screens that need more. Cost if wrong: phones at 200% scroll inside the primary region instead of fitting.
+8. Task 8: wiring the text size into app text (the `AppText` wrapper, loading the setting at startup) belongs to Task 8, since the contract's effective scale includes the app setting. Cost if wrong: a mechanical import change across screens.
+9. Task 9: the Task 10 wiring must put the polite live region (battle log line) outside the root that gets `useSheetBackdropProps`, with a test of the root props while a sheet is open. Cost if wrong: a screen reader never announces the turn lines (no-hide-descendants silences a live region inside it).
+10. Task 12: keep the budget (console must hold at 640x360 and 360x640 at 1.0 and 1.3) and make heights deterministic instead: bounded choice cells and plates, arithmetic tests on shared constants. Cost if wrong: short detail text in the rail (the full text stays in the accessible label).
+11. Task 13: the Discard confirmation opens in a sheet, not inline: two deliberate taps as before. Cost if wrong: one more tap on a rare, destructive action (only a corrupt, unloadable save is at stake).
+
+### Final review
+12. Ruling: I1 to I5 are fixed in one final fix wave (no second wave). Cost if wrong: another wave.
+13. Ruling: I6a, the web d-pad hidden for coarse pointers on small phones (landscape height under 480, portrait under 800), accepted and the spec amended. Cost if wrong: a touch-only player without the d-pad on small phones.
+14. Ruling: I6b, arrow-key focus over the map is not implemented (Tab and the rail work); the spec is amended and it is a follow-up. Cost if wrong: keyboard users tab through up to 19 nodes.
+15. Ruling: I6c, the live region while a sheet is open differs by platform (web pauses it because the screens are inert; mobile keeps announcing per the Task 9 ruling); the spec is amended. Cost if wrong: a web screen-reader user may miss a turn message while a sheet is open.
+16. Ruling: I6d, the fallback threshold is the orientation-split budgets plus the 2.0 cap (no separate 1.3 threshold); the spec is amended. Cost if wrong: none (documentation).
+
+### Decided in the final fix wave (not in the ledger)
+17. The budgets were raised (title landscape 245, title and event portrait 460, end portrait 330) because the mobile proofs, now generated from every console row of the contract up to 200% text, showed overflow at 360x640 @150%, 411x914 @200%, 600x800 @200% (title, event), 640x360 @150% (title) and 360x640 @200% (end). Those rows fall back, on the web too. Cost if wrong: those windows scroll inside the primary region instead of fitting.
+18. The mobile proofs do not cover windows narrower than 360 dp or scales between 1.0, 1.3, 1.5 and 2.0. Cost if wrong: a very narrow phone may clip.
+19. The mobile HUD heading may be cut with an ellipsis (keeping at least 8 characters, the full text as its accessible name) when nothing else fits, for example the Spanish end heading at 411x914 @200%. Cost if wrong: a truncated heading on a large-text phone.
+20. The web fallback pins the rail (capped at 55% of the window and at what leaves the primary a quarter of it); the inline run details come after the rail in the DOM and tab order, so scrolled to the very end they push the rail away. Cost if wrong: at the end of a long fallback screen the actions are not pinned.
+
+## Leftover and stale items
+
+- Leftover: the `stageFrame` unification was deferred (spec 11.7).
+- Stale lines removed from this note: the deprecated `setVisibilityAsync` remark (the code already uses `setHidden`) and "sheet orientation read once at open" (the sheet follows rotation).
+- Flaky under load, not caused by this branch: the e2e test "battle: rotating during a turn animation" failed once with four parallel workers and passed in isolation (six repeats).
+
