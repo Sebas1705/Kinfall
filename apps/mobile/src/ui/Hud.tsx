@@ -41,6 +41,7 @@ export function Hud({ screen, onSettings, party, zoneLabel }: HudProps) {
             key={i}
             style={[styles.chip, { borderColor: p.hp <= 0 ? theme.danger : theme.border }]}
             accessible
+            accessibilityRole="text"
             accessibilityLabel={t('map.partyMember', { species: p.name, hp: p.hp, max: p.maxHp })}
             testID={`hud-chip-${i}`}
           >

@@ -29,6 +29,8 @@ describe('Hud', () => {
     expect(screen.getByText('Ashen Marsh 3/7')).toBeTruthy();
     expect(screen.getByText('Ember 7/10')).toBeTruthy();
     expect(screen.getByText('Moss 0/8')).toBeTruthy();
+    expect(screen.getByTestId('hud-chip-0').props.accessibilityLabel).toBe('Ember 7/10');
+    expect(screen.getByTestId('hud-chip-0').props.accessibilityRole).toBe('text');
     const btn = screen.getByRole('button', { name: 'Settings' });
     await fireEvent.press(btn);
     expect(onSettings).toHaveBeenCalledTimes(1);

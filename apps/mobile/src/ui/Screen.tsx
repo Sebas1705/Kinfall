@@ -26,6 +26,8 @@ const PENDING_MS = 1000;
 const REVEAL_RETRY_MS = 150;
 /** Largest share of the window height the pinned footer may take; it scrolls inside beyond that. */
 export const FOOTER_MAX_SHARE = 0.55;
+/** Largest share of the window height the pinned HUD may take in the fallback; it scrolls inside beyond that. */
+export const HUD_MAX_SHARE = 0.2;
 
 type Measurable = { measureLayout?: (relativeTo: unknown, onSuccess: (x: number, y: number, w: number, h: number) => void, onFail?: () => void) => void };
 
@@ -154,6 +156,11 @@ function RevealScroll({ children, testID, scrollRef, contentPadding, maxWidth, s
 }
 
 /**
+ * Known limitation of the console shell: the layout contract does not know the safe-area insets (its
+ * regions come from the raw window size), and the root is padded by the insets, so on a notched
+ * landscape phone the primary region can be smaller than the contract promises. To be checked on a
+ * device.
+ *
  * A scrolling screen inside the safe area (edge to edge: the app draws under the system bars and
  * keeps its content clear of them and of display cutouts in any orientation). Content grows
  * downwards only: rows wrap instead of scrolling sideways, so nothing is clipped at 360dp wide or
@@ -193,6 +200,7 @@ export function Screen(props: ScreenProps) {
 function ShellScreen({ screen, children, testID, ref, hud, primary, actions, info, onContentSizeChange }: ScreenProps & { screen: ScreenId }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const spec = useLayoutSpec(screen);
   const { regions } = spec;
   const landscape = spec.orientation === 'landscape';
@@ -222,13 +230,20 @@ function ShellScreen({ screen, children, testID, ref, hud, primary, actions, inf
     );
   }
 
-  // Fallback: HUD and actions stay pinned (never inside a scroll area), the primary region and the
-  // info line scroll.
+  // Fallback: HUD and actions stay pinned outside the primary scroll area, each capped (HUD_MAX_SHARE
+  // and FOOTER_MAX_SHARE of the window, scrolling inside beyond that) so the primary region keeps at
+  // least a quarter of the window; the primary region and the info line scroll.
   const side = { left: 16, right: 16 };
   return (
     <View style={[styles.screen, styles.shellRoot, pad, { backgroundColor: theme.bg }]} testID={testID}>
       <View style={column}>
-        <View>{hud}</View>
+        {hud ? (
+          <View style={{ maxHeight: Math.round(height * HUD_MAX_SHARE), flexShrink: 0 }}>
+            <RevealScroll contentPadding={{ top: 0, bottom: 0, left: 0, right: 0 }} maxWidth={regions.content.width} style={styles.footerScroll}>
+              {hud}
+            </RevealScroll>
+          </View>
+        ) : null}
         <RevealScroll
           scrollRef={ref}
           style={styles.screen}
@@ -241,8 +256,10 @@ function ShellScreen({ screen, children, testID, ref, hud, primary, actions, inf
           {infoLine}
         </RevealScroll>
         {actions ? (
-          <View style={[styles.footer, { borderColor: theme.border, backgroundColor: theme.surface, paddingHorizontal: 16, paddingVertical: 12 }]}>
-            {actions}
+          <View style={[styles.footer, { maxHeight: Math.round(height * FOOTER_MAX_SHARE), borderColor: theme.border, backgroundColor: theme.surface }]}>
+            <RevealScroll contentPadding={{ top: 12, bottom: 12, ...side }} maxWidth={regions.content.width} style={styles.footerScroll}>
+              {actions}
+            </RevealScroll>
           </View>
         ) : null}
       </View>

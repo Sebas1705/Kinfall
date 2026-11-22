@@ -6,7 +6,8 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react-n
 import { createRef } from 'react';
 import { Dimensions, StyleSheet, Text, type ScrollViewInstance } from 'react-native';
 
-import { FOOTER_MAX_SHARE, revealScrollY, Screen, useReveal, type Reveal } from '../../src/ui/Screen';
+import * as SafeArea from 'react-native-safe-area-context';
+import { FOOTER_MAX_SHARE, HUD_MAX_SHARE, revealScrollY, Screen, useReveal, type Reveal } from '../../src/ui/Screen';
 
 /** Top padding of the scrolling content (Screen's PAD_TOP): measured positions are below it. */
 const PAD_TOP = 16;
@@ -217,13 +218,46 @@ describe('Screen shell (opt-in through the screen prop)', () => {
     windowIs(640, 360, 2);
     await render(shell);
     const scrolls = scrollViews(screen.toJSON() as Json | Json[] | null);
-    expect(scrolls).toHaveLength(1);
-    const inside = textsIn(scrolls[0]!);
-    expect(inside).toContain('primary-slot');
-    expect(inside).not.toContain('hud-slot');
-    expect(inside).not.toContain('actions-slot');
+    // The primary has its own scroll area; the capped HUD and actions may have one each.
+    const primary = scrolls.find((sv) => textsIn(sv).includes('primary-slot'))!;
+    expect(primary).toBeTruthy();
+    expect(textsIn(primary)).not.toContain('hud-slot');
+    expect(textsIn(primary)).not.toContain('actions-slot');
+    const actionsScroll = scrolls.find((sv) => textsIn(sv).includes('actions-slot'))!;
+    expect(textsIn(actionsScroll)).not.toContain('primary-slot');
+    expect(textsIn(actionsScroll)).not.toContain('hud-slot');
+    expect(scrolls.length).toBeLessThanOrEqual(3);
     expect(screen.getByText('hud-slot')).toBeTruthy();
     expect(screen.getByText('actions-slot')).toBeTruthy();
+  });
+
+  it('caps the pinned HUD and tall actions so the primary keeps at least a quarter of the window', async () => {
+    windowIs(640, 360, 2);
+    await render(
+      <Screen screen="battle" hud={<Text>hud-slot</Text>} actions={<Text>tall-actions</Text>}>
+        <Text>primary-slot</Text>
+      </Screen>,
+    );
+    const caps = (text: string) => {
+      let n = screen.getByText(text).parent;
+      while (n) {
+        const m = StyleSheet.flatten(n.props.style)?.maxHeight;
+        if (typeof m === 'number') return m;
+        n = n.parent;
+      }
+      return NaN;
+    };
+    expect(caps('hud-slot')).toBe(Math.round(360 * HUD_MAX_SHARE));
+    expect(caps('tall-actions')).toBe(Math.round(360 * FOOTER_MAX_SHARE));
+    expect(360 - caps('hud-slot') - caps('tall-actions')).toBeGreaterThanOrEqual(360 * 0.25);
+  });
+
+  it('pads the console root by the safe-area insets', async () => {
+    windowIs(640, 360, 1);
+    jest.spyOn(SafeArea, 'useSafeAreaInsets').mockReturnValue({ top: 0, bottom: 20, left: 44, right: 44 });
+    await render(shell);
+    const root = StyleSheet.flatten(screen.getByTestId('scr').props.style);
+    expect(root).toMatchObject({ paddingTop: 0, paddingBottom: 20, paddingLeft: 44, paddingRight: 44 });
   });
 
   it('keeps the legacy ScrollView path when no screen is given', async () => {

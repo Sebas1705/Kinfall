@@ -12,7 +12,15 @@ export const IMMERSIVE_DEFAULT = true;
 let value = IMMERSIVE_DEFAULT;
 /** Bumped by every set(), so a load that was already in flight does not overwrite it. */
 let version = 0;
+/** True once the saved choice was read (or a set() made one), so the bars are not touched with the default before that. */
+let loadedFlag = false;
 let storage: AsyncStorageLike | null | undefined;
+const loadedListeners = new Set<() => void>();
+function markLoaded(): void {
+  if (loadedFlag) return;
+  loadedFlag = true;
+  for (const l of [...loadedListeners]) l();
+}
 const listeners = new Set<(v: boolean) => void>();
 
 function store(): AsyncStorageLike | null {
@@ -25,6 +33,16 @@ function emit(): void {
 }
 
 export const immersiveSetting = {
+  /** Whether the saved choice has been read. */
+  isLoaded(): boolean {
+    return loadedFlag;
+  },
+  subscribeLoaded(fn: () => void): () => void {
+    loadedListeners.add(fn);
+    return () => {
+      loadedListeners.delete(fn);
+    };
+  },
   /** Whether immersive mode is on. */
   get(): boolean {
     return value;
@@ -37,6 +55,7 @@ export const immersiveSetting = {
       value = v;
       emit();
     }
+    markLoaded();
     try {
       await store()?.setItem(IMMERSIVE_KEY, v ? '1' : '0');
     } catch {
@@ -67,6 +86,7 @@ export async function loadImmersiveSetting(custom?: AsyncStorageLike | null): Pr
     value = loaded;
     emit();
   }
+  markLoaded();
   return value;
 }
 
@@ -78,6 +98,8 @@ export function useImmersive(): boolean {
 /** Test hook: back to the default and AsyncStorage. */
 export function resetImmersiveSettingForTests(): void {
   value = IMMERSIVE_DEFAULT;
+  loadedFlag = false;
   storage = undefined;
   emit();
+  for (const l of [...loadedListeners]) l();
 }
