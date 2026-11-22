@@ -971,3 +971,82 @@ button {
   transition: none !important;
   animation: none !important;
 }
+
+/* ---- sheet: bottom sheet in portrait, side drawer in landscape (see src/view/sheet.ts) ---- */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  background: rgb(0 0 0 / 0.5);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  padding: 1rem calc(1rem + env(safe-area-inset-right)) calc(1rem + env(safe-area-inset-bottom))
+    calc(1rem + env(safe-area-inset-left));
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sheet[data-orientation='portrait'] {
+  align-self: flex-end;
+  width: 100%;
+  max-height: 80dvh;
+  border-radius: var(--radius) var(--radius) 0 0;
+  animation: sheet-up 0.2s ease-out;
+}
+
+.sheet[data-orientation='landscape'] {
+  margin-left: auto;
+  width: min(24rem, 60vw);
+  height: 100%;
+  border-radius: var(--radius) 0 0 var(--radius);
+  animation: sheet-in 0.2s ease-out;
+}
+
+.sheet__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.sheet__close {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  align-self: flex-end;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none !important;
+  }
+}
+
+.reduce-motion .sheet {
+  animation: none !important;
+}
