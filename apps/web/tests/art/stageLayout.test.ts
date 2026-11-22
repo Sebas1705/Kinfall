@@ -46,6 +46,14 @@ describe('stageFrame', () => {
     expect(stageFrame(MIN_VISIBLE_WIDTH * 2 - 1).scale).toBe(1);
   });
 
+  it('caps the whole-number scale for a short region and never goes below 1x', () => {
+    expect(stageFrame(808).scale).toBe(3);
+    expect(stageFrame(808, 0, undefined, 2).scale).toBe(2);
+    expect(stageFrame(360, 26, undefined, 1).scale).toBe(1);
+    expect(stageFrame(360, 26, undefined, 0.4).scale).toBe(1);
+    expect(stageFrame(360, 26, undefined, 1.9).scale).toBe(1);
+  });
+
   it('crops sky rows from the top when asked', () => {
     const f = stageFrame(400, 26);
     expect(f.originY).toBe(26);

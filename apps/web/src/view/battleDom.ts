@@ -8,6 +8,7 @@ import type { BattleState, Side } from '@kinfall/core/sim/state';
 import type { BattleUi } from './controller';
 import { renderMenu } from './menu';
 import { byId } from './settings';
+import { openSheet } from './sheet';
 
 export interface BattleDom {
   ui: BattleUi;
@@ -27,6 +28,8 @@ export function createBattleDom(content: Content, bindInput: (onAction: (a: Game
   const resultNote = byId<HTMLParagraphElement>('result-note');
   const newBattle = byId<HTMLButtonElement>('new-battle');
   const dpad = byId<HTMLElement>('dpad');
+  const logOpen = byId<HTMLButtonElement>('hud-log');
+  const battleSection = byId<HTMLElement>('screen-battle');
 
   let buttons: HTMLButtonElement[] = [];
   let selected = 0;
@@ -120,6 +123,25 @@ export function createBattleDom(content: Content, bindInput: (onAction: (a: Game
       }
     },
   };
+
+  // The HUD's Log button (shown on the battle screen only) lends the live log to a sheet (the same
+  // node, so it stays one polite live region and keeps its history) and puts it back on close.
+  const syncLogButton = () => {
+    logOpen.hidden = battleSection.hidden;
+  };
+  syncLogButton();
+  new MutationObserver(syncLogButton).observe(battleSection, { attributes: true, attributeFilter: ['hidden'] });
+  logOpen.addEventListener('click', () => {
+    const home = log.parentElement!;
+    openSheet({
+      title: t('battle.log'),
+      content: log,
+      opener: logOpen,
+      onClose: () => home.append(log),
+    });
+    const body = log.closest<HTMLElement>('.sheet__body');
+    if (body) body.scrollTop = body.scrollHeight;
+  });
 
   // Track the selection when focus moves by Tab or pointer.
   choices.addEventListener('focusin', (e) => {

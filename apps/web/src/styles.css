@@ -120,6 +120,9 @@ body {
 /* The old screens span primary and the still empty actions area until they are recomposed. */
 .app[data-mode] > .screens {
   grid-area: 2 / 1 / 3 / -1;
+  /* Contains the visually hidden (absolutely positioned) texts, so one deep in a scrolled screen
+     cannot stretch the page. */
+  position: relative;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -183,9 +186,24 @@ body {
   display: none;
 }
 
+.hud__btn--text {
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+}
+
+/* In the fallback layout the log stays a regular panel in the battle's flow. */
+.app[data-mode='fallback'] #hud-log {
+  display: none;
+}
+
 .title {
   font-size: 1.15rem;
   margin: 0;
+  /* Gives way (with an ellipsis) when the HUD buttons need the room, e.g. 150% text at 320 px. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings {
@@ -542,6 +560,243 @@ button {
 
   .log {
     height: 14rem;
+  }
+}
+
+/* ---- battle in the console layout (see src/view/layout.ts) ----
+   The stage fills the primary region (its rect is what battleView fits the scene to), the latest
+   log line floats over its bottom edge next to the Log button, and the choices are a one- or
+   two-column rail in the actions region: right of the stage in landscape, a band under it in
+   portrait. The d-pad (touch only) is one compact strip under the stage, the abandon footer goes
+   under the rail. In `fallback` none of this applies: the old stacked flow scrolls inside
+   `.screens`. */
+.app[data-mode='console'] .battle:not([hidden]) {
+  height: 100%;
+  min-height: 0;
+  gap: 0 0.5rem;
+  grid-template-columns: minmax(0, 1fr) var(--rail-w, 0px);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    'stage menu'
+    'stage footer'
+    'dpad dpad';
+}
+
+.app[data-orientation='portrait'][data-mode='console'] .battle:not([hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(var(--stage-h, 40%), auto) minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    'stage'
+    'menu'
+    'dpad'
+    'footer';
+}
+
+.app[data-mode='console'] .stage {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app[data-mode='console'] .stage .scene {
+  flex: none;
+}
+
+/* The latest log line over the scene's bottom edge (battleView publishes --scene-bottom, the
+   edge in px from the stage's top; without it the line sits at the stage's bottom). The Log button
+   that opens the full history is in the HUD. */
+.app[data-mode='console'] .log-panel {
+  grid-area: stage;
+  align-self: end;
+  pointer-events: none;
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  --k-plate-w: 6px;
+}
+
+.app[data-mode='console'] .log-panel > .panel-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.app[data-mode='console'] .log-panel > .log {
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  /* exactly one text line plus the frame; the newest turn stays in view at the bottom */
+  height: calc(1.4em + 2 * var(--k-plate-w, 1px));
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  padding: 0 0.4rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.app[data-mode='console'] .log-panel > .log .log-turn {
+  flex: none;
+  border-top: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.app[data-mode='console'] .log-panel > .log p {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app[data-mode='console'] .battle[style*='--scene-bottom'] .log-panel {
+  align-self: start;
+  margin-top: var(--scene-bottom);
+  transform: translateY(-100%);
+}
+
+/* The full log inside the sheet: a plain scrolling history (the sheet body scrolls). */
+.sheet .log {
+  height: auto;
+  overflow: visible;
+  display: block;
+  padding: 0.5rem 0.75rem;
+}
+
+/* The rail. */
+.app[data-mode='console'] .menu-panel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.app[data-mode='console'] .prompt {
+  font-size: 0.9rem;
+  line-height: 1.15;
+  margin-bottom: 0.2rem;
+}
+
+.app[data-mode='console'] .choice-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.app[data-mode='console'] .choice-group + .choice-group {
+  margin-top: 0.3rem;
+}
+
+.app[data-mode='console'] .choice-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+/* Denser buttons: the pixel frames are drawn at half width (still 1 css px per art pixel), so six
+   choices, the abandon button and the strip fit the 205 px rail of a 640x360 phone. */
+.app[data-mode='console'] :is(.menu-panel, .battle-footer, .log-panel, .dpad) {
+  --k-btn-w: 5px;
+}
+
+.app[data-mode='console'] .choice {
+  min-height: 44px;
+  padding: 0.1rem 0.3rem;
+  gap: 0;
+  line-height: 1.15;
+}
+
+.app[data-mode='console'] .choice-label {
+  font-size: 0.85rem;
+}
+
+.app[data-mode='console'] .choice-detail {
+  font-size: 0.7rem;
+}
+
+.app[data-mode='console'] .battle-footer {
+  align-self: start;
+  margin-top: 0.25rem;
+}
+
+/* A landscape phone has no height to spare: the page frame gives some back. */
+@media (max-height: 479px) {
+  .app[data-orientation='landscape'][data-mode='console'] {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
+
+  .app[data-orientation='landscape'][data-mode='console'] > .hud {
+    padding-bottom: 0.25rem;
+  }
+
+  .app[data-orientation='landscape'][data-mode='console'] > .footer {
+    margin-top: 0;
+  }
+}
+
+/* The d-pad is one compact strip. It needs a row of its own, so on windows too short for it next
+   to the stage and the choices (phones) it steps aside: the choices are plain buttons to tap. */
+.app[data-mode='console'] .dpad {
+  grid-area: dpad;
+  gap: 0.3rem 0.5rem;
+  justify-content: flex-start;
+  padding-top: 0.4rem;
+}
+
+.app[data-mode='console'] .dpad-cross {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.app[data-mode='console'] .dpad-cross .pad {
+  grid-area: auto;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+.app[data-mode='console'] .pad--left {
+  order: 1;
+}
+.app[data-mode='console'] .pad--up {
+  order: 2;
+}
+.app[data-mode='console'] .pad--down {
+  order: 3;
+}
+.app[data-mode='console'] .pad--right {
+  order: 4;
+}
+
+.app[data-mode='console'] .dpad-buttons {
+  flex-direction: row;
+  gap: 0.25rem;
+}
+
+.app[data-mode='console'] .pad--wide {
+  min-width: 0;
+}
+
+@media (pointer: coarse) and (max-height: 479px) {
+  .app[data-orientation='landscape'][data-mode='console'] .dpad {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) and (max-height: 799px) {
+  .app[data-orientation='portrait'][data-mode='console'] .dpad {
+    display: none;
   }
 }
 

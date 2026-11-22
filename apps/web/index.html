@@ -13,6 +13,7 @@
         <h1 class="title" data-i18n="app.title">Kinfall</h1>
         <div class="hud__party" id="hud-party"></div>
         <div class="hud__buttons">
+          <button type="button" class="hud__btn hud__btn--text" id="hud-log" data-i18n="battle.openLog" hidden>Log</button>
           <button type="button" class="hud__btn" id="hud-settings" data-i18n-label="hud.settings" aria-label="Settings"><span aria-hidden="true">&#9881;</span></button>
           <button type="button" class="hud__btn" id="hud-fullscreen" data-i18n-label="hud.fullscreen" aria-label="Enter fullscreen" hidden><span aria-hidden="true">&#9974;</span></button>
         </div>
@@ -59,7 +60,9 @@
             <p class="summary sr-only" id="summary"></p>
           </section>
 
-          <section class="log-panel" aria-labelledby="log-title">
+          <!-- In the console layout the log is a one-line message over the stage; the HUD's Log button lends the
+               same live region (#log) to a sheet with the full history and takes it back on close. -->
+          <section class="log-panel" id="log-panel" aria-labelledby="log-title">
             <h2 class="panel-title" id="log-title" data-i18n="battle.log">Battle log</h2>
             <div class="log" id="log" role="log" aria-live="polite" aria-labelledby="log-title" tabindex="0"></div>
           </section>
