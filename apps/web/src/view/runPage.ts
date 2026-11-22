@@ -13,7 +13,8 @@ import { createRunController } from './runController';
 import { createRunUi } from './runUi';
 import { bindScreenInput } from './screenInput';
 import { initialSeed, randomSeed } from './screens/title';
-import { applyI18nAttributes, byId, wireTextSize } from './settings';
+import { applyI18nAttributes, byId, refreshSheetTexts, wireSettingsButton, wireTextSize } from './settings';
+import { wireFullscreenButton } from './fullscreen';
 
 export function startRunPage(): void {
   const root = byId<HTMLElement>('screens');
@@ -97,9 +98,12 @@ export function startRunPage(): void {
   langSelect.addEventListener('change', () => {
     setLang(langSelect.value === 'es' ? 'es' : 'en');
     applyI18nAttributes();
+    refreshSheetTexts();
     controller.refreshText();
   });
 
+  wireSettingsButton(byId<HTMLButtonElement>('hud-settings'));
+  wireFullscreenButton(byId<HTMLButtonElement>('hud-fullscreen'));
   applyI18nAttributes();
   controller.showTitle({ focus: false });
 }

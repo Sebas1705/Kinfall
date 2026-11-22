@@ -10,7 +10,8 @@ import type { BattleView } from './battleView';
 import { createBattleController } from './controller';
 import { demoTeams } from './demo';
 import { isolateScreen } from './router';
-import { applyI18nAttributes, byId, wireTextSize } from './settings';
+import { applyI18nAttributes, byId, refreshSheetTexts, wireSettingsButton, wireTextSize } from './settings';
+import { wireFullscreenButton } from './fullscreen';
 
 export async function startBattlePage(): Promise<void> {
   isolateScreen(byId<HTMLElement>('screens'), 'battle');
@@ -81,8 +82,12 @@ export async function startBattlePage(): Promise<void> {
   langSelect.addEventListener('change', () => {
     setLang(langSelect.value === 'es' ? 'es' : 'en');
     applyStaticText();
+    refreshSheetTexts();
     controller.refreshText();
   });
+
+  wireSettingsButton(byId<HTMLButtonElement>('hud-settings'));
+  wireFullscreenButton(byId<HTMLButtonElement>('hud-fullscreen'));
 
   newBattle.addEventListener('click', () => controller.start());
 

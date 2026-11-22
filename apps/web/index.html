@@ -9,10 +9,18 @@
   </head>
   <body>
     <div class="app" id="app">
-      <header class="topbar">
+      <header class="hud">
         <h1 class="title" data-i18n="app.title">Kinfall</h1>
-        <section class="settings" aria-labelledby="settings-title">
-          <h2 class="sr-only" id="settings-title" data-i18n="settings.title">Settings</h2>
+        <div class="hud__party" id="hud-party"></div>
+        <div class="hud__buttons">
+          <button type="button" class="hud__btn" id="hud-settings" data-i18n-label="hud.settings" aria-label="Settings"><span aria-hidden="true">&#9881;</span></button>
+          <button type="button" class="hud__btn" id="hud-fullscreen" data-i18n-label="hud.fullscreen" aria-label="Enter fullscreen" hidden><span aria-hidden="true">&#9974;</span></button>
+        </div>
+      </header>
+
+      <!-- The settings controls live here while the sheet is closed; the HUD button lends them to it. -->
+      <div id="settings-store" hidden>
+        <section class="settings" id="settings-panel">
           <label class="setting">
             <span data-i18n="settings.language">Language</span>
             <select id="lang">
@@ -30,7 +38,7 @@
             <output id="text-size-value" for="text-size">100%</output>
           </label>
         </section>
-      </header>
+      </div>
 
       <p class="sr-only" data-announcer aria-live="polite" aria-atomic="true"></p>
 

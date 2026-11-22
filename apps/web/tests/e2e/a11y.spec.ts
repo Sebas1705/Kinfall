@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { setLanguage, setTextSize } from './run-helpers';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
@@ -8,13 +9,8 @@ async function openBattle(page: Page, lang: 'en' | 'es', textSize: number): Prom
   await page.goto('/?mode=battle&seed=a11y');
   // Wait for the page script to wire the settings before using them.
   await expect(page.locator('#choices button').first()).toBeVisible();
-  await page.selectOption('#lang', lang);
-  await page.locator('#text-size').evaluate((el, v) => {
-    const input = el as HTMLInputElement;
-    input.value = String(v);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  }, textSize);
-  await expect(page.locator('html')).toHaveAttribute('lang', lang);
+  await setLanguage(page, lang);
+  await setTextSize(page, textSize);
 }
 
 const sizes = [
@@ -75,6 +71,49 @@ for (const textSize of [80, 100, 150]) {
         return out;
       });
       expect(small).toEqual([]);
+    });
+  }
+}
+
+for (const textSize of [80, 100, 150]) {
+  for (const lang of ['en', 'es'] as const) {
+    test(`settings sheet at 320px: axe, no overflow, 44px targets, focus order (${lang}, text ${textSize}%)`, async ({ page }) => {
+      await page.setViewportSize({ width: 320, height: 640 });
+      await openBattle(page, lang, textSize);
+      await page.locator('#hud-settings').click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+
+      const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+      expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([]);
+
+      const m = await page.evaluate(() => {
+        const out: string[] = [];
+        for (const el of document.querySelectorAll<HTMLElement>('.sheet select, .sheet input, .sheet button')) {
+          let r = el.getBoundingClientRect();
+          const label = el instanceof HTMLInputElement && el.type === 'checkbox' ? el.closest('label') : null;
+          if (label) {
+            const lr = label.getBoundingClientRect();
+            if (lr.width * lr.height > r.width * r.height) r = lr;
+          }
+          if (r.width < 43.5 || r.height < 43.5) out.push(`${el.tagName.toLowerCase()}#${el.id} ${r.width.toFixed(1)}x${r.height.toFixed(1)}`);
+        }
+        const sheet = document.querySelector('.sheet')!.getBoundingClientRect();
+        return { small: out, over: document.documentElement.scrollWidth - document.documentElement.clientWidth, sheetRight: sheet.right };
+      });
+      expect(m.small).toEqual([]);
+      expect(m.over).toBeLessThanOrEqual(0);
+      expect(m.sheetRight).toBeLessThanOrEqual(320);
+
+      // Focus order: language, reduce motion, text size, close, then back to the first control.
+      const order: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        order.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.className || ''));
+        await page.keyboard.press('Tab');
+      }
+      expect(order).toEqual(['lang', 'reduce-motion', 'text-size', 'sheet__close secondary', 'lang']);
+      await page.keyboard.press('Escape');
+      await expect(page.locator('#hud-settings')).toBeFocused();
     });
   }
 }
