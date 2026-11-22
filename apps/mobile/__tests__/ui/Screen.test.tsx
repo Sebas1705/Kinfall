@@ -260,6 +260,56 @@ describe('Screen shell (opt-in through the screen prop)', () => {
     expect(root).toMatchObject({ paddingTop: 0, paddingBottom: 20, paddingLeft: 44, paddingRight: 44 });
   });
 
+  describe('backdrop and overlay (a sheet over the screen)', () => {
+    const hidden = { importantForAccessibility: 'no-hide-descendants', accessibilityElementsHidden: true } as const;
+    const withSheet = (
+      <Screen screen="battle" testID="scr" hud={<Text>hud-slot</Text>} actions={<Text>actions-slot</Text>} backdrop={hidden} overlay={<Text>live-slot</Text>}>
+        <Text>primary-slot</Text>
+      </Screen>
+    );
+    const hiddenAbove = (id: string) => {
+      for (let n = screen.getByText(id, { includeHiddenElements: true }).parent; n; n = n.parent) {
+        if (n.props.importantForAccessibility === 'no-hide-descendants') return true;
+      }
+      return false;
+    };
+
+    it.each([
+      [640, 360, 1],
+      [360, 640, 1],
+      [360, 640, 2],
+    ])('hides the regions but not the overlay at %ix%i, font scale %s', async (w, h, fs) => {
+      windowIs(w, h, fs);
+      await render(withSheet);
+      for (const id of ['hud-slot', 'primary-slot', 'actions-slot']) expect([id, hiddenAbove(id)]).toEqual([id, true]);
+      expect(hiddenAbove('live-slot')).toBe(false);
+    });
+
+    it('floats the overlay over the primary region and, in portrait, reserves the info line for it', async () => {
+      windowIs(360, 640, 1);
+      await render(withSheet);
+      const overlay = StyleSheet.flatten(screen.getByTestId('scr-overlay').props.style);
+      expect(overlay).toMatchObject({ position: 'absolute', bottom: 0, left: 0, right: 0 });
+      expect(overlay.height).toBeGreaterThan(0);
+    });
+
+    it('floats the overlay at its own height in landscape, where there is no info line', async () => {
+      windowIs(640, 360, 1);
+      await render(withSheet);
+      const overlay = StyleSheet.flatten(screen.getByTestId('scr-overlay').props.style);
+      expect(overlay).toMatchObject({ position: 'absolute', bottom: 0 });
+      expect(overlay.height).toBeUndefined();
+    });
+
+    it('is a strip between the scrolling primary region and the actions in the fallback', async () => {
+      windowIs(360, 640, 2);
+      await render(withSheet);
+      const strip = screen.getByTestId('scr-overlay');
+      expect(StyleSheet.flatten(strip.props.style).position).toBeUndefined();
+      expect(within(screen.getByTestId('scr-scroll', { includeHiddenElements: true })).queryByText('live-slot', { includeHiddenElements: true })).toBeNull();
+    });
+  });
+
   it('keeps the legacy ScrollView path when no screen is given', async () => {
     windowIs(640, 360, 1);
     await render(

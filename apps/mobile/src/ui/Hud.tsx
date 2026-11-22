@@ -5,6 +5,7 @@
 import type { PartyRow } from '@kinfall/core/models/party';
 import type { ScreenId } from '@kinfall/core/layout/spec';
 import { t } from '@kinfall/core/platform/i18n';
+import type { ComponentRef, Ref } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useLang } from '../platform/LangContext';
@@ -19,9 +20,14 @@ export interface HudProps {
   party?: PartyRow[];
   /** Zone and node, e.g. "Ashen Marsh 3/7"; the app title when omitted. */
   zoneLabel?: string;
+  /** Shows a Log button before Settings (the battle's full log sheet). */
+  onLog?: () => void;
+  /** Refs of the two buttons: the sheets they open give them the focus back on close. */
+  logRef?: Ref<ComponentRef<typeof View>>;
+  settingsRef?: Ref<ComponentRef<typeof View>>;
 }
 
-export function Hud({ screen, onSettings, party, zoneLabel }: HudProps) {
+export function Hud({ screen, onSettings, party, zoneLabel, onLog, logRef, settingsRef }: HudProps) {
   useLang();
   const theme = useTheme();
   const spec = useLayoutSpec(screen);
@@ -51,7 +57,22 @@ export function Hud({ screen, onSettings, party, zoneLabel }: HudProps) {
           </View>
         ))}
       </View>
+      {onLog ? (
+        <Pressable
+          ref={logRef}
+          onPress={onLog}
+          accessibilityRole="button"
+          accessibilityLabel={t('battle.openLog')}
+          style={({ pressed }) => [styles.settings, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}
+          testID="hud-log"
+        >
+          <AppText style={[styles.settingsText, { color: theme.text }]} numberOfLines={1}>
+            {t('battle.openLog')}
+          </AppText>
+        </Pressable>
+      ) : null}
       <Pressable
+        ref={settingsRef}
         onPress={onSettings}
         accessibilityRole="button"
         accessibilityLabel={t('hud.settings')}

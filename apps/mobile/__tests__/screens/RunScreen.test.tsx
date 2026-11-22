@@ -131,7 +131,7 @@ describe('map screen', () => {
     expect(node.type).toBe('wild');
     await user.press(screen.getByTestId(`node-${node.id}`));
     expect(screen.getByTestId('battle-screen')).toBeTruthy();
-    expect(screen.getByTestId('battle-heading').props.children).toBe(nodeTypeLabel(node.type));
+    expect(screen.getByTestId('hud-title').props.children).toBe(nodeTypeLabel(node.type));
     expect(screen.queryByTestId('map-screen')).toBeNull();
     // The battle has its own log; the run log line of the pick waits for the next phase.
     expect(screen.queryByTestId('run-log')).toBeNull();

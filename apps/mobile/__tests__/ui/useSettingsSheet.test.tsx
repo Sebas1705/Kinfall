@@ -53,6 +53,32 @@ describe('useSettingsSheet', () => {
     expect(focus.mock.calls[0]![1]).toBe('focus');
   });
 
+  it('shows extra content in the sheet and runs onClose when it closes (also through close())', async () => {
+    const onClose = jest.fn();
+    let controls: ReturnType<typeof useSettingsSheet> | undefined;
+    function WithExtra() {
+      controls = useSettingsSheet({ extra: <Text>extra-row</Text>, onClose });
+      return (
+        <>
+          <Pressable ref={controls.openerRef as never} onPress={controls.open} testID="opener">
+            <Text>open</Text>
+          </Pressable>
+          {controls.sheet}
+        </>
+      );
+    }
+    await render(<WithExtra />);
+    expect(screen.queryByText('extra-row')).toBeNull();
+    await fireEvent.press(screen.getByTestId('opener'));
+    expect(screen.getByText('extra-row')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByTestId('opener'));
+    await act(async () => controls!.close());
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('extra-row')).toBeNull();
+  });
+
   it('keeps open stable across renders', async () => {
     const seen: Array<() => void> = [];
     function Probe() {

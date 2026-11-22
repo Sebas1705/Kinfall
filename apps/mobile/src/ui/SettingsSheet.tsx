@@ -2,7 +2,7 @@
 // of 10) and, on Android only, the immersive switch (on iOS immersive is a no-op, so the row is hidden).
 // Caller requirements are those of Sheet (backdrop props on a sibling root).
 import { t } from '@kinfall/core/platform/i18n';
-import type { RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { AccessibilityInfo, Platform, StyleSheet, View } from 'react-native';
 
 import { needsExplicitAnnouncements } from '../platform/announce';
@@ -20,6 +20,8 @@ export interface SettingsSheetProps {
   visible: boolean;
   onClose: () => void;
   openerRef?: RefObject<unknown>;
+  /** Extra content under the settings (the battle's Abandon button and seed line). */
+  extra?: ReactNode;
 }
 
 function TextSizeStepper() {
@@ -93,7 +95,7 @@ function ImmersiveSwitch() {
   );
 }
 
-export function SettingsSheet({ visible, onClose, openerRef }: SettingsSheetProps) {
+export function SettingsSheet({ visible, onClose, openerRef, extra }: SettingsSheetProps) {
   useLang();
   return (
     <Sheet visible={visible} onClose={onClose} title={t('settings.title')} screen="title" openerRef={openerRef} testID="settings-sheet">
@@ -101,6 +103,7 @@ export function SettingsSheet({ visible, onClose, openerRef }: SettingsSheetProp
       <MotionToggle />
       <TextSizeStepper />
       {Platform.OS === 'android' ? <ImmersiveSwitch /> : null}
+      {extra}
     </Sheet>
   );
 }

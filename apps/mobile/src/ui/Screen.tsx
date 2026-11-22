@@ -169,7 +169,8 @@ function RevealScroll({ children, testID, scrollRef, contentPadding, maxWidth, s
  * choices); it scrolls by itself when it is taller than its share of the window.
  */
 export interface ScreenProps {
-  children: ReactNode;
+  /** The content; in the shell it can be replaced by `primary`. */
+  children?: ReactNode;
   testID?: string;
   ref?: Ref<ScrollViewInstance>;
   /** Called after the content changed size. */
@@ -191,13 +192,32 @@ export interface ScreenProps {
   actions?: ReactNode;
   /** Shell only: the info line under the primary region (portrait only). */
   info?: ReactNode;
+  /**
+   * Shell only: props for every pinned region and the primary content, hiding them from screen
+   * readers while a sheet is open (`useSheetBackdropProps`). They go on the regions, not on the root,
+   * so that the overlay stays outside the hidden part.
+   */
+  backdrop?: BackdropProps;
+  /**
+   * Shell only: a live message line that must keep announcing while a sheet is open. It floats over
+   * the bottom edge of the primary region (in portrait it takes the info line's place, which is
+   * reserved for it); in the fallback it is a strip between the scrolling primary region and the
+   * actions. Never hidden by `backdrop`.
+   */
+  overlay?: ReactNode;
+}
+
+/** The accessibility props `useSheetBackdropProps` returns. */
+export interface BackdropProps {
+  importantForAccessibility: 'auto' | 'no-hide-descendants';
+  accessibilityElementsHidden: boolean;
 }
 
 export function Screen(props: ScreenProps) {
   return props.screen ? <ShellScreen {...props} screen={props.screen} /> : <LegacyScreen {...props} />;
 }
 
-function ShellScreen({ screen, children, testID, ref, hud, primary, actions, info, onContentSizeChange }: ScreenProps & { screen: ScreenId }) {
+function ShellScreen({ screen, children, testID, ref, hud, primary, actions, info, backdrop, overlay, onContentSizeChange }: ScreenProps & { screen: ScreenId }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -205,7 +225,8 @@ function ShellScreen({ screen, children, testID, ref, hud, primary, actions, inf
   const { regions } = spec;
   const landscape = spec.orientation === 'landscape';
   const main = primary ?? children;
-  const infoLine = landscape ? null : info;
+  const infoLine = landscape ? null : (info ?? (overlay ? <View /> : null));
+  const hidden = backdrop ?? {};
   // The insets eat from the primary region (it is the flexible one); the rest keeps its planned size.
   const pad = { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right };
   const column = [styles.shellColumn, { width: regions.content.width }];
@@ -215,13 +236,30 @@ function ShellScreen({ screen, children, testID, ref, hud, primary, actions, inf
     return (
       <View style={[styles.screen, styles.shellRoot, pad, { backgroundColor: theme.bg }]} testID={testID}>
         <View style={column}>
-          <View style={{ height: regions.hud.height }}>{hud}</View>
+          <View style={{ height: regions.hud.height }} {...hidden}>
+            {hud}
+          </View>
           <View style={landscape ? styles.shellRow : styles.shellColumnFill}>
             <View style={styles.shellFlex} testID={testID ? `${testID}-primary` : undefined}>
-              <View style={styles.shellFlex}>{main}</View>
-              {infoLine ? <View style={{ height: regions.info?.height ?? 0 }}>{infoLine}</View> : null}
+              <View style={styles.shellFlex} {...hidden}>
+                {main}
+              </View>
+              {infoLine ? (
+                <View style={{ height: regions.info?.height ?? 0 }} {...hidden}>
+                  {infoLine}
+                </View>
+              ) : null}
+              {overlay ? (
+                <View
+                  style={[styles.overlay, landscape ? null : { height: regions.info?.height ?? 0 }]}
+                  pointerEvents="box-none"
+                  testID={testID ? `${testID}-overlay` : undefined}
+                >
+                  {overlay}
+                </View>
+              ) : null}
             </View>
-            <View style={[styles.shellActions, actionsStyle]} testID={testID ? `${testID}-actions` : undefined}>
+            <View style={[styles.shellActions, actionsStyle]} testID={testID ? `${testID}-actions` : undefined} {...hidden}>
               {actions}
             </View>
           </View>
@@ -238,25 +276,35 @@ function ShellScreen({ screen, children, testID, ref, hud, primary, actions, inf
     <View style={[styles.screen, styles.shellRoot, pad, { backgroundColor: theme.bg }]} testID={testID}>
       <View style={column}>
         {hud ? (
-          <View style={{ maxHeight: Math.round(height * HUD_MAX_SHARE), flexShrink: 0 }}>
+          <View style={{ maxHeight: Math.round(height * HUD_MAX_SHARE), flexShrink: 0 }} {...hidden}>
             <RevealScroll contentPadding={{ top: 0, bottom: 0, left: 0, right: 0 }} maxWidth={regions.content.width} style={styles.footerScroll}>
               {hud}
             </RevealScroll>
           </View>
         ) : null}
-        <RevealScroll
-          scrollRef={ref}
-          style={styles.screen}
-          contentPadding={{ top: PAD_TOP, bottom: 16, ...side }}
-          maxWidth={regions.content.width}
-          onContentSizeChange={onContentSizeChange}
-          testID={testID ? `${testID}-scroll` : undefined}
-        >
-          {main}
-          {infoLine}
-        </RevealScroll>
+        <View style={styles.screen} {...hidden}>
+          <RevealScroll
+            scrollRef={ref}
+            style={styles.screen}
+            contentPadding={{ top: PAD_TOP, bottom: 16, ...side }}
+            maxWidth={regions.content.width}
+            onContentSizeChange={onContentSizeChange}
+            testID={testID ? `${testID}-scroll` : undefined}
+          >
+            {main}
+            {landscape ? null : info}
+          </RevealScroll>
+        </View>
+        {overlay ? (
+          <View style={styles.strip} testID={testID ? `${testID}-overlay` : undefined}>
+            {overlay}
+          </View>
+        ) : null}
         {actions ? (
-          <View style={[styles.footer, { maxHeight: Math.round(height * FOOTER_MAX_SHARE), borderColor: theme.border, backgroundColor: theme.surface }]}>
+          <View
+            style={[styles.footer, { maxHeight: Math.round(height * FOOTER_MAX_SHARE), borderColor: theme.border, backgroundColor: theme.surface }]}
+            {...hidden}
+          >
             <RevealScroll contentPadding={{ top: 12, bottom: 12, ...side }} maxWidth={regions.content.width} style={styles.footerScroll}>
               {actions}
             </RevealScroll>
@@ -313,6 +361,8 @@ const styles = StyleSheet.create({
   shellRow: { flex: 1, flexDirection: 'row', minHeight: 0 },
   shellFlex: { flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' },
   shellActions: { flexShrink: 0, overflow: 'hidden' },
+  overlay: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  strip: { flexShrink: 0 },
   body: { gap: 16, width: '100%', alignSelf: 'center' },
   footer: { borderTopWidth: 2, flexShrink: 0 },
   footerScroll: { flexGrow: 0 },

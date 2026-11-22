@@ -76,7 +76,7 @@ describe('app navigation', () => {
     // The first node of this seed is a wild battle: the battle screen comes back.
     expect(node.type).toBe('wild');
     expect(await screen.findByTestId('battle-screen')).toBeTruthy();
-    expect(screen.getByTestId('battle-heading').props.children).toBe(nodeTypeLabel(node.type));
+    expect(screen.getByTestId('hud-title').props.children).toBe(nodeTypeLabel(node.type));
     expect(route()).toBe('Run');
   });
 

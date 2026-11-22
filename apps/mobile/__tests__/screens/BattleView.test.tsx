@@ -220,14 +220,15 @@ describe('battle screen', () => {
     expect(warn).toHaveBeenCalled();
     expect(battleOf(session.getSnapshot().run)).toBe(start);
     expectShows(start);
-    expect(screen.queryByTestId('battle-log')).toBeNull();
+    // Nothing was logged: the message line is empty.
+    expect(screen.queryByTestId('battle-message-text')).toBeNull();
 
     await fireEvent.press(enabledChoices()[0]!);
     await flush();
     const after = battleOf(session.getSnapshot().run);
     expect(after).not.toBe(start);
     expectShows(after);
-    expect(screen.getAllByTestId('battle-log-line').length).toBeGreaterThan(0);
+    expect(String(screen.getByTestId('battle-message-text').props.children).length).toBeGreaterThan(0);
   });
 
   it('resumes a saved mid-battle state: same HP, status, intent and choices, empty log', async () => {
@@ -242,9 +243,9 @@ describe('battle screen', () => {
     expect(await session.resume()).toBe(true);
     await renderRunScreen(session);
     expect(screen.getByTestId('battle-screen')).toBeTruthy();
-    expect(screen.getByTestId('battle-heading').props.children).toBe(nodeTypeLabel('wild'));
+    expect(screen.getByTestId('hud-title').props.children).toBe(nodeTypeLabel('wild'));
     expectShows(saved);
-    expect(screen.queryByTestId('battle-log')).toBeNull();
+    expect(screen.queryByTestId('battle-message-text')).toBeNull();
     expect(screen.getByTestId('battle-prompt').props.children).toBe(
       `What will ${speciesName(lookup(CONTENT).species(active(saved, 'player').speciesId))} do?`,
     );
@@ -264,6 +265,8 @@ describe('battle screen', () => {
     expect(screen.queryByTestId('abandon-confirm')).toBeNull();
     expect(screen.getByTestId('battle-screen')).toBeTruthy();
 
+    // Abandon lives in the Settings sheet.
+    await fireEvent.press(screen.getByTestId('hud-settings'));
     await fireEvent.press(screen.getByTestId('abandon'));
     expect(screen.getByText('Abandon this run? Your save will be deleted.')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('abandon-confirm-yes'));
@@ -294,11 +297,14 @@ describe('battle screen', () => {
     expect(screen.getByTestId('battle-prompt').props.children).toBe(buildMenu(state, CONTENT).prompt);
     expect(screen.getByTestId('battle-prompt').props.children).toMatch(/^¿Qué hará /);
     // One turn in the log, in Spanish, not announced again.
+    // The message shows the last turn (and the Log sheet all of it), but nothing is fresh to announce.
+    expect(within(screen.getByTestId('battle-log-fresh')).queryAllByTestId('battle-message-text')).toHaveLength(0);
+    expect(String(screen.getByTestId('battle-message-text').props.children)).toMatch(/usa /);
+    expect(hpText('player')).toMatch(/^PS /);
+    await fireEvent.press(screen.getByTestId('hud-log'));
     const lines = screen.getAllByTestId('battle-log-line').map((l) => l.props.children as string);
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.some((l) => /usa /.test(l))).toBe(true);
-    expect(within(screen.getByTestId('battle-log-fresh')).queryAllByTestId('battle-log-line')).toHaveLength(0);
-    expect(hpText('player')).toMatch(/^PS /);
   });
 
   it('names the choices as buttons with element, power and focus cost, and the HUD in text', async () => {
@@ -323,6 +329,9 @@ describe('battle screen', () => {
       `You: ${species.names.en}, ${species.elements.map((e) => t(`element.${e}`)).join(' / ')}. HP ${p.hp}/${p.maxHp}, focus ${p.focus}/${p.maxFocus}.`,
     );
     expect(screen.getByRole('header', { name: 'Moves' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Log' })).toBeTruthy();
+    // Abandon is in the Settings sheet, next to the other settings.
+    await fireEvent.press(screen.getByTestId('hud-settings'));
     expect(screen.getByRole('button', { name: 'Abandon run' })).toBeTruthy();
   });
 
@@ -339,6 +348,32 @@ describe('battle screen', () => {
 
   });
 
+  it('waits for a sheet to close before moving screen-reader focus to the prompt after a settled turn', async () => {
+    mockAnimations({ stall: true });
+    const focus = jest.mocked(AccessibilityInfo.sendAccessibilityEvent);
+    const { session } = sessionInBattle(LONG);
+    await renderBattle(session);
+    await fireEvent.press(enabledChoices()[0]!);
+    await flush();
+    await fireEvent.press(screen.getByTestId('hud-log'));
+    focus.mockClear();
+    await act(async () => {
+      jest.advanceTimersByTime(watchdogMs(40));
+    });
+    await flush();
+    // The turn settled behind the open Log sheet: focus stays in the sheet.
+    const behind = screen.getAllByTestId('battle-choice', { includeHiddenElements: true });
+    expect(behind.some((c) => !c.props.accessibilityState?.disabled)).toBe(true);
+    expect(focus).not.toHaveBeenCalled();
+    await act(async () => {
+      await fireEvent.press(screen.getByTestId('log-sheet-close'));
+    });
+    // The sheet gives the focus back to its button, then the prompt takes it.
+    expect(focus).toHaveBeenCalledTimes(2);
+    expect((focus.mock.calls[0]![0] as unknown as { props: { testID: string } }).props.testID).toBe('hud-log');
+    expect((focus.mock.calls[1]![0] as unknown as { props: { testID: string } }).props.testID).toBe('battle-prompt');
+  });
+
   it('leaves screen-reader focus alone while the abandon confirmation is open', async () => {
     mockAnimations();
     const focus = jest.mocked(AccessibilityInfo.sendAccessibilityEvent);
@@ -346,7 +381,9 @@ describe('battle screen', () => {
     await renderBattle(session, { confirming: true });
     expect(screen.queryByTestId('abandon')).toBeNull();
     focus.mockClear();
-    await fireEvent.press(enabledChoices()[0]!);
+    // The confirmation's sheet is open (the choices behind it are hidden from queries).
+    const behind = screen.getAllByTestId('battle-choice', { includeHiddenElements: true });
+    await fireEvent.press(behind[0]!);
     await flush();
     expect(battleOf(session.getSnapshot().run).turn).toBeGreaterThan(0);
     expect(focus).not.toHaveBeenCalled();

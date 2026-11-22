@@ -36,6 +36,21 @@ describe('Hud', () => {
     expect(onSettings).toHaveBeenCalledTimes(1);
   });
 
+  it('shows a Log button only when onLog is given, at least 48dp, in both languages', async () => {
+    const onLog = jest.fn();
+    await render(<Hud screen="battle" onSettings={() => {}} />);
+    expect(screen.queryByTestId('hud-log')).toBeNull();
+    await screen.rerender(<Hud screen="battle" onSettings={() => {}} onLog={onLog} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Log' }));
+    expect(onLog).toHaveBeenCalledTimes(1);
+    const style = screen.getByTestId('hud-log').props.style as unknown;
+    const flat = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : (style as object));
+    expect(flat.minHeight).toBeGreaterThanOrEqual(48);
+    setLang('es');
+    await screen.rerender(<Hud screen="battle" onSettings={() => {}} onLog={onLog} />);
+    expect(screen.getByRole('button', { name: 'Registro' })).toBeTruthy();
+  });
+
   it('falls back to the app title and writes the Settings label in Spanish', async () => {
     setLang('es');
     await render(<Hud screen="title" onSettings={() => {}} />);

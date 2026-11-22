@@ -1,9 +1,11 @@
-// Adaptive layouts and accessibility of every run screen: the compact battle (choices pinned at
-// the bottom), two panes on wide windows, the abandon confirmation shown where its trigger was, and
-// a sweep that every touchable element has a role, a name, its state and a 48dp target.
+// Adaptive layouts and accessibility of every run screen: the battle in the console shell (stage,
+// message line and a choice rail or band, the pinned fallback at 200% text), two panes on wide
+// windows, the abandon confirmation shown where its trigger was, and a sweep that every touchable
+// element has a role, a name, its state and a 48dp target.
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { CONTENT } from '@kinfall/core/content';
+import { effectiveTextScale, layoutSpec } from '@kinfall/core/layout/spec';
 import { setLang } from '@kinfall/core/platform/i18n';
 import { serializeRun } from '@kinfall/core/sim/run/codec';
 import { AccessibilityInfo, BackHandler, Dimensions } from 'react-native';
@@ -11,11 +13,23 @@ import { AccessibilityInfo, BackHandler, Dimensions } from 'react-native';
 import { sampleRun, type SampleKind } from '../../src/dev/sampleRuns';
 import type { RunSession } from '../../src/run/session';
 import { RunSessionProvider } from '../../src/run/useRunSession';
-import { STAGE_HEIGHT_SHARE } from '../../src/screens/BattleView';
 import { RunScreen } from '../../src/screens/RunScreen';
 import { TitleScreen } from '../../src/screens/TitleScreen';
 import { flush, mockAnimations, sessionInBattle } from '../../test-support/battleFixtures';
 import { makeSession, memoryStorage, RUN_KEY, STARTER } from '../../test-support/runFixtures';
+
+// Counts the stage directors made: one per mounted BattleView, so a rotation must not add one.
+const mockDirectorsCreated = { count: 0 };
+jest.mock('../../src/art/stageDirector', () => {
+  const actual = jest.requireActual<typeof import('../../src/art/stageDirector')>('../../src/art/stageDirector');
+  return {
+    ...actual,
+    createStageDirector: (...args: Parameters<typeof actual.createStageDirector>) => {
+      mockDirectorsCreated.count++;
+      return actual.createStageDirector(...args);
+    },
+  };
+});
 
 type BackFn = Parameters<typeof BackHandler.addEventListener>[1];
 type Win = { width: number; height: number; fontScale: number };
@@ -106,45 +120,195 @@ function expectAccessibleTouchables() {
   }
 }
 
-describe('compact battle (large text on a small phone)', () => {
-  it('pins the choices and Abandon at the bottom, with compact HUDs and 48dp creatures', async () => {
-    windowIs(SMALL_BIG_TEXT);
+/** The host element whose children include the element with this testID (its layout container). */
+function containerOf(testID: string): El {
+  const parent = hostElements(screen.root as unknown as El).find((e) => (e.children ?? []).some((c) => typeof c !== 'string' && c.props.testID === testID));
+  if (!parent) throw new Error(`no container of ${testID}`);
+  return parent;
+}
+const childIds = (e: El) => (e.children ?? []).map((c) => (typeof c === 'string' ? c : String(c.props.testID)));
+const pageScrolls = () => hostElements(screen.root as unknown as El).filter((e) => e.type === 'RCTScrollView').length;
+const contract = (w: Win) => layoutSpec({ width: w.width, height: w.height, textScale: effectiveTextScale(w.fontScale, 1) }, 'battle');
+type Node = { parent: Node | null; props: Record<string, unknown> };
+const ancestors = (node: unknown): Array<Record<string, unknown>> => {
+  const out: Array<Record<string, unknown>> = [];
+  for (let n = (node as Node).parent; n; n = n.parent) out.push(n.props);
+  return out;
+};
+
+describe('battle in the console layout', () => {
+  const landscapes: Array<[string, Win]> = [
+    ['640x360', { width: 640, height: 360, fontScale: 1 }],
+    ['640x360 at 130%', { width: 640, height: 360, fontScale: 1.3 }],
+    ['914x411', { width: 914, height: 411, fontScale: 1 }],
+    ['914x411 at 130%', { width: 914, height: 411, fontScale: 1.3 }],
+  ];
+  for (const [label, win] of landscapes) {
+    it(`landscape ${label}: no page scroll, the choices in a rail to the right of the stage, every touchable 48dp`, async () => {
+      windowIs(win);
+      const { session } = sessionInBattle('MAPSEED1');
+      await renderRun(session);
+      expect(contract(win).mode).toBe('console');
+      expect(pageScrolls()).toBe(0);
+      const primary = screen.getByTestId('run-battle-primary');
+      const actions = screen.getByTestId('run-battle-actions');
+      expect(within(primary).getByTestId('battle-stage', { includeHiddenElements: true })).toBeTruthy();
+      expect(within(actions).getByTestId('battle-choices')).toBeTruthy();
+      // The rail follows the stage in one row, with the contract's width.
+      const row = containerOf('run-battle-primary');
+      expect(flat(row.props.style).flexDirection).toBe('row');
+      expect(childIds(row)).toEqual(['run-battle-primary', 'run-battle-actions']);
+      expect(flat(actions.props.style).width).toBe(contract(win).regions.actions.width);
+      // The stage never outgrows the primary region.
+      expect(stageHeight()).toBeLessThanOrEqual(contract(win).regions.primary.height);
+      expectAccessibleTouchables();
+    });
+  }
+
+  const portraits: Array<[string, Win]> = [
+    ['360x640', { width: 360, height: 640, fontScale: 1 }],
+    ['411x914', { width: 411, height: 914, fontScale: 1 }],
+    ['360x640 at 130%', { width: 360, height: 640, fontScale: 1.3 }],
+    ['411x914 at 130%', { width: 411, height: 914, fontScale: 1.3 }],
+  ];
+  for (const [label, win] of portraits) {
+    it(`portrait ${label}: no page scroll, the choices in a band below the stage, every touchable 48dp`, async () => {
+      windowIs(win);
+      const { session } = sessionInBattle('MAPSEED1');
+      await renderRun(session);
+      expect(contract(win).mode).toBe('console');
+      expect(pageScrolls()).toBe(0);
+      const column = containerOf('run-battle-primary');
+      expect(flat(column.props.style).flexDirection).not.toBe('row');
+      expect(childIds(column)).toEqual(['run-battle-primary', 'run-battle-actions']);
+      expect(flat(screen.getByTestId('run-battle-actions').props.style).height).toBe(contract(win).regions.actions.height);
+      expect(within(screen.getByTestId('run-battle-actions')).getAllByTestId('battle-choice').length).toBeGreaterThan(0);
+      expect(stageHeight()).toBeLessThanOrEqual(contract(win).regions.primary.height);
+      expectAccessibleTouchables();
+    });
+  }
+
+  for (const [label, win] of [['portrait', PHONE], ['landscape', LANDSCAPE]] as Array<[string, Win]>) {
+    it(`keeps the reading order in ${label}: rival HUD, stage (hidden), your HUD, choices`, async () => {
+      windowIs(win);
+      const { session } = sessionInBattle('MAPSEED1');
+      await renderRun(session);
+      const order = hostElements(screen.root as unknown as El)
+        .map((e) => e.props.testID)
+        .filter((id) => id === 'hud-enemy' || id === 'battle-stage' || id === 'hud-player' || id === 'battle-choices');
+      expect(order).toEqual(['hud-enemy', 'battle-stage', 'hud-player', 'battle-choices']);
+      expect(screen.getByTestId('battle-stage', { includeHiddenElements: true }).props.importantForAccessibility).toBe('no-hide-descendants');
+    });
+  }
+
+  it('shows the newest turn as a one-line live message, and the party and the Log and Settings buttons in the HUD', async () => {
+    windowIs(PHONE);
     const { session } = sessionInBattle('MAPSEED1');
     await renderRun(session);
-    const footer = screen.getByTestId('battle-footer');
-    expect(within(footer).getByTestId('battle-choices')).toBeTruthy();
-    expect(within(footer).getAllByTestId('battle-choice').length).toBeGreaterThan(0);
-    expect(within(footer).getByTestId('abandon')).toBeTruthy();
-    // The scene stays in the scrolling part, above the footer.
-    expect(within(screen.getByTestId('run-battle')).getByTestId('hud-enemy')).toBeTruthy();
-    expect(within(screen.getByTestId('run-battle')).queryByTestId('battle-choices')).toBeNull();
-    // The stage (both creatures) takes a small share of the height, and HP and focus sit on one line.
-    const stage = screen.getByTestId('battle-stage', { includeHiddenElements: true });
-    expect(stageHeight()).toBeLessThanOrEqual(SMALL_BIG_TEXT.height * STAGE_HEIGHT_SHARE.compact);
-    expect(stage.props.importantForAccessibility).toBe('no-hide-descendants');
-    // Both plates come before the stage, so HP and focus are on the first screen.
-    const order = hostElements(screen.root as unknown as El)
-      .map((e) => e.props.testID)
-      .filter((id) => id === 'hud-enemy' || id === 'hud-player' || id === 'battle-stage');
-    expect(order).toEqual(['hud-enemy', 'hud-player', 'battle-stage']);
-    const hpLine = screen.getByTestId('hud-player-hp');
-    expect(screen.getByTestId('hud-player-focus')).toBeTruthy();
-    // Nested in one line of text (no own style), not a separate row per value.
-    expect(hpLine.props.style).toBeUndefined();
+    expect(screen.getByRole('button', { name: 'Log' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeTruthy();
+    expect(screen.getAllByTestId(/^hud-chip-/).length).toBeGreaterThan(0);
+    await fireEvent.press(screen.getAllByTestId('battle-choice')[0]!);
+    await flush();
+    const live = screen.getByTestId('battle-log-fresh');
+    expect(live.props.accessibilityLiveRegion).toBe('polite');
+    const text = within(live).getByTestId('battle-message-text');
+    expect(text.props.numberOfLines).toBe(2);
+    expect(String(text.props.children).length).toBeGreaterThan(0);
   });
 
-  it('opens the abandon confirmation in the footer, in place of the button', async () => {
+  it('rotating from portrait to landscape keeps the battle log lines (the same view, never remounted)', async () => {
+    windowIs(PHONE);
+    const { session } = sessionInBattle('MAPSEED1');
+    await renderRun(session);
+    const directorsBefore = mockDirectorsCreated.count;
+    await fireEvent.press(screen.getAllByTestId('battle-choice')[0]!);
+    await flush();
+    const logLines = async () => {
+      await fireEvent.press(screen.getByTestId('hud-log'));
+      const lines = screen.getAllByTestId('battle-log-line').map((l) => l.props.children as string);
+      await fireEvent.press(screen.getByTestId('log-sheet-close'));
+      return lines;
+    };
+    const before = await logLines();
+    const message = screen.getByTestId('battle-message-text').props.children;
+    expect(before.length).toBeGreaterThan(0);
+    expect(flat(containerOf('run-battle-primary').props.style).flexDirection).not.toBe('row');
+
+    windowIs(LANDSCAPE);
+    await act(async () => {
+      Dimensions.set({ window: { ...LANDSCAPE, scale: 2.625 }, screen: { ...LANDSCAPE, scale: 2.625 } });
+    });
+    await flush();
+    expect(flat(containerOf('run-battle-primary').props.style).flexDirection).toBe('row');
+    expect(await logLines()).toEqual(before);
+    expect(screen.getByTestId('battle-message-text').props.children).toBe(message);
+    // One view throughout: its stage director (made once per mount) was not made again.
+    expect(mockDirectorsCreated.count).toBe(directorsBefore);
+    expect(screen.getByTestId('battle-prompt')).toBeTruthy();
+  });
+
+  it('opens the full log in a sheet from the HUD Log button and closes it with the focus back on the button', async () => {
+    windowIs(PHONE);
+    const { session } = sessionInBattle('MAPSEED1');
+    await renderRun(session);
+    await fireEvent.press(screen.getAllByTestId('battle-choice')[0]!);
+    await flush();
+    const logButton = screen.getByTestId('hud-log');
+    await fireEvent.press(logButton);
+    const sheet = screen.getByTestId('log-sheet');
+    const lines = within(sheet).getAllByTestId('battle-log-line');
+    // Every line of the turn, while the message shows them as one line of text.
+    expect(lines.length).toBeGreaterThan(1);
+    expect(String(screen.getByTestId('battle-message-text', { includeHiddenElements: true }).props.children)).toBe(lines.map((l) => l.props.children).join(' '));
+    expect(within(sheet).getByRole('header', { name: 'Battle log' })).toBeTruthy();
+    const focus = jest.mocked(AccessibilityInfo.sendAccessibilityEvent);
+    focus.mockClear();
+    await act(async () => {
+      await fireEvent.press(screen.getByTestId('log-sheet-close'));
+    });
+    expect(screen.queryByTestId('log-sheet')).toBeNull();
+    // The focus target is the Log button (compared by testID: a failing matcher would print whole trees).
+    const last = focus.mock.calls[focus.mock.calls.length - 1]!;
+    expect([(last[0] as unknown as { props: { testID: string } }).props.testID, last[1]]).toEqual(['hud-log', 'focus']);
+  });
+
+  it('keeps the polite live message outside the part hidden from screen readers while a sheet is open', async () => {
+    windowIs(PHONE);
+    const { session } = sessionInBattle('MAPSEED1');
+    await renderRun(session);
+    await fireEvent.press(screen.getAllByTestId('battle-choice')[0]!);
+    await flush();
+    for (const open of ['hud-log', 'hud-settings']) {
+      await fireEvent.press(screen.getByTestId(open));
+      const live = screen.getByTestId('battle-log-fresh', { includeHiddenElements: true });
+      expect(ancestors(live).some((p) => p.importantForAccessibility === 'no-hide-descendants')).toBe(false);
+      expect(ancestors(live).some((p) => p.accessibilityElementsHidden === true)).toBe(false);
+      // What the sheet covers is hidden: the choices and the HUD bar.
+      for (const id of ['battle-choices', 'hud-log']) {
+        const node = screen.getByTestId(id, { includeHiddenElements: true });
+        expect(ancestors(node).some((p) => p.importantForAccessibility === 'no-hide-descendants')).toBe(true);
+      }
+      await fireEvent.press(screen.getByRole('button', { name: 'Close' }));
+    }
+  });
+});
+
+describe('fallback battle (200% text on a small phone)', () => {
+  it('pins the HUD and the choices around a scrolling stage', async () => {
     windowIs(SMALL_BIG_TEXT);
     const { session } = sessionInBattle('MAPSEED1');
     await renderRun(session);
-    await fireEvent.press(screen.getByTestId('abandon'));
-    const footer = screen.getByTestId('battle-footer');
-    expect(within(footer).getByTestId('abandon-confirm')).toBeTruthy();
-    expect(screen.queryByTestId('abandon')).toBeNull();
-    // Android back closes it again.
-    await pressBack();
-    expect(screen.queryByTestId('abandon-confirm')).toBeNull();
-    expect(within(screen.getByTestId('battle-footer')).getByTestId('abandon')).toBeTruthy();
+    expect(contract(SMALL_BIG_TEXT).mode).toBe('fallback');
+    const scroll = screen.getByTestId('run-battle-scroll');
+    expect(within(scroll).getByTestId('battle-stage', { includeHiddenElements: true })).toBeTruthy();
+    expect(within(scroll).getByTestId('hud-enemy')).toBeTruthy();
+    // HUD and choices stay outside the scrolling part.
+    expect(within(scroll).queryByTestId('battle-choices')).toBeNull();
+    expect(within(scroll).queryByTestId('hud')).toBeNull();
+    expect(screen.getByTestId('hud')).toBeTruthy();
+    expect(screen.getAllByTestId('battle-choice').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('battle-log-fresh').props.accessibilityLiveRegion).toBe('polite');
   });
 
   it('still plays a turn from the pinned choices', async () => {
@@ -152,46 +316,53 @@ describe('compact battle (large text on a small phone)', () => {
     const { session } = sessionInBattle('MAPSEED1');
     await renderRun(session);
     const before = session.getSnapshot().run;
-    await fireEvent.press(within(screen.getByTestId('battle-footer')).getAllByTestId('battle-choice')[0]!);
+    await fireEvent.press(screen.getAllByTestId('battle-choice')[0]!);
     await flush();
     expect(session.getSnapshot().run).not.toBe(before);
   });
 });
 
-describe('stacked battle (a phone at normal text size)', () => {
-  it('keeps one scrolling column with no footer, and the confirmation where Abandon was', async () => {
+describe('abandon from the battle', () => {
+  it('lives in the Settings sheet; its confirmation replaces the button there, and Back closes it', async () => {
     windowIs(PHONE);
     const { session } = sessionInBattle('MAPSEED1');
     await renderRun(session);
-    expect(screen.queryByTestId('battle-footer')).toBeNull();
-    expect(screen.queryByTestId('battle-two-pane')).toBeNull();
-    // A taller stage than the compact battle's, still under its share of the window.
-    expect(stageHeight()).toBeGreaterThan(SMALL_BIG_TEXT.height * STAGE_HEIGHT_SHARE.compact);
-    expect(stageHeight()).toBeLessThanOrEqual(PHONE.height * STAGE_HEIGHT_SHARE.stacked);
+    expect(screen.queryByTestId('abandon')).toBeNull();
+    await fireEvent.press(screen.getByTestId('hud-settings'));
     await fireEvent.press(screen.getByTestId('abandon'));
-    expect(within(screen.getByTestId('battle-actions')).getByTestId('abandon-confirm')).toBeTruthy();
+    const sheet = screen.getByTestId('settings-sheet');
+    expect(within(sheet).getByTestId('abandon-confirm')).toBeTruthy();
+    expect(screen.queryByTestId('abandon')).toBeNull();
+    await pressBack();
+    expect(screen.queryByTestId('abandon-confirm')).toBeNull();
+    expect(within(screen.getByTestId('settings-sheet')).getByTestId('abandon')).toBeTruthy();
+  });
+
+  it('opens the Settings sheet with the confirmation when Android back asks, and answering No closes it again', async () => {
+    windowIs(SMALL_BIG_TEXT);
+    const { session } = sessionInBattle('MAPSEED1');
+    await renderRun(session);
+    await pressBack();
+    expect(within(screen.getByTestId('settings-sheet')).getByTestId('abandon-confirm')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('abandon-confirm-no'));
+    expect(screen.queryByTestId('abandon-confirm')).toBeNull();
+    expect(screen.queryByTestId('settings-sheet')).toBeNull();
+  });
+
+  it('closing the Settings sheet with the confirmation open cancels it', async () => {
+    windowIs(PHONE);
+    const { session } = sessionInBattle('MAPSEED1');
+    await renderRun(session);
+    await pressBack();
+    expect(screen.getByTestId('abandon-confirm')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByTestId('abandon-confirm')).toBeNull();
+    await fireEvent.press(screen.getByTestId('hud-settings'));
+    expect(within(screen.getByTestId('settings-sheet')).getByTestId('abandon')).toBeTruthy();
   });
 });
 
 describe('two panes', () => {
-  it('battle on a tablet: the scene on the left, the choices on the right', async () => {
-    windowIs(TABLET);
-    const { session } = sessionInBattle('MAPSEED1');
-    await renderRun(session);
-    const panes = screen.getByTestId('battle-two-pane');
-    expect(within(panes).getByTestId('hud-enemy')).toBeTruthy();
-    expect(within(panes).getByTestId('battle-choices')).toBeTruthy();
-    expect(screen.queryByTestId('battle-footer')).toBeNull();
-  });
-
-  it('battle on a landscape phone uses two panes too (even at 200% text, never the footer)', async () => {
-    windowIs({ ...LANDSCAPE, fontScale: 2 });
-    const { session } = sessionInBattle('MAPSEED1');
-    await renderRun(session);
-    expect(screen.getByTestId('battle-two-pane')).toBeTruthy();
-    expect(screen.queryByTestId('battle-footer')).toBeNull();
-  });
-
   it('map on a landscape phone: party and log beside the map; the confirmation where Abandon was', async () => {
     windowIs(LANDSCAPE);
     const session = makeSession(memoryStorage());

@@ -73,6 +73,7 @@ export function RunScreen({ onExit }: RunScreenProps) {
   viewRef.current = shownView;
 
   const askAbandon = useCallback(() => setConfirming(true), []);
+  const cancelAbandon = useCallback(() => setConfirming(false), []);
 
   /** Drops the run and its save, then leaves for the title. */
   const onAbandon = useCallback(() => {
@@ -116,8 +117,8 @@ export function RunScreen({ onExit }: RunScreenProps) {
     </AppText>
   );
 
-  // The battle draws its own screen (its layout may pin the choices at the bottom) and its own
-  // log; the run log comes back with the next phase.
+  // The battle draws its own screen (the console shell, with its own log sheet and the Abandon
+  // button in its Settings sheet); the run log comes back with the next phase.
   // The frames' gems take the accent of the run's zone.
   const zone = zoneIdOf(run.zone);
   if (battleRun) {
@@ -127,6 +128,7 @@ export function RunScreen({ onExit }: RunScreenProps) {
           run={battleRun}
           onEnd={onBattleEnd}
           onAbandon={askAbandon}
+          onCancelAbandon={cancelAbandon}
           confirming={confirming}
           confirmPanel={confirmPanel}
           header={<SaveBanner />}
