@@ -60,7 +60,7 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 |---|---|
 | No clipped or truncated text, rows wrap instead of scrolling sideways | verified: emulator screenshots at 200% (360x640, 411x914, 600x800, landscape, tablet); no horizontal overflow in the hierarchy  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | Battle choices reachable without scrolling the scene away: compact layout (smaller creatures, HP and focus on one line, choices and Abandon pinned at the bottom) when height / font scale < 600dp | verified: emulator at 360x640 and 411x914 @200% (the first choice is on the first screen; the scene scrolls above); Jest  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
-| Abandon confirmation next to its trigger (in place of the button, or after the event choices) and scrolled fully into view | verified: emulator in every configuration (see the matrix); Jest for the placement |
+| Abandon confirmation next to its trigger (in place of the button, or after the event choices) and scrolled fully into view | verified: emulator in every configuration (see the matrix); Jest for the placement  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** The abandon confirmation now lives in a sheet (Settings in battle, a discard sheet on the title screen); Jest covers where it shows. |
 
 ### Motion
 | Case | Status |
@@ -74,7 +74,7 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 | WCAG AA for every colour pair the screens use, light and dark (4.5:1 text, 3:1 control outlines and meter fills) | verified numerically: `CONTRAST_PAIRS` in `src/theme.ts`, checked by `__tests__/theme.test.ts`. Fixed: light disabled text (#6b6e7d on #ececf3 was 4.30:1, now #5f6271 at 5.14:1) and the outline of unfilled controls (the #c9cad6 border was 1.63:1; secondary buttons, inputs, radio cards and the language toggle now use `outline`, 3.95:1 light / 4.54:1 dark on their surface) |
 | Meaning never by colour alone (won/lost, available/locked, replace, disabled evolve) | verified: text always carries it (screenshots) |
 | Light and dark themes follow the system | verified: emulator in both (switched between launches) |
-| Status bar icons readable in both themes (edge to edge) | verified: emulator screenshots |
+| Status bar icons readable in both themes (edge to edge) | verified: emulator screenshots  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 
 ### Window sizes and insets
 | Case | Status |
@@ -85,16 +85,16 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 | Phone in landscape (914x411): two panes on every screen, display cutout inset respected | verified (emulator); the app is no longer locked to portrait  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | Tablet portrait 800x1280: one column capped at 720dp, centred | verified (emulator)  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | Tablet landscape 1280x800: two panes | verified (emulator)  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
-| Foldable inner screen ~600x800 | verified as a resized emulator window, not a real foldable |
+| Foldable inner screen ~600x800 | verified as a resized emulator window, not a real foldable  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | Real foldable (hinge, posture changes, unfold while running) | not testable here: no foldable device or foldable AVD in this setup |
 | Split screen / freeform windows | not tested |
-| Edge to edge: content clear of status bar, navigation bar and cutouts | verified (emulator, gesture navigation) |
-| Three-button navigation bar | not tested (the AVD uses gesture navigation) |
+| Edge to edge: content clear of status bar, navigation bar and cutouts | verified (emulator, gesture navigation)  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** The new layout pads the root by the insets but the contract does not know them, so on a notched landscape phone the primary region can be smaller than promised: check on a device. |
+| Three-button navigation bar | not tested (the AVD uses gesture navigation); immersive mode hides the system bars until a swipe: to check on Android 13, 14 and 15 |
 
 ### Languages
 | Case | Status |
 |---|---|
-| Spanish and English on every screen (Spanish is the longer one) | verified: matrix rows in both |
+| Spanish and English on every screen (Spanish is the longer one) | verified: matrix rows in both  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 
 ## Scene art (visual style phase C)
 
