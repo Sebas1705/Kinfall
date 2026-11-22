@@ -26,11 +26,11 @@ export async function toggleFullscreen(el?: HTMLElement): Promise<void> {
   }
 }
 
-/** Shows the button only when the API works, toggles on click and keeps its label in sync. */
-export function wireFullscreenButton(btn: HTMLButtonElement, el?: HTMLElement): void {
+/** Shows the button only when the API works, toggles on click and keeps its label in sync (the label names the action; no aria-pressed, which would double the state). Returns a disposer. */
+export function wireFullscreenButton(btn: HTMLButtonElement, el?: HTMLElement): () => void {
   if (!supported()) {
     btn.hidden = true;
-    return;
+    return () => {};
   }
   btn.hidden = false;
   const sync = (): void => {
@@ -38,9 +38,13 @@ export function wireFullscreenButton(btn: HTMLButtonElement, el?: HTMLElement): 
     const key: StringKey = on ? 'hud.exitFullscreen' : 'hud.fullscreen';
     btn.dataset.i18nLabel = key;
     btn.setAttribute('aria-label', t(key));
-    btn.setAttribute('aria-pressed', String(on));
   };
-  btn.addEventListener('click', () => void toggleFullscreen(el));
+  const onClick = (): void => void toggleFullscreen(el);
+  btn.addEventListener('click', onClick);
   document.addEventListener('fullscreenchange', sync);
   sync();
+  return () => {
+    btn.removeEventListener('click', onClick);
+    document.removeEventListener('fullscreenchange', sync);
+  };
 }

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { setTextSize, startRunWithKeyboard } from './run-helpers';
 
 // The shell never scrolls the page: in the console layout and in the fallback only the primary
-// area (`.screens`) scrolls, so the HUD (HUD) stays in view.
+// area (`.screens`) scrolls, so the HUD stays in view.
 test('fallback: the page does not scroll, only the primary area does', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone-landscape', 'sized for the 640x360 project');
   await page.goto('/');

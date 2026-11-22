@@ -58,13 +58,18 @@ describe('wireFullscreenButton', () => {
 
   it('shows the button and flips its label on fullscreenchange', () => {
     setApi(true, null);
-    wireFullscreenButton(btn);
+    const dispose = wireFullscreenButton(btn);
     expect(btn.hidden).toBe(false);
     expect(btn.dataset.i18nLabel).toBe('hud.fullscreen');
+    expect(btn.hasAttribute('aria-pressed')).toBe(false);
     setApi(true, document.documentElement);
     document.dispatchEvent(new Event('fullscreenchange'));
     expect(btn.dataset.i18nLabel).toBe('hud.exitFullscreen');
     expect(btn.getAttribute('aria-label')).toBe('Exit fullscreen');
-    expect(btn.getAttribute('aria-pressed')).toBe('true');
+    expect(btn.hasAttribute('aria-pressed')).toBe(false);
+    dispose();
+    setApi(true, null);
+    document.dispatchEvent(new Event('fullscreenchange'));
+    expect(btn.dataset.i18nLabel).toBe('hud.exitFullscreen');
   });
 });

@@ -132,7 +132,7 @@ body {
 
 /* Console and fallback both fill exactly one viewport and the page never scrolls. The only
    difference is the content: in fallback (huge text or a very short window) the primary area
-   (`.screens`) scrolls inside the grid, so the HUD (the HUD row) stays pinned by layout. */
+   (`.screens`) scrolls inside the grid, so the HUD row stays pinned by layout. */
 .app[data-mode] {
   height: 100vh;
   height: 100dvh;
