@@ -20,7 +20,9 @@ function key(target: Element, k: string, shiftKey = false): KeyboardEvent {
 
 beforeEach(() => {
   document.body.innerHTML = `<div class="app" id="app" data-orientation="portrait">
-    <main id="screens"><p data-announcer aria-live="polite"></p><button id="opener" type="button">Open</button></main>
+    <header id="chrome"><button id="chrome-btn" type="button">Settings</button></header>
+    <p data-announcer aria-live="polite"></p>
+    <main id="screens"><section id="old" data-screen="map" inert hidden></section><button id="opener" type="button">Open</button></main>
   </div>`;
   app = document.getElementById('app')!;
   opener = document.getElementById('opener') as HTMLButtonElement;
@@ -45,8 +47,12 @@ describe('openSheet', () => {
     // The live region stays outside the inert subtree.
     const live = document.querySelector('[data-announcer]')!;
     expect(live.closest('[inert]')).toBeNull();
+    expect(document.getElementById('chrome')!.hasAttribute('inert')).toBe(true);
     open.close();
     expect(document.getElementById('screens')!.hasAttribute('inert')).toBe(false);
+    expect(document.getElementById('chrome')!.hasAttribute('inert')).toBe(false);
+    // The router's own marks survive.
+    expect(document.getElementById('old')!.hasAttribute('inert')).toBe(true);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
@@ -90,6 +96,37 @@ describe('openSheet', () => {
     expect(document.activeElement).toBe(close);
     last.focus();
     expect(key(last, 'Tab').defaultPrevented).toBe(false);
+  });
+
+  it('Escape on body closes the sheet', () => {
+    open = openSheet({ title: 'Team', content: content(), opener });
+    (document.activeElement as HTMLElement).blur();
+    key(document.body, 'Escape');
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('Tab with focus on body moves focus into the sheet', () => {
+    open = openSheet({ title: 'Team', content: content(), opener });
+    (document.activeElement as HTMLElement).blur();
+    expect(key(document.body, 'Tab').defaultPrevented).toBe(true);
+    expect(document.querySelector('[role="dialog"]')!.contains(document.activeElement)).toBe(true);
+  });
+
+  it('a Close-only sheet keeps Tab and Shift+Tab on Close', () => {
+    open = openSheet({ title: 'Team', content: document.createElement('div'), opener });
+    const close = document.querySelector<HTMLButtonElement>('[data-sheet-close]')!;
+    expect(document.activeElement).toBe(close);
+    key(close, 'Tab');
+    expect(document.activeElement).toBe(close);
+    key(close, 'Tab', true);
+    expect(document.activeElement).toBe(close);
+  });
+
+  it('falls back to #screens when the opener is gone', () => {
+    open = openSheet({ title: 'Team', content: content(), opener });
+    opener.remove();
+    open.close();
+    expect(document.activeElement).toBe(document.getElementById('screens'));
   });
 
   it('a second open closes the first', () => {

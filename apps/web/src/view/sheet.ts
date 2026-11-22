@@ -1,5 +1,5 @@
 // Modal sheet: a bottom sheet in portrait and a side drawer in landscape (`data-orientation` of
-// `.app`). While it is open the screens are `inert`, Escape closes it, focus moves into it and
+// `.app`). While it is open the rest of the app (every direct child of `.app`, except the live region) is `inert`, Escape closes it, focus moves into it and
 // returns to the opener, and Tab wraps inside it.
 import { t } from '@kinfall/core/platform/i18n';
 
@@ -20,16 +20,6 @@ const FOCUSABLE =
 
 let nextId = 0;
 let active: SheetHandle | null = null;
-
-/**
- * The polite live region lives inside `#screens`, which becomes inert while a sheet is open, and
- * assistive technology ignores inert subtrees. Move it out to sit just before `#screens` (the router
- * keeps its element reference, so announcements keep working).
- */
-function keepAnnouncerLive(screens: HTMLElement): void {
-  const live = screens.querySelector<HTMLElement>('[data-announcer]');
-  if (live && screens.parentElement) screens.parentElement.insertBefore(live, screens);
-}
 
 export function openSheet(opts: SheetOptions): SheetHandle {
   active?.close();
@@ -70,19 +60,27 @@ export function openSheet(opts: SheetOptions): SheetHandle {
   backdrop.append(dialog);
 
   let closed = false;
+  // Only the elements this sheet made inert; the router's own inert marks must survive a close.
+  const inerted: HTMLElement[] = [];
   const handle: SheetHandle = {
     close() {
       if (closed) return;
       closed = true;
       if (active === handle) active = null;
+      doc.removeEventListener('keydown', onKeydown, true);
       backdrop.remove();
-      screens?.removeAttribute('inert');
-      opts.opener.focus();
+      for (const el of inerted) el.removeAttribute('inert');
+      if (opts.opener.isConnected && !opts.opener.closest('[hidden]')) {
+        opts.opener.focus();
+      } else if (screens) {
+        if (!screens.hasAttribute('tabindex')) screens.tabIndex = -1;
+        screens.focus();
+      }
       opts.onClose?.();
     },
   };
 
-  backdrop.addEventListener('keydown', (ev) => {
+  const onKeydown = (ev: KeyboardEvent): void => {
     if (ev.key === 'Escape') {
       ev.preventDefault();
       handle.close();
@@ -97,23 +95,28 @@ export function openSheet(opts: SheetOptions): SheetHandle {
     const first = items[0]!;
     const last = items[items.length - 1]!;
     const current = doc.activeElement;
-    if (ev.shiftKey && (current === first || current === dialog)) {
+    if (!current || !dialog.contains(current)) {
+      ev.preventDefault();
+      (ev.shiftKey ? last : first).focus();
+    } else if (ev.shiftKey && (current === first || current === dialog)) {
       ev.preventDefault();
       last.focus();
     } else if (!ev.shiftKey && current === last) {
       ev.preventDefault();
       first.focus();
     }
-  });
+  };
+  doc.addEventListener('keydown', onKeydown, true);
   // A tap on the dim area outside the sheet closes it too.
   backdrop.addEventListener('click', (ev) => {
     if (ev.target === backdrop) handle.close();
   });
   closeBtn.addEventListener('click', () => handle.close());
 
-  if (screens) {
-    keepAnnouncerLive(screens);
-    screens.setAttribute('inert', '');
+  for (const child of [...app.children] as HTMLElement[]) {
+    if (child.hasAttribute('data-announcer') || child.hasAttribute('inert')) continue;
+    child.setAttribute('inert', '');
+    inerted.push(child);
   }
   app.append(backdrop);
   active = handle;

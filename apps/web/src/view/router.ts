@@ -39,7 +39,9 @@ export function isolateScreen(root: HTMLElement, id: ScreenId): HTMLElement | nu
 }
 
 function announcer(root: HTMLElement): HTMLElement {
-  const found = root.querySelector<HTMLElement>('[data-announcer]');
+  const found =
+    root.querySelector<HTMLElement>('[data-announcer]') ??
+    root.ownerDocument.querySelector<HTMLElement>('[data-announcer]');
   if (found) return found;
   const live = root.ownerDocument.createElement('p');
   live.className = 'sr-only';
