@@ -43,6 +43,19 @@ describe('textSizeSetting', () => {
     expect(await loadTextSizeSetting(storage)).toBe(90);
   });
 
+  it('does not clobber a size set while the load is in flight, and emits only on change', async () => {
+    const storage = memoryStorage({ [TEXT_SIZE_KEY]: '140' });
+    const seen: number[] = [];
+    textSizeSetting.subscribe((v) => seen.push(v));
+    const loading = loadTextSizeSetting(storage);
+    await textSizeSetting.set(90);
+    expect(await loading).toBe(90);
+    expect(textSizeSetting.get()).toBe(90);
+    expect(seen).toEqual([90]);
+    await loadTextSizeSetting(memoryStorage({ [TEXT_SIZE_KEY]: '90' }));
+    expect(seen).toEqual([90]);
+  });
+
   it('ignores an invalid saved value and a failing storage', async () => {
     expect(await loadTextSizeSetting(memoryStorage({ [TEXT_SIZE_KEY]: '999' }))).toBe(100);
     const broken = {

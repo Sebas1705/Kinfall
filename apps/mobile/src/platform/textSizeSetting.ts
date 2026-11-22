@@ -11,10 +11,12 @@ export const TEXT_SIZE_MIN = 80;
 export const TEXT_SIZE_MAX = 150;
 export const TEXT_SIZE_STEP = 10;
 export const TEXT_SIZE_DEFAULT = 100;
-/** Cap of system font scale times app text size; Text components use it as maxFontSizeMultiplier. */
+/** Cap of the system font scale times the app text size (effectiveTextScale); AppText sets maxFontSizeMultiplier to this divided by the app scale. */
 export const MAX_FONT_SIZE_MULTIPLIER = 2;
 
 let value = TEXT_SIZE_DEFAULT;
+/** Bumped by every accepted set(), so a load that was already in flight does not overwrite it. */
+let version = 0;
 let storage: AsyncStorageLike | null | undefined;
 const listeners = new Set<(v: number) => void>();
 
@@ -45,6 +47,7 @@ export const textSizeSetting = {
   /** Saves a new size; a value outside 80..150 or off the step is ignored. A failed save keeps it for this session. */
   async set(v: number): Promise<void> {
     if (!isValidTextSize(v)) return;
+    version++;
     if (v !== value) {
       value = v;
       emit();
@@ -66,14 +69,19 @@ export const textSizeSetting = {
 /** Reads the saved size (never rejects). `custom` replaces AsyncStorage (tests). */
 export async function loadTextSizeSetting(custom?: AsyncStorageLike | null): Promise<number> {
   if (custom !== undefined) storage = custom;
+  const started = version;
+  let loaded = TEXT_SIZE_DEFAULT;
   try {
     const raw = await store()?.getItem(TEXT_SIZE_KEY);
     const n = raw == null ? NaN : Number(raw);
-    value = isValidTextSize(n) ? n : TEXT_SIZE_DEFAULT;
+    if (isValidTextSize(n)) loaded = n;
   } catch {
-    value = TEXT_SIZE_DEFAULT;
+    /* default */
   }
-  emit();
+  if (version === started && loaded !== value) {
+    value = loaded;
+    emit();
+  }
   return value;
 }
 

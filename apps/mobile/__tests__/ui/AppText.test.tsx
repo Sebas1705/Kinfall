@@ -46,6 +46,29 @@ describe('AppText', () => {
     expect(screen.getByTestId('a').props.accessibilityRole).toBeUndefined();
   });
 
+  it('caps the system scale so system x app stays within 2.0', async () => {
+    for (const [percent, cap] of [[100, 2], [150, 2 / 1.5], [80, 2.5]] as const) {
+      await act(async () => {
+        await textSizeSetting.set(percent);
+      });
+      await render(<AppText testID={`c${percent}`}>c</AppText>);
+      expect(screen.getByTestId(`c${percent}`).props.maxFontSizeMultiplier).toBeCloseTo(cap, 4);
+    }
+    expect(2 / 1.5).toBeCloseTo(1.3333, 4);
+  });
+
+  it('lets a caller override the cap at any size', async () => {
+    await act(async () => {
+      await textSizeSetting.set(150);
+    });
+    await render(
+      <AppText testID="o" maxFontSizeMultiplier={1.2}>
+        o
+      </AppText>,
+    );
+    expect(screen.getByTestId('o').props.maxFontSizeMultiplier).toBe(1.2);
+  });
+
   it('forwards accessibilityRole and a ref to a Text instance', async () => {
     const ref = createRef<ComponentRef<typeof Text>>();
     await render(
