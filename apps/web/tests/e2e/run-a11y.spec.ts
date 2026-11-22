@@ -61,6 +61,21 @@ async function expectTargets(page: Page, where: string): Promise<void> {
   expect(small, where).toEqual([]);
 }
 
+/** In the console the HUD button opens the sheet; in the fallback (e.g. a map at 320 px and text 150%) the content is inline and there is no button. */
+async function openRunSheet(page: Page): Promise<boolean> {
+  const button = page.locator('#hud-run');
+  if (!(await button.isVisible())) return false;
+  await button.click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  return true;
+}
+
+async function closeRunSheet(page: Page, opened: boolean): Promise<void> {
+  if (!opened) return;
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+
 async function checkScreen(page: Page, where: string, width: number): Promise<void> {
   await expectNoAxeViolations(page, where);
   await expectNoOverflow(page, where);
@@ -81,10 +96,9 @@ for (const scheme of ['light', 'dark'] as const) {
         await setTextSize(page, 150);
 
         await checkScreen(page, `title (${lang})`, size.width);
-        await page.locator('#hud-run').click();
+        const titleSheet = await openRunSheet(page);
         await checkScreen(page, `title options sheet (${lang})`, size.width);
-        await page.keyboard.press('Escape');
-        await expect(page.getByRole('dialog')).toHaveCount(0);
+        await closeRunSheet(page, titleSheet);
 
         // Title -> map: focus on the map heading; every node names its type in text.
         await startRunWithKeyboard(page, 'a11y-run');
@@ -98,13 +112,12 @@ for (const scheme of ['light', 'dark'] as const) {
         }
         await checkScreen(page, `map (${lang})`, size.width);
         // The run sheet (party details, run log, Abandon) and its inline confirmation.
-        await page.locator('#hud-run').click();
-        await expect(page.getByRole('dialog')).toBeVisible();
+        const mapSheet = await openRunSheet(page);
         await checkScreen(page, `map run sheet (${lang})`, size.width);
-        await page.getByRole('dialog').locator('[data-action="abandon"]').click();
+        await page.locator(mapSheet ? '[role="dialog"] [data-action="abandon"]' : '#screen-map [data-action="abandon"]').click();
         await checkScreen(page, `map with abandon confirm (${lang})`, size.width);
-        await page.keyboard.press('Escape');
-        await expect(page.getByRole('dialog')).toHaveCount(0);
+        if (mapSheet) await closeRunSheet(page, true);
+        else await page.locator('#screen-map [data-action="abandon-no"]').click();
 
         // Battle screen with the abandon button (and its confirmation).
         await page.locator('#screen-map button.map-node:not([disabled])').first().click();
@@ -130,9 +143,9 @@ for (const scheme of ['light', 'dark'] as const) {
           await expect(page.locator('#screen-event button[data-initial]')).toBeFocused();
           if ('souls' in options) await expect(page.locator('#screen-event button[data-choice][disabled]')).toHaveCount(2);
           await checkScreen(page, where, size.width);
-          await page.locator('#hud-run').click();
+          const sheet = await openRunSheet(page);
           await checkScreen(page, `${where} run sheet`, size.width);
-          await page.keyboard.press('Escape');
+          await closeRunSheet(page, sheet);
         }
 
         // Won end screen: focus on the result heading.
@@ -140,9 +153,9 @@ for (const scheme of ['light', 'dark'] as const) {
         await continueSavedRun(page);
         await expect(page.locator('#screen-end [data-screen-heading]')).toBeFocused();
         await checkScreen(page, `end (${lang})`, size.width);
-        await page.locator('#hud-run').click();
+        const endSheet = await openRunSheet(page);
         await checkScreen(page, `end stats sheet (${lang})`, size.width);
-        await page.keyboard.press('Escape');
+        await closeRunSheet(page, endSheet);
 
         // End -> New run -> title: focus on the title heading.
         await page.locator('#screen-end [data-choice="new-run"]').click();

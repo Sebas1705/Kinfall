@@ -51,17 +51,24 @@ export const TEXT_SCALE_MAX = 2;
 /** Below this window height (dp) the console layout never applies. */
 export const MIN_HEIGHT_PX = 320;
 /**
- * Minimum "text-sized" height (height / textScale) each screen needs to fit without scrolling.
- * Provisional: the web screens were measured in Task 6 and the need depends on orientation and
- * width (a portrait map needs 468 px at 360 wide, a landscape one 272), which one number per screen
- * cannot say; the measurements and the open decision are in the Task 6 report.
+ * Minimum "text-sized" height (height / textScale) each screen needs to fit without scrolling, per
+ * orientation: a portrait window stacks the primary area over the rail, so it needs far more height
+ * (a map: 468 px at 360 wide, 272 px in landscape). Measured on the web screens in Task 6 as the
+ * maximum of minimum-fitting-height / text scale over 1.0, 1.3 and 1.5 (landscape 640 and 914 wide,
+ * portrait 360 and 320 wide), rounded up to 5. A phone at 200% text therefore falls back by design
+ * (spec 7.5): a 640 px portrait window is 320 text-sized px, under the portrait budgets of the
+ * title, map, battle and event.
  */
-export const MIN_BUDGET: Record<ScreenId, number> = {
-  title: 270,
-  map: 270,
-  battle: 270,
-  event: 270,
-  end: 270,
+export interface ScreenBudget {
+  landscape: number;
+  portrait: number;
+}
+export const MIN_BUDGET: Record<ScreenId, ScreenBudget> = {
+  title: { landscape: 220, portrait: 380 },
+  map: { landscape: 275, portrait: 470 },
+  battle: { landscape: 270, portrait: 480 },
+  event: { landscape: 250, portrait: 380 },
+  end: { landscape: 210, portrait: 310 },
 };
 
 // Band heights (px at text scale 1). The HUD was measured on the web shell: 52 px, which is the
@@ -139,7 +146,7 @@ export function layoutSpec(raw: WindowInfo, screen: ScreenId): LayoutSpec {
   const fits =
     info.height >= MIN_HEIGHT_PX &&
     info.textScale <= TEXT_SCALE_MAX &&
-    info.height / info.textScale >= MIN_BUDGET[screen];
+    info.height / info.textScale >= MIN_BUDGET[screen][landscape ? 'landscape' : 'portrait'];
   return {
     orientation: landscape ? 'landscape' : 'portrait',
     width: widthClass(info.width),

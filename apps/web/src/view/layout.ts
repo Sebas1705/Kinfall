@@ -2,7 +2,9 @@
 // contract (@kinfall/core/layout/spec) which mode and region sizes apply, and publishes the answer
 // on the root element as `data-orientation`, `data-mode` and the custom properties `--hud-h`,
 // `--rail-w` (width of the action rail, 0 in portrait) and `--stage-h` (height of the primary
-// area). The CSS does the actual layout; this module never moves elements.
+// area). The CSS does the actual layout; this module never moves elements. The console needs a
+// per-screen, per-orientation amount of text-sized height (MIN_BUDGET in the contract): a phone at
+// 200% text falls back by design (spec 7.5), the fallback being a scrolling primary area.
 import { layoutSpec } from '@kinfall/core/layout/spec';
 import type { ScreenId } from '@kinfall/core/layout/spec';
 

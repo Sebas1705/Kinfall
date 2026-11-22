@@ -16,28 +16,28 @@ import {
 
 const SCREENS: ScreenId[] = ['title', 'map', 'battle', 'event', 'end'];
 
-const MATRIX: [string, number, number, number, Orientation, LayoutMode][] = [
-  ['320x640 @1.0', 320, 640, 1, 'portrait', 'console'],
-  ['320x640 @1.3', 320, 640, 1.3, 'portrait', 'console'],
-  ['360x640 @1.0', 360, 640, 1, 'portrait', 'console'],
-  ['360x640 @1.3', 360, 640, 1.3, 'portrait', 'console'],
-  ['360x640 @2.0', 360, 640, 2, 'portrait', 'console'],
-  ['640x360 @1.0', 640, 360, 1, 'landscape', 'console'],
-  ['640x360 @1.3', 640, 360, 1.3, 'landscape', 'console'],
-  ['640x360 @2.0', 640, 360, 2, 'landscape', 'fallback'],
-  ['914x411 @1.0', 914, 411, 1, 'landscape', 'console'],
-  ['914x411 @2.0', 914, 411, 2, 'landscape', 'fallback'],
-  ['560x300 @1.0', 560, 300, 1, 'landscape', 'fallback'],
-  ['600x800 @1.0', 600, 800, 1, 'portrait', 'console'],
-  ['600x800 @2.0', 600, 800, 2, 'portrait', 'console'],
-  ['800x1280 @1.0', 800, 1280, 1, 'portrait', 'console'],
-  ['800x1280 @2.0', 800, 1280, 2, 'portrait', 'console'],
-  ['1280x800 @1.0', 1280, 800, 1, 'landscape', 'console'],
-  ['1280x800 @2.0', 1280, 800, 2, 'landscape', 'console'],
-  ['1366x768 @1.0', 1366, 768, 1, 'landscape', 'console'],
-  ['1366x768 @2.0', 1366, 768, 2, 'landscape', 'console'],
-  ['1920x1080 @1.0', 1920, 1080, 1, 'landscape', 'console'],
-  ['1920x1080 @2.0', 1920, 1080, 2, 'landscape', 'console'],
+const MATRIX: [string, number, number, number, Orientation][] = [
+  ['320x640 @1.0', 320, 640, 1, 'portrait'],
+  ['320x640 @1.3', 320, 640, 1.3, 'portrait'],
+  ['360x640 @1.0', 360, 640, 1, 'portrait'],
+  ['360x640 @1.3', 360, 640, 1.3, 'portrait'],
+  ['360x640 @2.0', 360, 640, 2, 'portrait'],
+  ['640x360 @1.0', 640, 360, 1, 'landscape'],
+  ['640x360 @1.3', 640, 360, 1.3, 'landscape'],
+  ['640x360 @2.0', 640, 360, 2, 'landscape'],
+  ['914x411 @1.0', 914, 411, 1, 'landscape'],
+  ['914x411 @2.0', 914, 411, 2, 'landscape'],
+  ['560x300 @1.0', 560, 300, 1, 'landscape'],
+  ['600x800 @1.0', 600, 800, 1, 'portrait'],
+  ['600x800 @2.0', 600, 800, 2, 'portrait'],
+  ['800x1280 @1.0', 800, 1280, 1, 'portrait'],
+  ['800x1280 @2.0', 800, 1280, 2, 'portrait'],
+  ['1280x800 @1.0', 1280, 800, 1, 'landscape'],
+  ['1280x800 @2.0', 1280, 800, 2, 'landscape'],
+  ['1366x768 @1.0', 1366, 768, 1, 'landscape'],
+  ['1366x768 @2.0', 1366, 768, 2, 'landscape'],
+  ['1920x1080 @1.0', 1920, 1080, 1, 'landscape'],
+  ['1920x1080 @2.0', 1920, 1080, 2, 'landscape'],
 ];
 
 function overlaps(a: Rect, b: Rect): boolean {
@@ -68,11 +68,10 @@ describe('class boundaries', () => {
 });
 
 describe('device matrix', () => {
-  it.each(MATRIX)('%s', (_name, w, h, textScale, orientation, mode) => {
+  it.each(MATRIX)('%s', (_name, w, h, textScale, orientation) => {
     for (const screen of SCREENS) {
       const spec = layoutSpec({ width: w, height: h, textScale }, screen);
       expect(spec.orientation).toBe(orientation);
-      expect(spec.mode).toBe(mode);
       expect(spec.width).toBe(widthClass(w));
       expect(spec.height).toBe(heightClass(h));
     }
@@ -113,9 +112,9 @@ function expectTiling(regions: Regions, strict: boolean): void {
 }
 
 describe('regions tile the content box', () => {
-  it.each(MATRIX)('%s', (_name, w, h, textScale, _o, mode) => {
+  it.each(MATRIX)('%s', (_name, w, h, textScale) => {
     for (const screen of SCREENS) {
-      const { regions } = layoutSpec({ width: w, height: h, textScale }, screen);
+      const { regions, mode } = layoutSpec({ width: w, height: h, textScale }, screen);
       expectTiling(regions, mode === 'console');
     }
   });
@@ -202,31 +201,67 @@ describe('the HUD band', () => {
 });
 
 describe('per-screen budgets', () => {
-  const SCREEN_LIST: ScreenId[] = ['title', 'map', 'battle', 'event', 'end'];
   const modes = (width: number, height: number, textScale: number) =>
-    Object.fromEntries(SCREEN_LIST.map((s) => [s, layoutSpec({ width, height, textScale }, s).mode]));
+    Object.fromEntries(SCREENS.map((s) => [s, layoutSpec({ width, height, textScale }, s).mode]));
+  const C = 'console';
+  const F = 'fallback';
+  const all = (m: LayoutMode) => ({ title: m, map: m, battle: m, event: m, end: m });
 
-  it('overriding one screen budget changes only that screen mode', () => {
-    const saved = { ...MIN_BUDGET };
+  // screen x window x scale -> mode, spelled out so a budget regression shows up here.
+  const TABLE: [string, number, number, number, Record<ScreenId, LayoutMode>][] = [
+    ['640x360 @1.0', 640, 360, 1, all(C)],
+    ['640x360 @1.3', 640, 360, 1.3, all(C)],
+    ['640x360 @2.0', 640, 360, 2, all(F)],
+    ['914x411 @1.0', 914, 411, 1, all(C)],
+    ['914x411 @1.3', 914, 411, 1.3, all(C)],
+    ['914x411 @2.0', 914, 411, 2, all(F)],
+    ['560x300 @1.0 (under 320 high)', 560, 300, 1, all(F)],
+    ['320x640 @1.0', 320, 640, 1, all(C)],
+    ['320x640 @1.3', 320, 640, 1.3, all(C)],
+    ['360x640 @1.0', 360, 640, 1, all(C)],
+    ['360x640 @1.3', 360, 640, 1.3, all(C)],
+    ['360x640 @2.0', 360, 640, 2, { title: F, map: F, battle: F, event: F, end: C }],
+    ['600x800 @1.0', 600, 800, 1, all(C)],
+    ['600x800 @1.3', 600, 800, 1.3, all(C)],
+    ['600x800 @2.0', 600, 800, 2, { title: C, map: F, battle: F, event: C, end: C }],
+    ['800x1280 @1.0', 800, 1280, 1, all(C)],
+    ['800x1280 @2.0', 800, 1280, 2, all(C)],
+    ['1280x800 @1.0', 1280, 800, 1, all(C)],
+    ['1280x800 @1.3', 1280, 800, 1.3, all(C)],
+    ['1280x800 @2.0', 1280, 800, 2, all(C)],
+    ['1366x768 @2.0', 1366, 768, 2, all(C)],
+    ['1920x1080 @2.0', 1920, 1080, 2, all(C)],
+  ];
+  it.each(TABLE)('%s', (_n, w, h, scale, expected) => {
+    expect(modes(w, h, scale)).toEqual(expected);
+  });
+
+  it('the global target holds: 640x360 and 360x640 at 1.0 and 1.3 are consoles for every screen', () => {
+    for (const [w, h] of [[640, 360], [360, 640]] as const) {
+      for (const scale of [1, 1.3]) expect(modes(w, h, scale), `${w}x${h} @${scale}`).toEqual(all(C));
+    }
+  });
+
+  it('overriding one screen budget changes only that screen mode, in its own orientation', () => {
+    const saved = structuredClone(MIN_BUDGET);
     try {
-      // 640x360 at text 1 is 360 text-sized px: every screen is a console at the current budgets.
-      expect(Object.values(modes(640, 360, 1))).toEqual(SCREEN_LIST.map(() => 'console'));
-      MIN_BUDGET.map = 361;
-      expect(modes(640, 360, 1)).toEqual({ title: 'console', map: 'fallback', battle: 'console', event: 'console', end: 'console' });
-      // The other way round: a bigger window with one budget lifted above it.
-      MIN_BUDGET.map = saved.map;
-      MIN_BUDGET.event = 10_000;
-      expect(modes(1280, 800, 1)).toEqual({ title: 'console', map: 'console', battle: 'console', event: 'fallback', end: 'console' });
+      MIN_BUDGET.map.landscape = 361;
+      expect(modes(640, 360, 1)).toEqual({ ...all(C), map: F });
+      expect(modes(360, 640, 1)).toEqual(all(C)); // portrait untouched
+      MIN_BUDGET.map.landscape = saved.map.landscape;
+      MIN_BUDGET.event.portrait = 10_000;
+      expect(modes(800, 1280, 1)).toEqual({ ...all(C), event: F });
+      expect(modes(1280, 800, 1)).toEqual(all(C)); // landscape untouched
     } finally {
       Object.assign(MIN_BUDGET, saved);
     }
-    expect(Object.values(modes(640, 360, 1))).toEqual(SCREEN_LIST.map(() => 'console'));
+    expect(modes(640, 360, 1)).toEqual(all(C));
   });
 
-  it('every budget leaves 640x360 at text 1.3 a console and 640x360 at text 2 a fallback', () => {
-    for (const s of SCREEN_LIST) {
-      expect(MIN_BUDGET[s], s).toBeLessThanOrEqual(360 / 1.3);
-      expect(MIN_BUDGET[s], s).toBeGreaterThan(360 / 2);
+  it('landscape budgets leave 640x360 at text 1.3 a console and at text 2 a fallback', () => {
+    for (const s of SCREENS) {
+      expect(MIN_BUDGET[s].landscape, s).toBeLessThanOrEqual(360 / 1.3);
+      expect(MIN_BUDGET[s].landscape, s).toBeGreaterThan(360 / 2);
     }
   });
 });
