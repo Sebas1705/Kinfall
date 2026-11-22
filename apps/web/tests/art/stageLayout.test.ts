@@ -52,6 +52,10 @@ describe('stageFrame', () => {
     expect(stageFrame(360, 26, undefined, 1).scale).toBe(1);
     expect(stageFrame(360, 26, undefined, 0.4).scale).toBe(1);
     expect(stageFrame(360, 26, undefined, 1.9).scale).toBe(1);
+    // A non-finite cap never poisons the scale.
+    expect(stageFrame(808, 0, undefined, Number.NaN).scale).toBe(3);
+    expect(stageFrame(808, 0, undefined, Number.POSITIVE_INFINITY).scale).toBe(3);
+    expect(stageFrame(808, 0, undefined, Number.NEGATIVE_INFINITY).scale).toBe(1);
   });
 
   it('crops sky rows from the top when asked', () => {

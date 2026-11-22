@@ -54,7 +54,9 @@ export function stageFrame(
   const w = Math.max(1, Math.floor(width));
   const full = Math.floor(w / SCENE_WIDTH);
   const wanted = Math.max(1, full >= 2 ? full : Math.floor(w / MIN_VISIBLE_WIDTH));
-  const scale = Math.max(1, Math.min(wanted, Math.floor(maxScale)));
+  // A non-number cap (NaN from a 0/0 measurement) means no cap.
+  const cap = Number.isNaN(maxScale) ? Number.POSITIVE_INFINITY : Math.floor(maxScale);
+  const scale = Math.max(1, Math.min(wanted, cap));
   const viewWidth = Math.ceil(w / scale);
   // Views narrower than the scene centre on the creatures; wider ones on the scene.
   const centre = viewWidth < SCENE_WIDTH ? STAGE_CENTRE_X : SCENE_WIDTH / 2;

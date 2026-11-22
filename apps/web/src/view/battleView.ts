@@ -56,7 +56,7 @@ const AMBIENT_FPS = 30;
 /** Sky rows hidden on narrow views (the enemy's head is at row 52, the victory title at 40). */
 const NARROW_SKY_CROP = 26;
 /** The most sky the console layout may trim to fit a short stage (the enemy's head is at row 52). */
-const MAX_SKY_CROP = 44;
+const MAX_SKY_CROP = 50;
 /** Fallback layout (the page scrolls): windows shorter than this (landscape phones) crop the sky as well. */
 const SHORT_WINDOW_PX = 560;
 /**
@@ -496,7 +496,8 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     // goes (never more than MAX_SKY_CROP, so the heads stay in view); then the largest whole-number
     // scale whose rows (plus the stacked plates, if any) still fit its height.
     if (region) crop = Math.min(MAX_SKY_CROP, Math.max(crop, SCENE_HEIGHT - Math.floor(region.height - region.chrome)));
-    const maxScale = region ? (region.height - region.chrome) / (SCENE_HEIGHT - crop) : Number.POSITIVE_INFINITY;
+    const rawScale = region ? (region.height - region.chrome) / (SCENE_HEIGHT - crop) : Number.POSITIVE_INFINITY;
+    const maxScale = Number.isFinite(rawScale) || rawScale === Number.POSITIVE_INFINITY ? rawScale : Number.POSITIVE_INFINITY;
     frame = cropped || region ? stageFrame(W, crop, undefined, maxScale) : full;
     const H = frame.viewHeight * frame.scale;
     app.renderer.resize(W, H);

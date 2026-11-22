@@ -584,7 +584,9 @@ button {
 
 .app[data-orientation='portrait'][data-mode='console'] .battle:not([hidden]) {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(var(--stage-h, 40%), auto) minmax(0, 1fr) auto auto;
+  /* A definite stage track from the layout contract: the scene is fitted to it, so its own size
+     can never feed back into the track (it shrinks again after a larger window). */
+  grid-template-rows: var(--stage-h, 40%) minmax(0, 1fr) auto auto;
   grid-template-areas:
     'stage'
     'menu'
@@ -602,6 +604,7 @@ button {
 
 .app[data-mode='console'] .stage .scene {
   flex: none;
+  gap: 0.15rem;
 }
 
 /* The latest log line over the scene's bottom edge (battleView publishes --scene-bottom, the
@@ -744,7 +747,10 @@ button {
   }
 }
 
-/* The d-pad is one compact strip. It needs a row of its own, so on windows too short for it next
+/* The d-pad exception (heuristic, see the media queries below): hidden for coarse pointers when the
+   window is shorter than 480 px (landscape) or 800 px (portrait). Sizes in between (landscape
+   480-560 high, portrait around 800 high) are not tested by hand or by e2e.
+   The d-pad is one compact strip. It needs a row of its own, so on windows too short for it next
    to the stage and the choices (phones) it steps aside: the choices are plain buttons to tap. */
 .app[data-mode='console'] .dpad {
   grid-area: dpad;

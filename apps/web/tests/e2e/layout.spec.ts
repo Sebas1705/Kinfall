@@ -28,16 +28,8 @@ test('fallback: the page does not scroll, only the primary area does', async ({ 
   expect(m.hudTop).toBeGreaterThanOrEqual(0);
 });
 
-// The battle in the console layout: nothing scrolls, nothing overflows sideways, every button is a
-// real touch target, and in landscape the choices stand to the right of the stage.
-test('battle: fits the window without scrolling and the rail sits beside the stage', async ({ page }, info) => {
-  const landscape = info.project.name === 'phone-landscape' || info.project.name === 'chromium';
-  await startRunWithKeyboard(page, 'e2e-layout');
-  await page.locator('#screen-map button.map-node:not([disabled])').first().click();
-  await expect(page.locator('#screen-battle')).toBeVisible();
-  await expect(page.locator('#choices button').first()).toBeVisible();
-  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
-
+/** Page never scrolls or overflows, every visible button is a real target; returns the layout rects. */
+async function expectBattleFits(page: Page, landscape: boolean): Promise<void> {
   const m = await page.evaluate(() => {
     const doc = document.scrollingElement!;
     const small = [...document.querySelectorAll<HTMLElement>('button')]
@@ -66,6 +58,62 @@ test('battle: fits the window without scrolling and the rail sits beside the sta
   expect(m.small).toEqual([]);
   if (landscape) expect(m.choicesLeft).toBeGreaterThanOrEqual(m.stageRight - 1);
   else expect(m.choicesBottom).toBeGreaterThan(m.stageBottom);
+}
+
+// The battle in the console layout: nothing scrolls, nothing overflows sideways, every button is a
+// real touch target, and in landscape the choices stand to the right of the stage. Text 130% must
+// still be the console (not the fallback) at 640x360 and 360x640.
+for (const size of [100, 130]) {
+  test(`battle: fits the window without scrolling, rail beside the stage (text ${size}%)`, async ({ page }, info) => {
+    const landscape = info.project.name === 'phone-landscape' || info.project.name === 'chromium';
+    await startRunWithKeyboard(page, 'e2e-layout');
+    if (size !== 100) await setTextSize(page, size);
+    await page.locator('#screen-map button.map-node:not([disabled])').first().click();
+    await expect(page.locator('#screen-battle')).toBeVisible();
+    await expect(page.locator('#choices button').first()).toBeVisible();
+    await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
+    await expectBattleFits(page, landscape);
+  });
+}
+
+// Large text on a tall window is still the console: 800 / 2 is above the battle budget.
+test('battle: text 200% on a tall window stays a console without scrolling', async ({ page }, info) => {
+  test.skip(info.project.name !== 'chromium', 'desktop window only');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await startRunWithKeyboard(page, 'e2e-layout');
+  await setTextSize(page, 150);
+  await page.locator('#screen-map button.map-node:not([disabled])').first().click();
+  await expect(page.locator('#choices button').first()).toBeVisible();
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
+  await expectBattleFits(page, true);
+});
+
+// The stage track is sized from the layout contract, so it follows the window both ways.
+test('battle: the scene follows a window that shrinks and grows back', async ({ page }, info) => {
+  test.skip(info.project.name !== 'chromium', 'resizes the window itself');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await enterBattle(page, 'e2e-layout');
+  await expect(page.locator('#scene canvas.scene-canvas')).toBeVisible();
+  for (const [w, h, landscape] of [
+    [1280, 800, true],
+    [360, 640, false],
+    [1280, 800, true],
+    [360, 640, false],
+  ] as const) {
+    await page.setViewportSize({ width: w, height: h });
+    await expect(page.locator('#app')).toHaveAttribute('data-orientation', landscape ? 'landscape' : 'portrait');
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const stage = document.querySelector('.stage')!.getBoundingClientRect();
+          const canvas = document.querySelector('#scene canvas.scene-canvas')!.getBoundingClientRect();
+          const doc = document.scrollingElement!;
+          return canvas.bottom <= stage.bottom + 0.5 && doc.scrollHeight <= window.innerHeight;
+        }),
+      )
+      .toBe(true);
+    await expectBattleFits(page, landscape);
+  }
 });
 
 async function enterBattle(page: Page, seed: string): Promise<void> {
@@ -118,5 +166,49 @@ test('battle fallback: only the primary area scrolls and the log stays in the fl
   }));
   expect(m.page).toBeLessThanOrEqual(m.inner);
   expect(m.wide).toBeLessThanOrEqual(m.innerW);
-  await expect(page.locator('#choices button').first()).toBeAttached();
+  // The rail is reachable by scrolling the primary area, and its buttons are real targets.
+  const first = page.locator('#choices button:not([disabled])').first();
+  await first.scrollIntoViewIfNeeded();
+  await expect(first).toBeInViewport();
+  const box = await first.boundingBox();
+  expect(box!.width).toBeGreaterThanOrEqual(44);
+  expect(box!.height).toBeGreaterThanOrEqual(44);
+});
+
+// The on-screen d-pad (touch only) steps aside on windows too short for it (see styles.css).
+test.describe('d-pad on touch screens', () => {
+  test.use({ hasTouch: true, isMobile: true });
+  const cases = [
+    [411, 914, true],
+    [1280, 800, true],
+    [914, 411, false],
+    [360, 640, false],
+  ] as const;
+  for (const [w, h, shown] of cases) {
+    test(`${w}x${h}: ${shown ? 'shown' : 'hidden'}`, async ({ page }, info) => {
+      test.skip(info.project.name !== 'chromium', 'sizes set here');
+      await page.setViewportSize({ width: w, height: h });
+      await enterBattle(page, 'e2e-layout');
+      await expect(page.locator('#app')).toHaveAttribute('data-mode', 'console');
+      const dpad = page.locator('#dpad');
+      if (!shown) {
+        await expect(dpad).toBeHidden();
+        return;
+      }
+      await expect(dpad).toBeVisible();
+      const m = await page.evaluate(() => {
+        const bar = document.querySelector('#dpad')!.getBoundingClientRect();
+        const small = [...document.querySelectorAll<HTMLElement>('#dpad button')]
+          .map((b) => b.getBoundingClientRect())
+          .filter((r) => r.width < 44 || r.height < 44).length;
+        return { right: bar.right, bottom: bar.bottom, small, iw: innerWidth, ih: innerHeight,
+          scrollW: document.scrollingElement!.scrollWidth, scrollH: document.scrollingElement!.scrollHeight };
+      });
+      expect(m.small).toBe(0);
+      expect(m.right).toBeLessThanOrEqual(m.iw);
+      expect(m.bottom).toBeLessThanOrEqual(m.ih);
+      expect(m.scrollW).toBeLessThanOrEqual(m.iw);
+      expect(m.scrollH).toBeLessThanOrEqual(m.ih);
+    });
+  }
 });
