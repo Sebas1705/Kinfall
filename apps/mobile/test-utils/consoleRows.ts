@@ -32,3 +32,22 @@ export function consoleRows(screen: ScreenId): ConsoleRow[] {
   }
   return rows;
 }
+
+/** Windows only the fallback sees (the contract's 320 dp wide row and a window under 320 high), besides the matrix. */
+const FALLBACK_EXTRA: ReadonlyArray<readonly [number, number]> = [
+  [320, 640],
+  [560, 300],
+];
+
+/** The rows where `screen` is the fallback (huge text or a very short window). */
+export function fallbackRows(screen: ScreenId): ConsoleRow[] {
+  const rows: ConsoleRow[] = [];
+  for (const [w, h] of [...WINDOW_SIZES, ...FALLBACK_EXTRA]) {
+    for (const fs of FONT_SCALES) {
+      const scale = effectiveTextScale(fs, 1);
+      if (layoutSpec({ width: w, height: h, textScale: scale }, screen).mode !== 'fallback') continue;
+      rows.push([`${w}x${h} at ${Math.round(fs * 100)}%`, w, h, fs]);
+    }
+  }
+  return rows;
+}

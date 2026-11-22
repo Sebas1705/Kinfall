@@ -107,6 +107,18 @@ describe('Hud', () => {
     expect(style.minHeight).toBeGreaterThanOrEqual(52);
   });
 
+  it('in the fallback pins the row to the top, keeps the heading a minimum width and plans the chips', async () => {
+    windowIs(360, 640, 2);
+    const long = [0, 1, 2].map(() => ({ name: 'Zarzaguardián', hp: 12, maxHp: 12 }));
+    await render(<Hud screen="map" onSettings={() => {}} party={long} zoneLabel="Zona 1: Pantano Cenizo 3/7" />);
+    const bar = StyleSheet.flatten(screen.getByTestId('hud').props.style);
+    expect(bar.alignItems).toBe('flex-start');
+    expect(StyleSheet.flatten(screen.getByTestId('hud-title').props.style).minWidth).toBeGreaterThanOrEqual(96);
+    // Three long names at 200% do not fit a 360 dp bar: no three wrapped chips that make the row tall
+    // (the Run sheet lists the party).
+    expect(screen.queryByTestId('hud-chip-0')).toBeNull();
+  });
+
   it('keeps the Settings button at least 48dp', async () => {
     await render(<Hud screen="map" onSettings={() => {}} />);
     const style = screen.getByTestId('hud-settings').props.style as unknown;

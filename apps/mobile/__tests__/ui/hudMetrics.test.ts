@@ -9,7 +9,8 @@ import { effectiveTextScale, layoutSpec } from '@kinfall/core/layout/spec';
 import { setLang, speciesName, t } from '@kinfall/core/platform/i18n';
 
 import { compactChip } from '../../src/ui/Hud';
-import { consoleRows } from '../../test-utils/consoleRows';
+import { HUD_MAX_SHARE } from '../../src/ui/Screen';
+import { consoleRows, fallbackRows } from '../../test-utils/consoleRows';
 import { textWidth } from '../../src/screens/textFit';
 import { BUTTON_MIN, TITLE_CUT_MIN_CHARS, hudPlan, titleHeight } from '../../src/ui/hudMetrics';
 
@@ -60,6 +61,21 @@ describe.each(['en', 'es'] as const)('HUD plan in %s', (lang) => {
     const spec = layoutSpec({ width: 914, height: 411, textScale: 1 }, 'map');
     const plan = hudPlan({ width: spec.regions.content.width, scale: 1, title: headings('map')[2]!, chips: party.map((p) => `${p.name} ${p.hp}/${p.maxHp}`), compact: compactChip(party), buttons: ['Run', 'Settings'] });
     expect(plan).toMatchObject({ chips: 'full', titleLines: 1 });
+  });
+});
+
+// In the fallback the Screen caps the HUD strip at HUD_MAX_SHARE of the window and scrolls inside it
+// (a strip that does not look scrollable). The bar's row is top-aligned, so the buttons (48 dp) always
+// sit in the first 48 dp of the strip, whatever the heading and the chips take below them.
+describe('HUD strip in the fallback', () => {
+  const SCREENS = ['title', 'map', 'battle', 'event', 'end'] as const;
+  it.each(SCREENS.flatMap((screen) => fallbackRows(screen).map((r) => [screen, ...r] as const)))('%s, %s: Settings and the extra button sit inside the capped strip', (_s, _l, _w, h) => {
+    const cap = Math.round(h * HUD_MAX_SHARE);
+    expect([h, BUTTON_MIN, BUTTON_MIN <= cap]).toEqual([h, BUTTON_MIN, true]);
+  });
+
+  it('has fallback rows to prove (a screen is a fallback somewhere in the matrix)', () => {
+    expect(SCREENS.flatMap((screen) => fallbackRows(screen)).length).toBeGreaterThan(20);
   });
 });
 

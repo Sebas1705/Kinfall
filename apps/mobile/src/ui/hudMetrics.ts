@@ -11,6 +11,8 @@ export const HUD_GAP = 8;
 export const TITLE_SIZE = 16;
 /** The heading's size when it takes two lines. */
 export const TITLE_SIZE_2 = 13;
+/** The heading's least width in the fallback bar (dp), so a wide party never squeezes it to a sliver. */
+export const TITLE_MIN_WIDTH = 96;
 /** The smallest one-line heading size, the last resort before the heading is cut with an ellipsis. */
 export const TITLE_SIZE_MIN = 12;
 export const BUTTON_SIZE = 13;

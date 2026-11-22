@@ -16,7 +16,7 @@ import { useLang } from '../platform/LangContext';
 import { useTextSize } from '../platform/textSizeSetting';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
-import { BUTTON_SIZE, CHIP_SIZE, HUD_GAP, HUD_PAD, TITLE_SIZE, hudPlan } from './hudMetrics';
+import { BUTTON_SIZE, CHIP_SIZE, HUD_GAP, HUD_PAD, TITLE_MIN_WIDTH, hudPlan } from './hudMetrics';
 import { useLayoutSpec } from './useLayoutSpec';
 
 type ViewRef = Ref<ComponentRef<typeof View>>;
@@ -69,8 +69,10 @@ export function Hud({ screen, onSettings, party = [], zoneLabel, onExtra, extraR
     compact,
     buttons: [...(onExtra ? [extra] : []), t('hud.settings')],
   });
-  const mode = fixed ? plan.chips : 'full';
-  const lines = fixed ? plan.titleLines : undefined;
+  // The fallback bar grows with the text but follows the same plan (compact chip when the party does not
+  // fit), so its row stays short enough for the capped strip the Screen gives it.
+  const mode = plan.chips;
+  const lines = plan.titleLines;
   const chip = (key: string, text: string, label: string, bad: boolean, testID: string) => (
     <View key={key} style={[styles.chip, { borderColor: bad ? theme.danger : theme.border }]} accessible accessibilityRole="text" accessibilityLabel={label} testID={testID}>
       <AppText style={[styles.chipText, { color: bad ? theme.danger : theme.text }]} numberOfLines={1}>
@@ -80,12 +82,12 @@ export function Hud({ screen, onSettings, party = [], zoneLabel, onExtra, extraR
   );
   return (
     <View
-      style={[styles.bar, fixed ? { height } : { minHeight: height }, { borderColor: theme.border, backgroundColor: theme.surface }]}
+      style={[styles.bar, fixed ? { height } : { minHeight: height, alignItems: 'flex-start' }, { borderColor: theme.border, backgroundColor: theme.surface }]}
       testID="hud"
     >
       <AppText
         ref={titleRef}
-        style={[styles.title, { color: theme.text, fontSize: fixed ? plan.titleSize : TITLE_SIZE }]}
+        style={[styles.title, fixed ? null : styles.titleFallback, { color: theme.text, fontSize: plan.titleSize }]}
         numberOfLines={lines}
         accessibilityRole="header"
         testID={titleTestID}
@@ -138,8 +140,11 @@ export function Hud({ screen, onSettings, party = [], zoneLabel, onExtra, extraR
 }
 
 const styles = StyleSheet.create({
+  // The bar's row is centred in the console (a fixed height) and pinned to the top in the fallback, where the
+  // Screen caps the strip and scrolls it: the buttons are then always in its first 48 dp, never mid-row.
   bar: { flexDirection: 'row', alignItems: 'center', gap: HUD_GAP, paddingHorizontal: HUD_PAD, borderBottomWidth: 2, width: '100%' },
   title: { fontWeight: '700', flexShrink: 1 },
+  titleFallback: { minWidth: TITLE_MIN_WIDTH },
   party: { flex: 1, flexDirection: 'row', gap: 4, justifyContent: 'flex-end' },
   partyWrap: { flexWrap: 'wrap' },
   chip: { borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, flexShrink: 1 },
