@@ -758,10 +758,10 @@ button {
   font-size: 0.7rem;
 }
 
-/* One line each, so a choice has a bounded height whatever the font or the language (CI fonts are wider
+/* In the battle only (the event screens share these classes and size their own cells): one line each, so a choice has a bounded height whatever the font or the language (CI fonts are wider
    than the ones the layout was first measured with): the full text stays in the button for
    assistive technology, and an overlong one ends in an ellipsis. */
-.app[data-mode='console'] :is(.choice-label, .choice-detail) {
+.app[data-mode='console'] #screen-battle :is(.choice-label, .choice-detail) {
   display: block;
   min-width: 0;
   overflow: hidden;

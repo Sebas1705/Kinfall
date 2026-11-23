@@ -235,6 +235,8 @@ test('battle: keys do not reach the battle while a sheet is open', async ({ page
       hp: [...document.querySelectorAll('.hud-hp, .hud-bar, [data-hp]')].map((e) => e.textContent + (e.getAttribute('style') ?? '')).join('|'),
       selected: document.querySelector('#choices [aria-selected="true"], #choices .selected, #choices button:focus')?.textContent ?? '',
     }));
+  // The HP elements are drawn a moment after the scene appears: capture the reference once they exist.
+  await expect.poll(async () => (await state()).hp, { timeout: 10_000 }).not.toBe('');
   const before = await state();
   await dialog.locator('[data-sheet-close]').focus();
   for (const code of ['KeyZ', 'Enter', 'ArrowDown', 'KeyQ', 'KeyX', 'Backspace']) {
