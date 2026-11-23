@@ -60,6 +60,25 @@ describe('startRunPage', () => {
     expect(shown()).toEqual(['hub']);
   });
 
+  it('announces a soon game again when it is selected twice in a row', () => {
+    vi.useFakeTimers();
+    try {
+      startRunPage('hub');
+      const live = document.querySelector('[data-announcer]')!;
+      const card = document.querySelector<HTMLElement>('.hub-card[data-game="simulator"]')!;
+      card.click();
+      vi.advanceTimersByTime(100);
+      expect(live.textContent).toBe('Simulator is coming soon.');
+      // A live region only announces a change: the second selection must clear it first.
+      card.click();
+      expect(live.textContent).toBe('');
+      vi.advanceTimersByTime(100);
+      expect(live.textContent).toBe('Simulator is coming soon.');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a language change re-renders the hub keeping the focused game', () => {
     startRunPage('hub');
     document.querySelector<HTMLElement>('.hub-card[data-game="survival"]')!.click();
@@ -75,5 +94,26 @@ describe('startRunPage', () => {
     localStorage.setItem(LAST_GAME_KEY, 'kinfall');
     startRunPage('hub');
     expect(document.querySelector('.hub-card[data-game="kinfall"]')!.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('starts with a stored soon game by focusing Kinfall', () => {
+    localStorage.setItem(LAST_GAME_KEY, 'simulator');
+    startRunPage('hub');
+    expect(document.querySelector('.hub-card[data-game="kinfall"]')!.getAttribute('aria-checked')).toBe('true');
+    expect(document.querySelector('.hub-card[data-game="simulator"]')!.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('still renders the hub and plays when storage access throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked');
+    });
+    startRunPage('hub');
+    expect(shown()).toEqual(['hub']);
+    expect(document.querySelector('.hub-card[data-game="kinfall"]')!.getAttribute('aria-checked')).toBe('true');
+    document.getElementById('hub-play')!.click();
+    expect(shown()).toEqual(['title']);
   });
 });

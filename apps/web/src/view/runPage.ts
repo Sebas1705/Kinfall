@@ -109,11 +109,24 @@ export function startRunPage(entry: 'hub' | 'kinfall' = 'hub'): void {
         writeLastGame(storage, id);
         controller.showTitle();
       },
-      onSoon: (name) => {
-        const live = document.querySelector<HTMLElement>('[data-announcer]');
-        if (live) live.textContent = t('hub.soonAnnounce', { game: name });
-      },
+      onSoon: (name) => announce(t('hub.soonAnnounce', { game: name })),
     });
+  // A live region announces a change of text only: repeating the same message clears it first and
+  // sets it again a moment later, so a screen reader reads it every time.
+  let announceTimer: number | undefined;
+  const announce = (message: string) => {
+    const live = document.querySelector<HTMLElement>('[data-announcer]');
+    if (!live) return;
+    window.clearTimeout(announceTimer);
+    if (live.textContent !== message) {
+      live.textContent = message;
+      return;
+    }
+    live.textContent = '';
+    announceTimer = window.setTimeout(() => {
+      live.textContent = message;
+    }, 60);
+  };
   const showHub = (focus: boolean) => {
     ui.showSeed(null);
     renderHubScreen();

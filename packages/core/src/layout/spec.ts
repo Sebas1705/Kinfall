@@ -59,6 +59,11 @@ export const MIN_HEIGHT_PX = 320;
  * (spec 7.5): a 640 px portrait window is 320 text-sized px, under the portrait budgets of the
  * title, map, battle and event.
  *
+ * The hub (web) was measured the same way with the budget and the 320 px
+ * minimum height lifted, in English and Spanish: minimum fitting height / text scale was at most 232.7
+ * in landscape (Spanish, 640 wide, 150%) and 365 in portrait (360 wide at 100%; 350 at 320 wide, 150%).
+ * The Android hub proofs may only raise these two values.
+ *
  * The title and event portrait budgets (460), the title landscape budget (245) and the end portrait
  * budget (330) were raised after the mobile fit proofs (apps/mobile/__tests__/screens/runMetrics.test.ts,
  * run over every console row of the contract up to 200% text) showed the Android screens overflow
@@ -75,8 +80,7 @@ export const MIN_BUDGET: Record<ScreenId, ScreenBudget> = {
   battle: { landscape: 270, portrait: 480 },
   event: { landscape: 250, portrait: 460 },
   end: { landscape: 210, portrait: 330 },
-  // Provisional: re-measured on the web and mobile hub screens.
-  hub: { landscape: 245, portrait: 460 },
+  hub: { landscape: 235, portrait: 365 },
 };
 
 // Band heights (px at text scale 1). The HUD was measured on the web shell: 52 px, which is the

@@ -44,7 +44,7 @@ async function expectPinnedRail(page: Page, railSelector: string): Promise<void>
 
 test('fallback: the page does not scroll, only the primary area does, the rail is pinned', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone-landscape', 'sized for the 640x360 project');
-  await page.goto('/');
+  await page.goto('/?game=kinfall');
   await startRunWithKeyboard(page, 'e2e-layout');
   await setTextSize(page, 150);
   await expect(page.locator('#app')).toHaveAttribute('data-mode', 'fallback');
@@ -71,7 +71,7 @@ test('fallback: the map at 914x411 and text 150% pins the rail', async ({ page }
 
 test('fallback: the event at 640x360 and text 150% pins the rail', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone-landscape', 'sized for the 640x360 project');
-  await page.goto('/');
+  await page.goto('/?game=kinfall');
   await writeCraftedSave(page, 'recruit');
   await continueSavedRun(page);
   await setTextSize(page, 150);
@@ -257,7 +257,7 @@ test('battle: keys do not reach the battle while a sheet is open', async ({ page
 // Huge text: the page still does not scroll, only the primary area does, and the log is a plain panel.
 test('battle fallback: only the primary area scrolls, the choices are pinned and the log stays in the flow', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone-landscape', 'sized for the 640x360 project');
-  await page.goto('/');
+  await page.goto('/?game=kinfall');
   await enterBattle(page, 'e2e-layout');
   await setTextSize(page, 150);
   await expect(page.locator('#app')).toHaveAttribute('data-mode', 'fallback');
@@ -319,7 +319,7 @@ test.describe('d-pad on touch screens', () => {
 
 // ---- title, map, event and end in the console layout ----
 
-type RunScreen = 'title' | 'map' | 'event' | 'end';
+type RunScreen = 'hub' | 'title' | 'map' | 'event' | 'end';
 
 /** Everything the console promises on a run screen: nothing scrolls (page, primary or rail), nothing
  *  overflows sideways, every button is a real target, and the rail is beside / under the primary area. */
@@ -328,7 +328,7 @@ async function expectScreenFits(page: Page, screen: RunScreen, landscape: boolea
     const doc = document.scrollingElement!;
     const section = document.querySelector<HTMLElement>(`#screen-${id}`)!;
     const visible = (el: Element) => !el.closest('[hidden]') && !el.closest('[inert]') && el.getClientRects().length > 0;
-    const small = [...document.querySelectorAll<HTMLElement>('button, .starter-card')]
+    const small = [...document.querySelectorAll<HTMLElement>('button, .starter-card, .hub-card')]
       .filter(visible)
       .map((b) => {
         const r = b.getBoundingClientRect();
@@ -379,13 +379,16 @@ async function expectScreenFits(page: Page, screen: RunScreen, landscape: boolea
 }
 
 async function showRunScreen(page: Page, screen: RunScreen): Promise<void> {
-  if (screen === 'title') {
+  if (screen === 'hub') {
+    await page.goto('/');
+    await expect(page.locator('#screen-hub .hub-card').first()).toBeVisible();
+  } else if (screen === 'title') {
     await page.goto('/?seed=e2e-layout');
     await expect(page.locator('#screen-title [data-action="new-run"]')).toBeVisible();
   } else if (screen === 'map') {
     await startRunWithKeyboard(page, 'e2e-layout');
   } else {
-    await page.goto('/');
+    await page.goto('/?game=kinfall');
     await writeCraftedSave(page, screen === 'end' ? 'won' : 'recruit');
     await continueSavedRun(page);
   }
@@ -404,7 +407,7 @@ for (const size of [100, 130]) {
   });
 }
 
-for (const screen of ['title', 'map', 'event', 'end'] as const) {
+for (const screen of ['hub', 'title', 'map', 'event', 'end'] as const) {
   for (const size of [100, 130]) {
     test(`${screen}: fits the window without scrolling in the console (text ${size}%)`, async ({ page }, info) => {
       await showRunScreen(page, screen);
@@ -419,7 +422,7 @@ for (const screen of ['title', 'map', 'event', 'end'] as const) {
 // The other events: a shrine (rest, evolutions, leave), a cache and a mystery.
 for (const kind of ['shrine', 'cache', 'mystery'] as const) {
   test(`event ${kind}: fits the window without scrolling in the console (text 130%)`, async ({ page }, info) => {
-    await page.goto('/');
+    await page.goto('/?game=kinfall');
     await writeCraftedSave(page, kind);
     await continueSavedRun(page);
     await setTextSize(page, 130);
@@ -429,7 +432,7 @@ for (const kind of ['shrine', 'cache', 'mystery'] as const) {
 }
 
 // Large text on a tall window is still the console for every run screen.
-for (const screen of ['title', 'map', 'event', 'end'] as const) {
+for (const screen of ['hub', 'title', 'map', 'event', 'end'] as const) {
   test(`${screen}: text 150% on a 1280x800 window stays a console without scrolling`, async ({ page }, info) => {
     test.skip(info.project.name !== 'chromium', 'desktop window only');
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -530,7 +533,7 @@ test('title: the Options button opens the seed field; a typed seed starts that r
 });
 
 test('end: the Run sheet shows the detailed stats', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?game=kinfall');
   await writeCraftedSave(page, 'won');
   await continueSavedRun(page);
   await page.locator('#hud-run').click();
@@ -671,7 +674,7 @@ test.describe('rotation', () => {
 
   test('settings sheet: swaps between bottom sheet and side drawer, stays on screen with focus inside', async ({ page }) => {
     await page.setViewportSize(PORTRAIT);
-    await page.goto('/');
+    await page.goto('/?game=kinfall');
     await page.locator('#hud-settings').click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -725,7 +728,7 @@ test.describe('rotation', () => {
 
   test('event: the choices, the party chips and the focused control survive a rotation', async ({ page }) => {
     await page.setViewportSize(PORTRAIT);
-    await page.goto('/');
+    await page.goto('/?game=kinfall');
     await writeCraftedSave(page, 'recruit');
     await continueSavedRun(page);
     const choice = page.locator('#screen-event button[data-choice]:not([disabled])').nth(1);
@@ -770,7 +773,7 @@ test.describe('rotation', () => {
       window.visualViewport?.addEventListener('resize', block, true);
     });
     await page.setViewportSize(PORTRAIT);
-    await page.goto('/');
+    await page.goto('/?game=kinfall');
     const btn = page.locator('#hud-fullscreen');
     await expect(btn).toBeVisible();
     await expect(btn).toHaveAttribute('aria-label', 'Enter fullscreen');

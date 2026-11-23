@@ -183,3 +183,22 @@ test('the screen announcement and document title follow every route change', asy
   await page.locator('#screen-map button.map-node:not([disabled])').first().click();
   await expect(page).toHaveTitle(/^(Battle|Event) · Kinfall$/);
 });
+
+// The game hub (the default page): no axe violations at all (so none serious or critical), no overflow, 44 px targets at 320.
+for (const scheme of ['light', 'dark'] as const) {
+  for (const lang of ['en', 'es'] as const) {
+    for (const size of sizes) {
+      test(`hub: axe, ${scheme}, ${lang}, ${size.name}, text 150%`, async ({ page }) => {
+        await page.setViewportSize({ width: size.width, height: size.height });
+        await page.emulateMedia({ colorScheme: scheme });
+        await page.goto('/');
+        await expect(page.locator('#screen-hub .hub-card').first()).toBeVisible();
+        await setLanguage(page, lang);
+        await setTextSize(page, 150);
+        await expectNoAxeViolations(page, `hub (${lang})`);
+        await expectNoOverflow(page, `hub (${lang})`);
+        if (size.width === 320) await expectTargets(page, `hub (${lang})`);
+      });
+    }
+  }
+}

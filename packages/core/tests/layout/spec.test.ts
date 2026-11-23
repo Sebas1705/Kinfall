@@ -14,8 +14,7 @@ import {
   type ScreenId,
 } from '../../src/layout/spec';
 
-type RunScreen = Exclude<ScreenId, 'hub'>;
-const SCREENS: RunScreen[] = ['title', 'map', 'battle', 'event', 'end'];
+const SCREENS: ScreenId[] = ['title', 'map', 'battle', 'event', 'end', 'hub'];
 
 const MATRIX: [string, number, number, number, Orientation][] = [
   ['320x640 @1.0', 320, 640, 1, 'portrait'],
@@ -206,10 +205,10 @@ describe('per-screen budgets', () => {
     Object.fromEntries(SCREENS.map((s) => [s, layoutSpec({ width, height, textScale }, s).mode]));
   const C = 'console';
   const F = 'fallback';
-  const all = (m: LayoutMode) => ({ title: m, map: m, battle: m, event: m, end: m });
+  const all = (m: LayoutMode) => ({ title: m, map: m, battle: m, event: m, end: m, hub: m });
 
   // screen x window x scale -> mode, spelled out so a budget regression shows up here.
-  const TABLE: [string, number, number, number, Record<RunScreen, LayoutMode>][] = [
+  const TABLE: [string, number, number, number, Record<ScreenId, LayoutMode>][] = [
     ['640x360 @1.0', 640, 360, 1, all(C)],
     ['640x360 @1.3', 640, 360, 1.3, all(C)],
     ['640x360 @2.0', 640, 360, 2, all(F)],
@@ -221,15 +220,15 @@ describe('per-screen budgets', () => {
     ['320x640 @1.3', 320, 640, 1.3, all(C)],
     ['360x640 @1.0', 360, 640, 1, all(C)],
     ['360x640 @1.3', 360, 640, 1.3, all(C)],
-    ['360x640 @1.5', 360, 640, 1.5, { title: F, map: F, battle: F, event: F, end: C }],
+    ['360x640 @1.5', 360, 640, 1.5, { title: F, map: F, battle: F, event: F, end: C, hub: C }],
     ['360x640 @2.0', 360, 640, 2, all(F)],
     ['600x800 @1.0', 600, 800, 1, all(C)],
     ['600x800 @1.3', 600, 800, 1.3, all(C)],
-    ['600x800 @2.0', 600, 800, 2, { title: F, map: F, battle: F, event: F, end: C }],
+    ['600x800 @2.0', 600, 800, 2, { title: F, map: F, battle: F, event: F, end: C, hub: C }],
     ['411x914 @1.5', 411, 914, 1.5, all(C)],
-    ['411x914 @2.0', 411, 914, 2, { title: F, map: F, battle: F, event: F, end: C }],
-    ['640x360 @1.5', 640, 360, 1.5, { title: F, map: F, battle: F, event: F, end: C }],
-    ['914x411 @1.5', 914, 411, 1.5, { title: C, map: F, battle: C, event: C, end: C }],
+    ['411x914 @2.0', 411, 914, 2, { title: F, map: F, battle: F, event: F, end: C, hub: C }],
+    ['640x360 @1.5', 640, 360, 1.5, { title: F, map: F, battle: F, event: F, end: C, hub: C }],
+    ['914x411 @1.5', 914, 411, 1.5, { title: C, map: F, battle: C, event: C, end: C, hub: C }],
     ['800x1280 @1.0', 800, 1280, 1, all(C)],
     ['800x1280 @2.0', 800, 1280, 2, all(C)],
     ['1280x800 @1.0', 1280, 800, 1, all(C)],
