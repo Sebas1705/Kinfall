@@ -14,7 +14,8 @@ import {
   type ScreenId,
 } from '../../src/layout/spec';
 
-const SCREENS: ScreenId[] = ['title', 'map', 'battle', 'event', 'end'];
+type RunScreen = Exclude<ScreenId, 'hub'>;
+const SCREENS: RunScreen[] = ['title', 'map', 'battle', 'event', 'end'];
 
 const MATRIX: [string, number, number, number, Orientation][] = [
   ['320x640 @1.0', 320, 640, 1, 'portrait'],
@@ -208,7 +209,7 @@ describe('per-screen budgets', () => {
   const all = (m: LayoutMode) => ({ title: m, map: m, battle: m, event: m, end: m });
 
   // screen x window x scale -> mode, spelled out so a budget regression shows up here.
-  const TABLE: [string, number, number, number, Record<ScreenId, LayoutMode>][] = [
+  const TABLE: [string, number, number, number, Record<RunScreen, LayoutMode>][] = [
     ['640x360 @1.0', 640, 360, 1, all(C)],
     ['640x360 @1.3', 640, 360, 1.3, all(C)],
     ['640x360 @2.0', 640, 360, 2, all(F)],
@@ -268,5 +269,17 @@ describe('per-screen budgets', () => {
       expect(MIN_BUDGET[s].landscape, s).toBeLessThanOrEqual(360 / 1.3);
       expect(MIN_BUDGET[s].landscape, s).toBeGreaterThan(360 / 2);
     }
+  });
+});
+
+describe('the hub screen', () => {
+  it('is a console at 640x360 @1.0 and 360x640 @1.3', () => {
+    expect(layoutSpec({ width: 640, height: 360, textScale: 1 }, 'hub').mode).toBe('console');
+    expect(layoutSpec({ width: 360, height: 640, textScale: 1.3 }, 'hub').mode).toBe('console');
+  });
+
+  it('has a budget for both orientations', () => {
+    expect(MIN_BUDGET.hub.landscape).toBeGreaterThan(0);
+    expect(MIN_BUDGET.hub.portrait).toBeGreaterThan(0);
   });
 });

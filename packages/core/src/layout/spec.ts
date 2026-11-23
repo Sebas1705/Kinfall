@@ -7,7 +7,7 @@ export type WidthClass = 'compact' | 'medium' | 'expanded';
 export type HeightClass = 'compact' | 'medium' | 'expanded';
 export type Orientation = 'landscape' | 'portrait';
 export type LayoutMode = 'console' | 'fallback';
-export type ScreenId = 'title' | 'map' | 'battle' | 'event' | 'end';
+export type ScreenId = 'title' | 'map' | 'battle' | 'event' | 'end' | 'hub';
 
 export interface Rect {
   x: number;
@@ -75,6 +75,8 @@ export const MIN_BUDGET: Record<ScreenId, ScreenBudget> = {
   battle: { landscape: 270, portrait: 480 },
   event: { landscape: 250, portrait: 460 },
   end: { landscape: 210, portrait: 330 },
+  // Provisional: re-measured on the web and mobile hub screens.
+  hub: { landscape: 245, portrait: 460 },
 };
 
 // Band heights (px at text scale 1). The HUD was measured on the web shell: 52 px, which is the
