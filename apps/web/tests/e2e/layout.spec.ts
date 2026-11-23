@@ -799,9 +799,11 @@ test.describe('rotation', () => {
     await page.setViewportSize(PORTRAIT);
     await enterBattle(page, 'e2e-layout');
     expect(await page.evaluate(() => document.documentElement.classList.contains('reduce-motion'))).toBe(false);
+    // Watch for the busy state on every frame BEFORE the click: a poll can miss a short turn on a loaded runner.
+    const busySeen = page.waitForFunction(() => document.querySelector('#choices')?.getAttribute('aria-busy') === 'true', undefined, { polling: 'raf', timeout: 10_000 });
     await page.locator('#choices button:not([disabled])').first().click();
     // The turn is playing: rotate there and back while it runs.
-    await expect(page.locator('#choices')).toHaveAttribute('aria-busy', 'true');
+    await busySeen;
     await rotateTo(page, LANDSCAPE);
     await rotateTo(page, PORTRAIT);
     await rotateTo(page, LANDSCAPE);
