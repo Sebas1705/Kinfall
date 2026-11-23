@@ -1,12 +1,14 @@
-// The scroll-into-view machinery of Screen (useReveal): where it scrolls, its retry after a frame,
-// the repeat on a late content size change, and the pinned footer's own scroll area. This is the
+// The scroll-into-view machinery of Screen (useReveal), in the fallback layout where the primary
+// region scrolls: where it scrolls, its retry after a frame, the repeat on a late content size
+// change, and the pinned actions' own scroll area. This is the
 // code behind the abandon confirmation that opened cut off on the emulator in Task 8.
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { createRef } from 'react';
 import { Dimensions, StyleSheet, Text, type ScrollViewInstance } from 'react-native';
 
-import { FOOTER_MAX_SHARE, revealScrollY, Screen, useReveal, type Reveal } from '../../src/ui/Screen';
+import * as SafeArea from 'react-native-safe-area-context';
+import { FOOTER_MAX_SHARE, HUD_MAX_SHARE, revealScrollY, Screen, useReveal, type Reveal } from '../../src/ui/Screen';
 
 /** Top padding of the scrolling content (Screen's PAD_TOP): measured positions are below it. */
 const PAD_TOP = 16;
@@ -23,22 +25,30 @@ function target(y: number, h: number) {
 }
 
 async function renderScreen(props: { onContentSizeChange?: (w: number, h: number) => void } = {}) {
+  jest.spyOn(Dimensions, 'get').mockReturnValue({ width: 360, height: 640, fontScale: 2, scale: 2 });
   const ref = createRef<ScrollViewInstance>();
   let main: Reveal = () => {};
   let foot: Reveal = () => {};
   await render(
     <Screen
       ref={ref}
+      screen="battle"
       testID="scr"
       onContentSizeChange={props.onContentSizeChange}
-      footer={<Probe onReveal={(r) => (foot = r)} />}
-      footerTestID="foot"
+      hud={<Text>hud</Text>}
+      actions={
+        <>
+          <Probe onReveal={(r) => (foot = r)} />
+          <Text>foot-body</Text>
+        </>
+      }
     >
       <Probe onReveal={(r) => (main = r)} />
       <Text>body</Text>
     </Screen>,
   );
-  const scroll = screen.getByTestId('scr');
+  // A phone at 200% text does not fit the console layout: the primary region scrolls.
+  const scroll = screen.getByTestId('scr-scroll');
   const scrollTo = jest.mocked(ref.current!.scrollTo);
   scrollTo.mockClear();
   return {
@@ -152,24 +162,154 @@ describe('Screen reveal', () => {
   });
 });
 
-describe('Screen footer', () => {
-  it('pins the footer below the content, capped at its share of the window, with its own reveal', async () => {
+describe('Screen pinned actions', () => {
+  it('pins the actions below the content, capped at their share of the window, with their own reveal', async () => {
     const s = await renderScreen();
-    const footer = screen.getByTestId('foot');
-    const style = StyleSheet.flatten(footer.props.style) as { maxHeight: number };
-    expect(style.maxHeight).toBe(Math.round(Dimensions.get('window').height * FOOTER_MAX_SHARE));
-    // The footer is outside the main scroll area, and its children reveal inside the footer.
-    expect(within(s.scroll).queryByTestId('foot')).toBeNull();
+    let n = screen.getByText('foot-body').parent;
+    let cap = NaN;
+    for (; n && Number.isNaN(cap); n = n.parent) {
+      const m = StyleSheet.flatten(n.props.style)?.maxHeight;
+      if (typeof m === 'number') cap = m;
+    }
+    expect(cap).toBe(Math.round(Dimensions.get('window').height * FOOTER_MAX_SHARE));
+    // The actions are outside the main scroll area, and their children reveal inside their own.
+    expect(within(s.scroll).queryByText('foot-body')).toBeNull();
     expect(s.footReveal()).not.toBe(s.mainReveal());
   });
+});
 
-  it('renders no footer area without a footer', async () => {
+type Json = { type: string; children?: (Json | string)[] | null };
+/** Host nodes of a rendered tree whose type is RCTScrollView. */
+function scrollViews(node: Json | Json[] | null): Json[] {
+  if (!node) return [];
+  if (Array.isArray(node)) return node.flatMap(scrollViews);
+  const kids = (node.children ?? []).filter((c): c is Json => typeof c !== 'string');
+  return [...(node.type === 'RCTScrollView' ? [node] : []), ...kids.flatMap(scrollViews)];
+}
+function textsIn(node: Json | string): string[] {
+  if (typeof node === 'string') return [node];
+  return (node.children ?? []).flatMap(textsIn);
+}
+
+describe('Screen shell', () => {
+  function windowIs(width: number, height: number, fontScale: number) {
+    jest.spyOn(Dimensions, 'get').mockReturnValue({ width, height, fontScale, scale: 2 });
+  }
+  const shell = (
+    <Screen screen="battle" testID="scr" hud={<Text>hud-slot</Text>} actions={<Text>actions-slot</Text>} info={<Text>info-slot</Text>}>
+      <Text>primary-slot</Text>
+    </Screen>
+  );
+
+  it.each([
+    [640, 360, 1],
+    [640, 360, 1.3],
+    [360, 640, 1],
+    [360, 640, 1.3],
+  ])('has no ScrollView in console mode at %ix%i, font scale %s', async (w, h, fs) => {
+    windowIs(w, h, fs);
+    await render(shell);
+    expect(scrollViews(screen.toJSON() as Json | Json[] | null)).toHaveLength(0);
+    expect(screen.getByText('hud-slot')).toBeTruthy();
+    expect(screen.getByText('primary-slot')).toBeTruthy();
+    expect(screen.getByText('actions-slot')).toBeTruthy();
+    // The info line only exists in portrait.
+    expect(screen.queryByText('info-slot') !== null).toBe(h > w);
+  });
+
+  it('in the fallback scrolls only the primary region: one ScrollView, HUD and actions outside it', async () => {
+    windowIs(640, 360, 2);
+    await render(shell);
+    const scrolls = scrollViews(screen.toJSON() as Json | Json[] | null);
+    // The primary has its own scroll area; the capped HUD and actions may have one each.
+    const primary = scrolls.find((sv) => textsIn(sv).includes('primary-slot'))!;
+    expect(primary).toBeTruthy();
+    expect(textsIn(primary)).not.toContain('hud-slot');
+    expect(textsIn(primary)).not.toContain('actions-slot');
+    const actionsScroll = scrolls.find((sv) => textsIn(sv).includes('actions-slot'))!;
+    expect(textsIn(actionsScroll)).not.toContain('primary-slot');
+    expect(textsIn(actionsScroll)).not.toContain('hud-slot');
+    expect(scrolls.length).toBeLessThanOrEqual(3);
+    expect(screen.getByText('hud-slot')).toBeTruthy();
+    expect(screen.getByText('actions-slot')).toBeTruthy();
+  });
+
+  it('caps the pinned HUD and tall actions so the primary keeps at least a quarter of the window', async () => {
+    windowIs(640, 360, 2);
     await render(
-      <Screen testID="plain">
-        <Text>body</Text>
+      <Screen screen="battle" hud={<Text>hud-slot</Text>} actions={<Text>tall-actions</Text>}>
+        <Text>primary-slot</Text>
       </Screen>,
     );
-    expect(screen.getByTestId('plain')).toBeTruthy();
-    expect(screen.queryByTestId('foot')).toBeNull();
+    const caps = (text: string) => {
+      let n = screen.getByText(text).parent;
+      while (n) {
+        const m = StyleSheet.flatten(n.props.style)?.maxHeight;
+        if (typeof m === 'number') return m;
+        n = n.parent;
+      }
+      return NaN;
+    };
+    expect(caps('hud-slot')).toBe(Math.round(360 * HUD_MAX_SHARE));
+    expect(caps('tall-actions')).toBe(Math.round(360 * FOOTER_MAX_SHARE));
+    expect(360 - caps('hud-slot') - caps('tall-actions')).toBeGreaterThanOrEqual(360 * 0.25);
+  });
+
+  it('pads the console root by the safe-area insets', async () => {
+    windowIs(640, 360, 1);
+    jest.spyOn(SafeArea, 'useSafeAreaInsets').mockReturnValue({ top: 0, bottom: 20, left: 44, right: 44 });
+    await render(shell);
+    const root = StyleSheet.flatten(screen.getByTestId('scr').props.style);
+    expect(root).toMatchObject({ paddingTop: 0, paddingBottom: 20, paddingLeft: 44, paddingRight: 44 });
+  });
+
+  describe('backdrop and overlay (a sheet over the screen)', () => {
+    const hidden = { importantForAccessibility: 'no-hide-descendants', accessibilityElementsHidden: true } as const;
+    const withSheet = (
+      <Screen screen="battle" testID="scr" hud={<Text>hud-slot</Text>} actions={<Text>actions-slot</Text>} backdrop={hidden} overlay={<Text>live-slot</Text>}>
+        <Text>primary-slot</Text>
+      </Screen>
+    );
+    const hiddenAbove = (id: string) => {
+      for (let n = screen.getByText(id, { includeHiddenElements: true }).parent; n; n = n.parent) {
+        if (n.props.importantForAccessibility === 'no-hide-descendants') return true;
+      }
+      return false;
+    };
+
+    it.each([
+      [640, 360, 1],
+      [360, 640, 1],
+      [360, 640, 2],
+    ])('hides the regions but not the overlay at %ix%i, font scale %s', async (w, h, fs) => {
+      windowIs(w, h, fs);
+      await render(withSheet);
+      for (const id of ['hud-slot', 'primary-slot', 'actions-slot']) expect([id, hiddenAbove(id)]).toEqual([id, true]);
+      expect(hiddenAbove('live-slot')).toBe(false);
+    });
+
+    it('floats the overlay over the primary region and, in portrait, reserves the info line for it', async () => {
+      windowIs(360, 640, 1);
+      await render(withSheet);
+      const overlay = StyleSheet.flatten(screen.getByTestId('scr-overlay').props.style);
+      expect(overlay).toMatchObject({ position: 'absolute', bottom: 0, left: 0, right: 0 });
+      expect(overlay.height).toBeGreaterThan(0);
+    });
+
+    it('floats the overlay at its own height in landscape, where there is no info line', async () => {
+      windowIs(640, 360, 1);
+      await render(withSheet);
+      const overlay = StyleSheet.flatten(screen.getByTestId('scr-overlay').props.style);
+      expect(overlay).toMatchObject({ position: 'absolute', bottom: 0 });
+      expect(overlay.height).toBeUndefined();
+    });
+
+    it('is a strip between the scrolling primary region and the actions in the fallback', async () => {
+      windowIs(360, 640, 2);
+      await render(withSheet);
+      const strip = screen.getByTestId('scr-overlay');
+      expect(StyleSheet.flatten(strip.props.style).position).toBeUndefined();
+      expect(within(screen.getByTestId('scr-scroll', { includeHiddenElements: true })).queryByText('live-slot', { includeHiddenElements: true })).toBeNull();
+    });
   });
 });

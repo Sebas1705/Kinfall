@@ -89,21 +89,31 @@ describe('title art', () => {
     expectDecorative('title-scene');
     expect(screen.getByRole('image', { name: 'Kinfall' })).toBeTruthy();
     expect(screen.getByRole('header', { name: 'Start' })).toBeTruthy();
+    // The motion switch is in the Settings sheet now, not on the title.
+    expect(screen.queryByRole('switch', { name: 'Reduce motion' })).toBeNull();
+    await fireEvent.press(screen.getByTestId('hud-settings'));
     expect(screen.getByRole('switch', { name: 'Reduce motion' })).toBeTruthy();
+  });
+
+  it('writes the heading and the motion switch in Spanish', async () => {
     setLang('es');
-    await renderTitle();
+    await render(
+      <RunSessionProvider session={makeSession(memoryStorage())}>
+        <TitleScreen onRunReady={() => {}} />
+      </RunSessionProvider>,
+    );
     expect(screen.getByRole('image', { name: 'Kinfall' })).toBeTruthy();
     expect(screen.getByRole('header', { name: 'Inicio' })).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('hud-settings'));
     expect(screen.getByRole('switch', { name: 'Reducir movimiento' })).toBeTruthy();
   });
 });
 
 describe('map art', () => {
-  it('has a hidden zone banner and a pixel icon of the right type on every node, which keeps its name', async () => {
+  it('has a hidden pixel icon of the right type on every node, which keeps its name', async () => {
     const session = makeSession(memoryStorage());
     session.start('MAPSEED1', CONTENT.starters[0]!);
     await renderRun(session);
-    expectDecorative('map-banner');
     const run = session.getSnapshot().run!;
     const model = buildMapModel(run, CONTENT, session.getSnapshot().trail);
     for (const layer of model.layers) {

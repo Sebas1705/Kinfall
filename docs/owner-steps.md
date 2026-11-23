@@ -10,6 +10,25 @@ State after the React Native plan ([tasks 1-10](superpowers/plans/2026-11-16-rea
 - **Firebase:** project `kinfall-sebas1705` (Kinfall), Android app `es.sebas1705.kinfall` with the key's SHA-1 and SHA-256, App Distribution group `testers` (no testers yet), CI service account `kinfall-ci` with only the App Distribution Admin role (key in Doppler).
 - **Pipeline:** `scripts/distribute-android.sh` (with `--dry-run`) and the workflow `.github/workflows/distribute-android.yml` (manual at first; since branch `kinfall-rename` it also uploads on pushed `vX.Y.Z` tags); the first release (0.1.0, versionCode 108) was uploaded to group `testers`. On the emulator the same build started without Metro, played in English and Spanish, resumed a battle after a force stop, followed dark mode and passed the self test on Hermes. Details: [docs/distribution.md](distribution.md).
 
+## Real-phone checks for 0.3.0 (console layout)
+
+The console layout (no page scroll on web and mobile, sheets, immersive mode on Android) is automated as far as Jest, Playwright and a release build go. None of the following was run on an emulator or a device; the full list and the known limitations are in the [QA note](superpowers/notes/2026-11-22-console-layout-qa.md). Do these on a real Android phone with the 0.3.0 build before tagging:
+
+1. **Layout** in portrait and landscape at text size 100% and 130%, then 200% (the fallback may scroll inside the primary region): title, map, battle, an event, the end screen. Nothing may need a page scroll at 100% and 130%.
+2. **Sheets:** open Run and Settings; the page behind must not react; Back closes the sheet before leaving anything. Closing the Settings sheet (Back, Close or a tap outside) cancels a pending abandon confirmation, by design: Abandon lives in the Settings sheet (Settings, Abandon, Yes), so check that a half-done abandon is not left armed after the sheet closes.
+3. **Immersive mode:** the system bars hide, a swipe from the edge reveals them and they hide again; try the Settings switch off and on. Android 13, 14 and 15 if you have them.
+4. **Notch / cutout** phone in landscape: HUD and rail clear of the cutout, battle choices still reachable.
+5. **TalkBack** through each screen (title, map, battle, events, end): focus order and sheet contents only while a sheet is open.
+6. **Small stage:** 360x640 with the system font at 130%: the creatures are about 12 dp tall (correct but small); judge whether that is acceptable.
+7. **Web:** open the site on a desktop browser and check the vertical scrollbar no longer shifts the layout (the html `scrollbar-gutter` was removed), and the Fullscreen button in a real browser (Chrome, Firefox, Safari).
+8. **Screen density below 2** (for example an emulator at 320 dpi or lower, or a Display size change): the battle stage floor is only proven for density 2 or more, so about 5 dp of the stage could clip at density 1.5.
+9. **Live region while a sheet is open** (a separate check, the platforms differ on purpose): on mobile the battle log line is still announced while a sheet is open (it sits outside the root hidden from accessibility; TalkBack with the modal sheet is unverified), on the web it is paused because the screens are inert. Check both with a screen reader.
+10. **Emulator matrix** of [apps/mobile/ACCESSIBILITY.md](../apps/mobile/ACCESSIBILITY.md): 360x640, 411x914, 914x411, 800x1280, 1280x800 and 600x800 at 100% and 200% text. Its old rows are marked superseded until this is done.
+
+Rebuild the APK from the committed (and rebased) HEAD before testing or distributing: the dry-run build kinfall-0.3.0-186 came from the uncommitted tree (the committed HEAD gives a different versionCode).
+
+Tagging and distributing `v0.3.0` (versionName already `0.3.0` in `apps/mobile/app.json`) is your call: nothing was tagged, pushed or uploaded.
+
 ## Owner steps for tester distribution
 
 1. **Add testers** (no one is in group `testers` yet, so nobody has been invited): Firebase console > project Kinfall > App Distribution > Testers & Groups > `testers` > Add testers, or `firebase appdistribution:testers:add --project kinfall-sebas1705 --group-alias testers you@example.com other@example.com`. Then open the 0.1.0 release (App Distribution > Releases) and distribute it to `testers` again, or upload a new build: only testers in the group when a release is distributed get its email.

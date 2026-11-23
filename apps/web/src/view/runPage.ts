@@ -6,16 +6,22 @@ import { defaultStorage } from '../platform/webStorage';
 import { createBattleDom } from './battleDom';
 import { createBattleController } from './controller';
 import { lazyBattleView } from './lazyView';
+import { startLayout } from './layout';
+import type { LayoutHandle } from './layout';
 import { createRouter } from './router';
+import { wireScreenSheet } from './screenSheets';
 import { createRunController } from './runController';
 import { createRunUi } from './runUi';
 import { bindScreenInput } from './screenInput';
 import { initialSeed, randomSeed } from './screens/title';
-import { applyI18nAttributes, byId, wireTextSize } from './settings';
+import { applyI18nAttributes, byId, refreshSheetTexts, wireSettingsButton, wireTextSize } from './settings';
+import { wireFullscreenButton } from './fullscreen';
 
 export function startRunPage(): void {
   const root = byId<HTMLElement>('screens');
-  const router = createRouter(root);
+  // The layout driver reads the visible screen from the router, so the router pings it on every change.
+  let layout: LayoutHandle | null = null;
+  const router = createRouter(root, () => layout?.refresh());
   const ui = createRunUi({
     title: byId('screen-title'),
     map: byId('screen-map'),
@@ -25,6 +31,7 @@ export function startRunPage(): void {
     warning: byId('save-warning'),
     log: byId('run-log-panel'),
     seed: byId('seed'),
+    hudParty: byId('hud-party'),
   });
 
   // Reduced motion: follows the system and the toggle; screens read the class on <html>.
@@ -77,16 +84,29 @@ export function startRunPage(): void {
       }),
   });
 
-  wireTextSize(() => controller.refreshText());
+  wireTextSize(() => {
+    controller.refreshText();
+    layout?.refresh();
+  });
+  // The effective text scale on the web is the app text size (the #text-size slider) over 100.
+  const textSize = byId<HTMLInputElement>('text-size');
+  layout = startLayout(byId('app'), {
+    screen: () => router.current(),
+    textScale: () => Number(textSize.value) / 100 || 1,
+  });
 
   const langSelect = byId<HTMLSelectElement>('lang');
   langSelect.value = getLang();
   langSelect.addEventListener('change', () => {
     setLang(langSelect.value === 'es' ? 'es' : 'en');
     applyI18nAttributes();
+    refreshSheetTexts();
     controller.refreshText();
   });
 
+  wireSettingsButton(byId<HTMLButtonElement>('hud-settings'));
+  wireScreenSheet({ button: byId<HTMLButtonElement>('hud-run'), screens: root, app: byId('app'), log: byId('run-log-panel') });
+  wireFullscreenButton(byId<HTMLButtonElement>('hud-fullscreen'));
   applyI18nAttributes();
   controller.showTitle({ focus: false });
 }

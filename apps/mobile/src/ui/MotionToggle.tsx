@@ -1,5 +1,6 @@
 import { t } from '@kinfall/core/platform/i18n';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText } from './AppText';
 
 import { setAppReduceMotion, useAppReduceMotion } from '../platform/motionSetting';
 import { FramePressable } from './PixelFrame';
@@ -25,7 +26,7 @@ export function MotionToggle() {
           <View style={[styles.box, { borderColor: textColor }]} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             {on ? <View style={[styles.tick, { backgroundColor: textColor }]} /> : null}
           </View>
-          <Text style={[styles.label, { color: textColor }]}>{t('settings.reduceMotion')}</Text>
+          <AppText style={[styles.label, { color: textColor }]}>{t('settings.reduceMotion')}</AppText>
         </View>
       )}
     </FramePressable>

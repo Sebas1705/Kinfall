@@ -39,18 +39,22 @@ export function isolateScreen(root: HTMLElement, id: ScreenId): HTMLElement | nu
 }
 
 function announcer(root: HTMLElement): HTMLElement {
-  const found = root.querySelector<HTMLElement>('[data-announcer]');
+  const found =
+    root.querySelector<HTMLElement>('[data-announcer]') ??
+    root.ownerDocument.querySelector<HTMLElement>('[data-announcer]');
   if (found) return found;
   const live = root.ownerDocument.createElement('p');
   live.className = 'sr-only';
   live.dataset.announcer = '';
   live.setAttribute('aria-live', 'polite');
   live.setAttribute('aria-atomic', 'true');
-  root.prepend(live);
+  // Beside the screens, not inside them: a sheet makes the screens inert, and the live region must not be.
+  (root.closest<HTMLElement>('.app') ?? root).prepend(live);
   return live;
 }
 
-export function createRouter(root: HTMLElement): Router {
+/** `onShow` runs after every screen change (the layout driver re-reads the current screen there). */
+export function createRouter(root: HTMLElement, onShow?: () => void): Router {
   const live = announcer(root);
   let currentId: ScreenId = 'title';
 
@@ -65,6 +69,7 @@ export function createRouter(root: HTMLElement): Router {
       currentId = id;
       const section = isolateScreen(root, id);
       announce();
+      onShow?.();
       if (!section || options?.focus === false) return;
       const target = section.querySelector<HTMLElement>(focusSelector ?? HEADING) ?? section;
       if (target.tabIndex < 0 && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');

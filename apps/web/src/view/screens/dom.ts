@@ -49,3 +49,13 @@ export function confirmInline(
   trigger.replaceWith(box);
   no.focus();
 }
+
+/**
+ * What a run screen keeps out of the console's primary area and rail: details that open in a sheet
+ * (the HUD button shows `button` and lends this node to a sheet titled `title`, see screenSheets.ts).
+ * In the fallback layout it is shown inline instead. Hidden by CSS, not by `hidden`, so the lending
+ * code never has to undo it.
+ */
+export function sheetStore(title: string, button: string, ...children: Child[]): HTMLElement {
+  return el('div', { class: 'sheet-store', 'data-sheet-title': title, 'data-sheet-button': button }, ...children);
+}

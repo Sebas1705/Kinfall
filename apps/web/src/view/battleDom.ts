@@ -8,6 +8,7 @@ import type { BattleState, Side } from '@kinfall/core/sim/state';
 import type { BattleUi } from './controller';
 import { renderMenu } from './menu';
 import { byId } from './settings';
+import { openSheet } from './sheet';
 
 export interface BattleDom {
   ui: BattleUi;
@@ -27,6 +28,8 @@ export function createBattleDom(content: Content, bindInput: (onAction: (a: Game
   const resultNote = byId<HTMLParagraphElement>('result-note');
   const newBattle = byId<HTMLButtonElement>('new-battle');
   const dpad = byId<HTMLElement>('dpad');
+  const logOpen = byId<HTMLButtonElement>('hud-log');
+  const battleSection = byId<HTMLElement>('screen-battle');
 
   let buttons: HTMLButtonElement[] = [];
   let selected = 0;
@@ -67,6 +70,15 @@ export function createBattleDom(content: Content, bindInput: (onAction: (a: Game
     return c.status ? `${line} ${t(`status.${c.status.id}`)}.` : line;
   };
 
+  // The log lives in the stage until the Log button lends it to a sheet; the newest line is kept in
+  // view in whichever box scrolls (the sheet body while lent, the log itself otherwise).
+  let logSheetOpen = false;
+  let refocusOnClose: number | null = null;
+  const scrollLog = () => {
+    const box = log.closest<HTMLElement>('.sheet__body') ?? log;
+    box.scrollTop = box.scrollHeight;
+  };
+
   const ui: BattleUi = {
     bindInput,
     setBusy(busy) {
@@ -76,13 +88,13 @@ export function createBattleDom(content: Content, bindInput: (onAction: (a: Game
     },
     appendLog(lines) {
       log.append(turnNode(lines));
-      log.scrollTop = log.scrollHeight;
+      scrollLog();
     },
     replaceLog(turns) {
       // A rebuild (new battle or language change) must not make screen readers reread everything.
       log.setAttribute('aria-live', 'off');
       log.replaceChildren(...turns.filter((l) => l.length > 0).map(turnNode));
-      log.scrollTop = log.scrollHeight;
+      scrollLog();
       requestAnimationFrame(() => log.setAttribute('aria-live', 'polite'));
     },
     showChoices(state, model, onPick, focusFirst) {
@@ -92,7 +104,9 @@ export function createBattleDom(content: Content, bindInput: (onAction: (a: Game
       prompt.textContent = model.prompt;
       intent.textContent = model.intent ?? '';
       buttons = renderMenu(choices, model, onPick);
-      select(focusFirst ? 0 : selected, focusFirst || hadFocus);
+      // While the log sheet is open the page behind is inert: remember to take the focus on close.
+      if (logSheetOpen && (focusFirst || hadFocus)) refocusOnClose = focusFirst ? 0 : selected;
+      else select(focusFirst ? 0 : selected, focusFirst || hadFocus);
     },
     showResult(res, focus) {
       result.hidden = res === null;
@@ -120,6 +134,32 @@ export function createBattleDom(content: Content, bindInput: (onAction: (a: Game
       }
     },
   };
+
+  // The HUD's Log button (shown on the battle screen only) lends the live log to a sheet (the same
+  // node, so it stays one polite live region and keeps its history) and puts it back on close.
+  const syncLogButton = () => {
+    logOpen.hidden = battleSection.hidden;
+  };
+  syncLogButton();
+  new MutationObserver(syncLogButton).observe(battleSection, { attributes: true, attributeFilter: ['hidden'] });
+  logOpen.addEventListener('click', () => {
+    const home = byId<HTMLElement>('log-panel');
+    logSheetOpen = true;
+    refocusOnClose = null;
+    openSheet({
+      title: t('battle.log'),
+      content: log,
+      opener: logOpen,
+      onClose: () => {
+        logSheetOpen = false;
+        home.append(log);
+        // A turn settled while the sheet was open: focus goes back to the choices, as it would have.
+        if (refocusOnClose !== null) select(refocusOnClose, true);
+        refocusOnClose = null;
+      },
+    });
+    scrollLog();
+  });
 
   // Track the selection when focus moves by Tab or pointer.
   choices.addEventListener('focusin', (e) => {

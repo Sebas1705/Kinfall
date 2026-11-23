@@ -7,9 +7,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppNavigator, navigationRef } from './src/navigation/AppNavigator';
 import { defaultAsyncStorage } from './src/platform/asyncStorage';
+import { useApplyImmersive } from './src/platform/immersive';
+import { loadImmersiveSetting } from './src/platform/immersiveSetting';
 import { LangContext } from './src/platform/LangContext';
 import { installMobileI18n } from './src/platform/mobileI18n';
 import { loadMotionSetting } from './src/platform/motionSetting';
+import { loadTextSizeSetting } from './src/platform/textSizeSetting';
 import { randomSeed } from './src/platform/random';
 import { createRunSession, type RunSession } from './src/run/session';
 import { RunSessionProvider } from './src/run/useRunSession';
@@ -42,6 +45,7 @@ function defaultSession(): RunSession {
  * `selftest` URL (see src/selfTestAutorun.ts); never otherwise.
  */
 export function AppShell({ session: injected, devTools }: AppProps) {
+  useApplyImmersive();
   const [ready, setReady] = useState(false);
   const [lang, setLangState] = useState<Lang | null>(null);
   const [session] = useState<RunSession>(() => injected ?? defaultSession());
@@ -57,7 +61,7 @@ export function AppShell({ session: injected, devTools }: AppProps) {
   useEffect(() => {
     let active = true;
     const request = () => openSelfTest(++autoRuns.current);
-    Promise.all([installMobileI18n({ onChange: (l) => setLangState(l) }), initialUrl(), loadMotionSetting()]).then(([, url]) => {
+    Promise.all([installMobileI18n({ onChange: (l) => setLangState(l) }), initialUrl(), loadMotionSetting(), loadTextSizeSetting(), loadImmersiveSetting()]).then(([, url]) => {
       if (!active) return;
       setLangState(getLang());
       if (shouldAutorunSelfTest(url, selfTestEnvFlag())) request();

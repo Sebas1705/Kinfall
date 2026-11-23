@@ -37,6 +37,14 @@ export default defineConfig({
         isMobile: true,
       },
     },
+    {
+      name: 'phone-landscape',
+      use: { ...chromiumUse, viewport: { width: 640, height: 360 }, hasTouch: true, isMobile: true },
+    },
+    {
+      name: 'phone-portrait',
+      use: { ...chromiumUse, viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true },
+    },
     ...(allEngines
       ? [
           { name: 'firefox', use: { ...devices['Desktop Firefox'] } },

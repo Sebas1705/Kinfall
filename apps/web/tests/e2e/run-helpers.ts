@@ -128,18 +128,31 @@ export async function startRunWithKeyboard(page: Page, seed: string): Promise<vo
   await expect(page.locator('#screen-map')).toBeVisible();
 }
 
+/** Opens the settings sheet from the HUD, runs the callback while it is open, and closes it with Escape. */
+export async function withSettings(page: Page, fn: () => Promise<void>): Promise<void> {
+  await page.locator('#hud-settings').click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await fn();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+
 export async function setLanguage(page: Page, lang: 'en' | 'es'): Promise<void> {
-  await page.selectOption('#lang', lang);
-  await expect(page.locator('html')).toHaveAttribute('lang', lang);
+  await withSettings(page, async () => {
+    await page.selectOption('#lang', lang);
+    await expect(page.locator('html')).toHaveAttribute('lang', lang);
+  });
 }
 
 export async function setTextSize(page: Page, size: number): Promise<void> {
-  await page.locator('#text-size').evaluate((el, v) => {
-    const input = el as HTMLInputElement;
-    input.value = String(v);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  }, size);
-  await expect(page.locator('#text-size-value')).toHaveText(`${size}%`);
+  await withSettings(page, async () => {
+    await page.locator('#text-size').evaluate((el, v) => {
+      const input = el as HTMLInputElement;
+      input.value = String(v);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }, size);
+    await expect(page.locator('#text-size-value')).toHaveText(`${size}%`);
+  });
 }
 
 /**

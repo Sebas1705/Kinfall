@@ -494,6 +494,33 @@ describe('run controller: resume and saves', () => {
     expect(screen('title').querySelector<HTMLButtonElement>('[data-action="continue"]')!.disabled).toBe(true);
   });
 
+  it('"Back to start" on the end screen keeps the finished run seed and clears the save', () => {
+    const { controller, router, st, screen } = setup({ crafted: (() => {
+      const r = startRun('seed-end', 'cindermite', CONTENT);
+      r.phase = { kind: 'ended', result: 'lost' };
+      return r;
+    })() });
+    controller.resume();
+    expect(router.current()).toBe('end');
+    st.data.set(KEY, 'something');
+    screen('end').querySelector<HTMLButtonElement>('[data-choice="to-title"]')!.click();
+    expect(router.current()).toBe('title');
+    expect(st.data.has(KEY)).toBe(false);
+    expect(controller.getRun()).toBeNull();
+    expect(titleSeed(screen)).toBe('seed-end');
+  });
+
+  it('"New run" on the end screen still prefills a fresh seed', () => {
+    const { controller, screen } = setup({ crafted: (() => {
+      const r = startRun('seed-end', 'cindermite', CONTENT);
+      r.phase = { kind: 'ended', result: 'won' };
+      return r;
+    })() });
+    controller.resume();
+    screen('end').querySelector<HTMLButtonElement>('[data-choice="new-run"]')!.click();
+    expect(titleSeed(screen)).toBe('FRESH001');
+  });
+
   it('a failed clear on abandon shows a notice instead of failing silently', () => {
     const { controller, st, screen, router } = setup();
     controller.start('seed-h', 'cindermite');

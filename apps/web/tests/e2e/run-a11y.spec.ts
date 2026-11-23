@@ -61,6 +61,24 @@ async function expectTargets(page: Page, where: string): Promise<void> {
   expect(small, where).toEqual([]);
 }
 
+/** In the console the HUD button opens the sheet; in the fallback (e.g. a map at 320 px and text 150%) the content is inline and there is no button. */
+async function openRunSheet(page: Page): Promise<boolean> {
+  const button = page.locator('#hud-run');
+  const mode = await page.locator('#app').getAttribute('data-mode');
+  if (mode === 'fallback') return false;
+  // A console always has the button: wait for it (the observer shows it a tick after the route change) and fail, never skip.
+  await expect(button).toBeVisible();
+  await button.click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  return true;
+}
+
+async function closeRunSheet(page: Page, opened: boolean): Promise<void> {
+  if (!opened) return;
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+}
+
 async function checkScreen(page: Page, where: string, width: number): Promise<void> {
   await expectNoAxeViolations(page, where);
   await expectNoOverflow(page, where);
@@ -81,6 +99,10 @@ for (const scheme of ['light', 'dark'] as const) {
         await setTextSize(page, 150);
 
         await checkScreen(page, `title (${lang})`, size.width);
+        const titleSheet = await openRunSheet(page);
+        if (size.width === 1000) expect(titleSheet, 'title sheet ran').toBe(true);
+        await checkScreen(page, `title options sheet (${lang})`, size.width);
+        await closeRunSheet(page, titleSheet);
 
         // Title -> map: focus on the map heading; every node names its type in text.
         await startRunWithKeyboard(page, 'a11y-run');
@@ -93,9 +115,15 @@ for (const scheme of ['light', 'dark'] as const) {
           await expect(node).toHaveAccessibleName(new RegExp(`^${NODE_LABELS[lang][type]}: `));
         }
         await checkScreen(page, `map (${lang})`, size.width);
-        // The abandon confirmation is part of the map too.
-        await page.locator('#screen-map [data-action="abandon"]').click();
+        // The run sheet (party details, run log, Abandon) and its inline confirmation.
+        const mapSheet = await openRunSheet(page);
+        // 1000 px wide is always a console: the sheet checks must run there.
+        if (size.width === 1000) expect(mapSheet, 'map sheet ran').toBe(true);
+        await checkScreen(page, `map run sheet (${lang})`, size.width);
+        await page.locator(mapSheet ? '[role="dialog"] [data-action="abandon"]' : '#screen-map [data-action="abandon"]').click();
         await checkScreen(page, `map with abandon confirm (${lang})`, size.width);
+        if (mapSheet) await closeRunSheet(page, true);
+        else await page.locator('#screen-map [data-action="abandon-no"]').click();
 
         // Battle screen with the abandon button (and its confirmation).
         await page.locator('#screen-map button.map-node:not([disabled])').first().click();
@@ -121,6 +149,10 @@ for (const scheme of ['light', 'dark'] as const) {
           await expect(page.locator('#screen-event button[data-initial]')).toBeFocused();
           if ('souls' in options) await expect(page.locator('#screen-event button[data-choice][disabled]')).toHaveCount(2);
           await checkScreen(page, where, size.width);
+          const sheet = await openRunSheet(page);
+          if (size.width === 1000) expect(sheet, 'event sheet ran').toBe(true);
+          await checkScreen(page, `${where} run sheet`, size.width);
+          await closeRunSheet(page, sheet);
         }
 
         // Won end screen: focus on the result heading.
@@ -128,6 +160,10 @@ for (const scheme of ['light', 'dark'] as const) {
         await continueSavedRun(page);
         await expect(page.locator('#screen-end [data-screen-heading]')).toBeFocused();
         await checkScreen(page, `end (${lang})`, size.width);
+        const endSheet = await openRunSheet(page);
+        if (size.width === 1000) expect(endSheet, 'end sheet ran').toBe(true);
+        await checkScreen(page, `end stats sheet (${lang})`, size.width);
+        await closeRunSheet(page, endSheet);
 
         // End -> New run -> title: focus on the title heading.
         await page.locator('#screen-end [data-choice="new-run"]').click();

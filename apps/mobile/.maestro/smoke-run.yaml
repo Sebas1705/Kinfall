@@ -12,16 +12,17 @@ env:
 ---
 - runFlow: subflows/open-title.yaml
 
-# Title: type the seed, keep the default (first) starter, start the run.
+# Title: the seed field is in the "New run options" sheet. Type the seed, close the sheet, keep
+# the default (first) starter, start the run (the console layout has no page scroll).
+- tapOn:
+    id: "hud-options"
 - tapOn:
     id: "seed-input"
 - eraseText: 40
 - inputText: ${SEED}
 - hideKeyboard
-- scrollUntilVisible:
-    element:
-      id: "new-run"
-    direction: DOWN
+- tapOn:
+    id: "options-sheet-close"
 - tapOn:
     id: "new-run"
 
@@ -31,7 +32,7 @@ env:
       id: "map-screen"
     timeout: 10000
 - tapOn:
-    id: "node-.*"
+    id: "node-z.*"
     enabled: true
     index: 0
 
@@ -67,11 +68,10 @@ env:
       id: "map-screen"
     timeout: 10000
 
-# Abandon with the inline confirmation; the title comes back with Continue disabled.
-- scrollUntilVisible:
-    element:
-      id: "abandon"
-    direction: DOWN
+# Abandon (in the Settings sheet) with the inline confirmation; the title comes back with Continue
+# disabled.
+- tapOn:
+    id: "hud-settings"
 - tapOn:
     id: "abandon"
 - extendedWaitUntil:

@@ -114,7 +114,10 @@ describe('screen art', () => {
       const vignette = section('event').querySelector<HTMLElement>('.event-vignette')!;
       expect(vignette.getAttribute('aria-hidden')).toBe('true');
       expect(vignette.dataset.key!.startsWith(kind)).toBe(true);
-      expect(vignette.previousElementSibling!.tagName).toBe('H2');
+      // First in the event stage, which follows the heading in the primary region.
+      expect(vignette.parentElement!.classList.contains('event-stage')).toBe(true);
+      expect(vignette.previousElementSibling).toBeNull();
+      expect(vignette.parentElement!.previousElementSibling!.tagName).toBe('H2');
     });
   }
 

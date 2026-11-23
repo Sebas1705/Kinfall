@@ -50,6 +50,11 @@ async function renderRun(session: RunSession) {
   return { onExit };
 }
 
+/** The detailed stats are in the Run sheet: open it. */
+async function openStats() {
+  await userEvent.setup().press(screen.getByTestId('hud-run'));
+}
+
 function statLabels(): string[] {
   return within(screen.getByTestId('end-stats'))
     .getAllByLabelText(/: \d+$/)
@@ -68,6 +73,12 @@ describe('end screen', () => {
     expect(score).toBeGreaterThan(0);
     expect(screen.getByTestId('end-score').props.accessibilityLabel).toBe(`Score: ${score}`);
     expect(screen.getByTestId('end-score-value')).toHaveTextContent(String(score));
+    // Screen-reader focus starts at the result.
+    const focus = jest.mocked(AccessibilityInfo.sendAccessibilityEvent);
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect((focus.mock.calls[0]![0] as unknown as { props: { testID: string } }).props.testID).toBe('end-heading');
+    // The detailed stats are in the Run sheet.
+    await openStats();
     expect(statLabels()).toEqual([
       'Zones cleared: 3',
       'Nodes cleared: 21',
@@ -76,10 +87,6 @@ describe('end screen', () => {
       'Creatures lost: 1',
       'Souls: 7',
     ]);
-    // Screen-reader focus starts at the result.
-    const focus = jest.mocked(AccessibilityInfo.sendAccessibilityEvent);
-    expect(focus).toHaveBeenCalledTimes(1);
-    expect((focus.mock.calls[0]![0] as unknown as { props: { testID: string } }).props.testID).toBe('end-heading');
     // The run is over: no abandon button.
     expect(screen.queryByTestId('abandon')).toBeNull();
   });
@@ -88,8 +95,9 @@ describe('end screen', () => {
     const { session, run } = await resumedEnd('lost');
     await renderRun(session);
     expect(screen.getByTestId('end-heading').props.children).toBe('Run lost');
-    expect(statLabels()[0]).toBe('Zones cleared: 1');
     expect(screen.getByTestId('end-score').props.accessibilityLabel).toBe(`Score: ${runScore(run, CONTENT)}`);
+    await openStats();
+    expect(statLabels()[0]).toBe('Zones cleared: 1');
   });
 
   it('"New run" clears the save and starts a fresh seed with the last starter, on the map', async () => {
@@ -170,8 +178,9 @@ describe('end screen', () => {
     expect(screen.getByTestId('end-heading').props.children).toBe('Partida ganada');
     expect(screen.getByText('Nueva partida')).toBeTruthy();
     expect(screen.getByText('Volver al inicio')).toBeTruthy();
-    expect(statLabels()[0]).toBe('Zonas superadas: 3');
     expect(screen.getByTestId('end-score').props.accessibilityLabel).toMatch(/^Puntuación: \d+$/);
+    await openStats();
+    expect(statLabels()[0]).toBe('Zonas superadas: 3');
   });
 
   it('keeps each stat value on the right of its row when a long label wraps (200% text, Spanish)', async () => {
@@ -180,6 +189,7 @@ describe('end screen', () => {
     setLang('es');
     const { session } = await resumedEnd('won');
     await renderRun(session);
+    await openStats();
     const row = screen.getByTestId('end-stat-2');
     expect(row.props.accessibilityLabel).toBe('Rivales de élite vencidos: 2');
     expect(flat(row.props.style)).toMatchObject({ flexDirection: 'row' });

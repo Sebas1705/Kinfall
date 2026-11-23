@@ -95,6 +95,12 @@ export const runEn = {
   'end.stat.souls': 'Souls',
   'end.newRun': 'New run',
 
+  // Console layout (web): what the HUD button of each run screen opens, and its sheet title.
+  'run.open': 'Run',
+  'run.details': 'Run details',
+  'title.optionsOpen': 'Options',
+  'title.options': 'New run options',
+
   'save.failed': 'Could not save your run: {reason}. You can keep playing.',
   'save.dismiss': 'Dismiss',
   'save.clearFailed': 'Could not delete your saved run: {reason}.',
@@ -206,6 +212,11 @@ export const runEs: Record<keyof typeof runEn, string> = {
   'end.stat.lost': 'Criaturas perdidas',
   'end.stat.souls': 'Almas',
   'end.newRun': 'Nueva partida',
+
+  'run.open': 'Partida',
+  'run.details': 'Detalles de la partida',
+  'title.optionsOpen': 'Opciones',
+  'title.options': 'Opciones de la nueva partida',
 
   'save.failed': 'No se pudo guardar tu partida: {reason}. Puedes seguir jugando.',
   'save.dismiss': 'Cerrar',

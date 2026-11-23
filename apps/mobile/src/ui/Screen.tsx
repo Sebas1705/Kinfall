@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
+import type { ScreenId } from '@kinfall/core/layout/spec';
+import { createContext, useCallback, useContext, useRef, type ComponentRef, type ReactNode, type Ref } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -12,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
-import { useLayout } from './windowSize';
+import { useLayoutSpec } from './useLayoutSpec';
 
 /** Space kept around a revealed element (dp). */
 const REVEAL_MARGIN = 16;
@@ -24,6 +25,8 @@ const PENDING_MS = 1000;
 const REVEAL_RETRY_MS = 150;
 /** Largest share of the window height the pinned footer may take; it scrolls inside beyond that. */
 export const FOOTER_MAX_SHARE = 0.55;
+/** Largest share of the window height the pinned HUD may take in the fallback; it scrolls inside beyond that. */
+export const HUD_MAX_SHARE = 0.2;
 
 type Measurable = { measureLayout?: (relativeTo: unknown, onSuccess: (x: number, y: number, w: number, h: number) => void, onFail?: () => void) => void };
 
@@ -152,64 +155,165 @@ function RevealScroll({ children, testID, scrollRef, contentPadding, maxWidth, s
 }
 
 /**
- * A scrolling screen inside the safe area (edge to edge: the app draws under the system bars and
- * keeps its content clear of them and of display cutouts in any orientation). Content grows
- * downwards only: rows wrap instead of scrolling sideways, so nothing is clipped at 360dp wide or
- * at 200% font scale. Content is centred and capped at the layout's width (720dp in one column,
- * wider for two panes). An optional footer stays pinned at the bottom (the compact battle's
- * choices); it scrolls by itself when it is taller than its share of the window.
+ * The screen shell of the console layout, inside the safe area (edge to edge: the app draws under the
+ * system bars and keeps its content clear of them and of display cutouts in any orientation).
+ * Console mode (the window fits the screen's budget in core's layout contract): fixed regions without
+ * any page scroll, HUD on top, then the primary region with the actions rail beside it (landscape)
+ * or below it (portrait, with a one or two line info band between). Fallback mode (200% text, tiny
+ * windows): the HUD and the actions stay pinned, each capped, and only the primary region scrolls.
+ *
+ * Known limitation: the layout contract does not know the safe-area insets (its regions come from
+ * the raw window size), and the root is padded by the insets, so on a notched landscape phone the
+ * primary region can be smaller than the contract promises. To be checked on a device.
  */
 export interface ScreenProps {
-  children: ReactNode;
+  /** The primary region's content (or give `primary`). */
+  children?: ReactNode;
   testID?: string;
   ref?: Ref<ScrollViewInstance>;
   /** Called after the content changed size. */
   onContentSizeChange?: (width: number, height: number) => void;
-  /** Pinned below the scrolling content, above the navigation bar. */
-  footer?: ReactNode;
-  footerTestID?: string;
+  /** Which screen this is: its budget decides console or fallback (core's layoutSpec). */
+  screen: ScreenId;
+  /** The top bar (a Hud). */
+  hud?: ReactNode;
+  /** The primary region; the children when omitted. */
+  primary?: ReactNode;
+  /** The actions rail (landscape) or band (portrait). */
+  actions?: ReactNode;
+  /** The info line under the primary region (portrait only). */
+  info?: ReactNode;
+  /** Landscape: a rail wider than the contract's (the event's choices), in dp. */
+  actionsWidth?: number;
+  /**
+   * Props for every pinned region and the primary content, hiding them from screen
+   * readers while a sheet is open (`useSheetBackdropProps`). They go on the regions, not on the root,
+   * so that the overlay stays outside the hidden part.
+   */
+  backdrop?: BackdropProps;
+  /**
+   * A live message line that must keep announcing while a sheet is open. It floats over
+   * the bottom edge of the primary region (in portrait it takes the info line's place, which is
+   * reserved for it); in the fallback it is a strip between the scrolling primary region and the
+   * actions. Never hidden by `backdrop`.
+   */
+  overlay?: ReactNode;
 }
 
-export function Screen({ children, testID, ref, onContentSizeChange, footer, footerTestID }: ScreenProps) {
+/** The accessibility props `useSheetBackdropProps` returns. */
+export interface BackdropProps {
+  importantForAccessibility: 'auto' | 'no-hide-descendants';
+  accessibilityElementsHidden: boolean;
+}
+
+export function Screen({ screen, children, testID, ref, hud, primary, actions, info, actionsWidth, backdrop, overlay, onContentSizeChange }: ScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const { maxContentWidth } = useLayout();
-  const side = useMemo(() => ({ left: insets.left + 16, right: insets.right + 16 }), [insets.left, insets.right]);
-  const mainPadding = useMemo(
-    () => ({ top: PAD_TOP, bottom: footer ? 16 : insets.bottom + 32, ...side }),
-    [footer, insets.bottom, side],
-  );
-  const footerPadding = useMemo(() => ({ top: 12, bottom: insets.bottom + 12, ...side }), [insets.bottom, side]);
+  const spec = useLayoutSpec(screen);
+  const { regions } = spec;
+  const landscape = spec.orientation === 'landscape';
+  const main = primary ?? children;
+  const infoLine = landscape ? null : (info ?? (overlay ? <View /> : null));
+  const hidden = backdrop ?? {};
+  // The insets eat from the primary region (it is the flexible one); the rest keeps its planned size.
+  const pad = { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right };
+  const column = [styles.shellColumn, { width: regions.content.width }];
+
+  if (spec.mode === 'console') {
+    const actionsStyle = landscape ? { width: actionsWidth ?? regions.actions.width } : { height: regions.actions.height };
+    return (
+      <View style={[styles.screen, styles.shellRoot, pad, { backgroundColor: theme.bg }]} testID={testID}>
+        <View style={column}>
+          <View style={{ height: regions.hud.height }} {...hidden}>
+            {hud}
+          </View>
+          <View style={landscape ? styles.shellRow : styles.shellColumnFill}>
+            <View style={styles.shellFlex} testID={testID ? `${testID}-primary` : undefined}>
+              <View style={styles.shellFlex} {...hidden}>
+                {main}
+              </View>
+              {infoLine ? (
+                <View style={{ height: regions.info?.height ?? 0 }} {...hidden}>
+                  {infoLine}
+                </View>
+              ) : null}
+              {overlay ? (
+                <View
+                  style={[styles.overlay, landscape ? null : { height: regions.info?.height ?? 0 }]}
+                  pointerEvents="box-none"
+                  testID={testID ? `${testID}-overlay` : undefined}
+                >
+                  {overlay}
+                </View>
+              ) : null}
+            </View>
+            <View style={[styles.shellActions, actionsStyle]} testID={testID ? `${testID}-actions` : undefined} {...hidden}>
+              {actions}
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Fallback: HUD and actions stay pinned outside the primary scroll area, each capped (HUD_MAX_SHARE
+  // and FOOTER_MAX_SHARE of the window, scrolling inside beyond that) so the primary region keeps at
+  // least a quarter of the window; the primary region and the info line scroll.
+  const side = { left: 16, right: 16 };
   return (
-    // The status bar area stays clear (content scrolls below it, never under the clock).
-    <View style={[styles.screen, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
-      <RevealScroll
-        scrollRef={ref}
-        style={styles.screen}
-        contentPadding={mainPadding}
-        maxWidth={maxContentWidth}
-        onContentSizeChange={onContentSizeChange}
-        testID={testID}
-      >
-        {children}
-      </RevealScroll>
-      {footer ? (
-        <View
-          style={[styles.footer, { maxHeight: Math.round(height * FOOTER_MAX_SHARE), borderColor: theme.border, backgroundColor: theme.surface }]}
-          testID={footerTestID}
-        >
-          <RevealScroll contentPadding={footerPadding} maxWidth={maxContentWidth} style={styles.footerScroll}>
-            {footer}
+    <View style={[styles.screen, styles.shellRoot, pad, { backgroundColor: theme.bg }]} testID={testID}>
+      <View style={column}>
+        {hud ? (
+          <View style={{ maxHeight: Math.round(height * HUD_MAX_SHARE), flexShrink: 0 }} {...hidden}>
+            <RevealScroll contentPadding={{ top: 0, bottom: 0, left: 0, right: 0 }} maxWidth={regions.content.width} style={styles.footerScroll}>
+              {hud}
+            </RevealScroll>
+          </View>
+        ) : null}
+        <View style={styles.screen} {...hidden}>
+          <RevealScroll
+            scrollRef={ref}
+            style={styles.screen}
+            contentPadding={{ top: PAD_TOP, bottom: 16, ...side }}
+            maxWidth={regions.content.width}
+            onContentSizeChange={onContentSizeChange}
+            testID={testID ? `${testID}-scroll` : undefined}
+          >
+            {main}
+            {landscape ? null : info}
           </RevealScroll>
         </View>
-      ) : null}
+        {overlay ? (
+          <View style={styles.strip} testID={testID ? `${testID}-overlay` : undefined}>
+            {overlay}
+          </View>
+        ) : null}
+        {actions ? (
+          <View
+            style={[styles.footer, { maxHeight: Math.round(height * FOOTER_MAX_SHARE), borderColor: theme.border, backgroundColor: theme.surface }]}
+            {...hidden}
+          >
+            <RevealScroll contentPadding={{ top: 12, bottom: 12, ...side }} maxWidth={regions.content.width} style={styles.footerScroll}>
+              {actions}
+            </RevealScroll>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  shellRoot: { alignItems: 'center' },
+  shellColumn: { flex: 1, maxWidth: '100%' },
+  shellColumnFill: { flex: 1, minHeight: 0 },
+  shellRow: { flex: 1, flexDirection: 'row', minHeight: 0 },
+  shellFlex: { flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden' },
+  shellActions: { flexShrink: 0, overflow: 'hidden' },
+  overlay: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden' },
+  strip: { flexShrink: 0 },
   body: { gap: 16, width: '100%', alignSelf: 'center' },
   footer: { borderTopWidth: 2, flexShrink: 0 },
   footerScroll: { flexGrow: 0 },

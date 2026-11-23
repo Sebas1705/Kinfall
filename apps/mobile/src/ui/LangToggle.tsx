@@ -1,5 +1,6 @@
 import { setLang, t, type Lang } from '@kinfall/core/platform/i18n';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText } from './AppText';
 
 import { useLang } from '../platform/LangContext';
 import { useTheme } from '../theme';
@@ -16,9 +17,9 @@ export function LangToggle() {
   const theme = useTheme();
   return (
     <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={t('settings.language')} testID="lang-toggle">
-      <Text style={[styles.label, { color: theme.muted }]} importantForAccessibility="no">
+      <AppText style={[styles.label, { color: theme.muted }]} importantForAccessibility="no">
         {t('settings.language')}
-      </Text>
+      </AppText>
       {LANGS.map(({ code, name }) => {
         const on = code === lang;
         return (
@@ -34,7 +35,7 @@ export function LangToggle() {
             padX={2}
             style={styles.option}
           >
-            {({ textColor }) => <Text style={[styles.code, { color: textColor }, on && styles.on]}>{code.toUpperCase()}</Text>}
+            {({ textColor }) => <AppText style={[styles.code, { color: textColor }, on && styles.on]}>{code.toUpperCase()}</AppText>}
           </FramePressable>
         );
       })}

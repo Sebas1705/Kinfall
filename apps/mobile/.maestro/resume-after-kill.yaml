@@ -8,11 +8,9 @@ tags:
 ---
 - runFlow: subflows/open-title.yaml
 
-# Dev tools: write the "recruit" sample into the save slot.
-- scrollUntilVisible:
-    element:
-      id: "dev-tools"
-    direction: DOWN
+# Dev tools (a link in the "New run options" sheet): write the "recruit" sample into the save slot.
+- tapOn:
+    id: "hud-options"
 - tapOn:
     id: "dev-tools"
 - scrollUntilVisible:
@@ -52,17 +50,15 @@ tags:
 - assertNotVisible:
     id: "map-screen"
 
-# Leave cleanly: "Let it go" (the second choice), then abandon from the map.
+# Leave cleanly: "Let it go" (the second choice), then abandon from the map (Settings sheet).
 - tapOn:
     id: "event-choice-1"
 - extendedWaitUntil:
     visible:
       id: "map-screen"
     timeout: 10000
-- scrollUntilVisible:
-    element:
-      id: "abandon"
-    direction: DOWN
+- tapOn:
+    id: "hud-settings"
 - tapOn:
     id: "abandon"
 - tapOn:

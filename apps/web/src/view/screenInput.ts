@@ -3,6 +3,7 @@
 import { createInput } from '../platform/input';
 import type { GameAction, InputOptions } from '../platform/input';
 import type { Router, ScreenId } from './router';
+import { isSheetOpen } from './sheet';
 
 export function bindScreenInput(
   target: HTMLElement,
@@ -11,5 +12,5 @@ export function bindScreenInput(
   onAction: (a: GameAction) => void,
   options: Omit<InputOptions, 'active'> = {},
 ): { dispose(): void } {
-  return createInput(target, onAction, { ...options, active: () => router.current() === screen });
+  return createInput(target, onAction, { ...options, active: () => router.current() === screen && !isSheetOpen() });
 }

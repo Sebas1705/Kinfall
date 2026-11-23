@@ -1,7 +1,9 @@
 // The Run route: one screen that draws the current run phase: the map, a battle, an event
-// (recruit, shrine, cache, mystery) or the end of the run (`PHASE_VIEWS`). Android back never
-// leaves a run silently: it opens the abandon confirmation (and a second back closes it). On the
-// end screen the run is already over, so back goes straight to the title, like "Back to start".
+// (recruit, shrine, cache, mystery) or the end of the run. Every phase draws its own console screen
+// (HUD, primary region, rail, sheets); this route only picks it and hands it the save warning, the
+// seed line, the abandon confirmation and the scroll handle of the fallback layout. Android back
+// never leaves a run silently: it opens the abandon confirmation (and a second back closes it). On
+// the end screen the run is already over, so back goes straight to the title, like "Back to start".
 //
 // A battle's final turn moves the run on at once (it is applied and saved before its animation), so
 // the battle screen stays up until that turn has played; then the next phase shows, with the run log
@@ -9,8 +11,9 @@
 import { zoneIdOf } from '@kinfall/core/art/scene';
 import { t } from '@kinfall/core/platform/i18n';
 import type { RunState } from '@kinfall/core/sim/run/types';
-import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
-import { BackHandler, StyleSheet, Text, type ScrollViewInstance } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode, type Ref } from 'react';
+import { BackHandler, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import { AppText } from '../ui/AppText';
 
 import { useLang } from '../platform/LangContext';
 import type { RunView } from '../run/session';
@@ -18,9 +21,7 @@ import { useRunSession } from '../run/useRunSession';
 import { useTheme } from '../theme';
 import { ConfirmPanel } from '../ui/ConfirmPanel';
 import { ArtZoneContext } from '../ui/frames';
-import { RunLogPanel } from '../ui/RunLogPanel';
 import { SaveBanner } from '../ui/SaveBanner';
-import { Screen } from '../ui/Screen';
 import { BattleView } from './BattleView';
 import { EndView } from './EndView';
 import { EventView } from './EventView';
@@ -33,10 +34,19 @@ export interface PhaseViewProps {
   confirming: boolean;
   /** Clears the save and leaves for the title (the end screen's "Back to start"). */
   onToTitle: () => void;
-  /** The abandon confirmation while `confirming` (null otherwise); event views show it by their choices. */
+  /** The abandon confirmation while `confirming` (null otherwise); it shows in the Settings sheet. */
   confirmPanel?: ReactNode;
-  /** The run log panel, placed by the view (below the content, or in the side pane of two panes). */
-  log?: ReactNode;
+  /** First step of the two-step abandon (event and end screens have no Abandon button; back still asks). */
+  onAbandon?: () => void;
+  /** The Settings sheet closed while the confirmation was open: the route drops it. */
+  onCancelAbandon?: () => void;
+  /** Above the content (the save warning). */
+  header?: ReactNode;
+  /** In the Settings sheet (the seed line). */
+  trailer?: ReactNode;
+  /** The scroll area of the fallback layout (the route scrolls it to the top on a phase change). */
+  scrollRef?: Ref<ScrollViewInstance>;
+  testID?: string;
 }
 
 /** Screens of the event and end phases. Like the web, they have no abandon button (Android back still asks). */
@@ -72,6 +82,7 @@ export function RunScreen({ onExit }: RunScreenProps) {
   viewRef.current = shownView;
 
   const askAbandon = useCallback(() => setConfirming(true), []);
+  const cancelAbandon = useCallback(() => setConfirming(false), []);
 
   /** Drops the run and its save, then leaves for the title. */
   const onAbandon = useCallback(() => {
@@ -95,7 +106,7 @@ export function RunScreen({ onExit }: RunScreenProps) {
     scroll.current?.scrollTo({ y: 0, animated: false });
   }, [shownView]);
 
-  if (!run || !shownView) return <Screen testID="run-screen-empty">{null}</Screen>;
+  if (!run || !shownView) return <View style={[styles.empty, { backgroundColor: theme.bg }]} testID="run-screen-empty" />;
 
   // The confirmation shows where its trigger was: in place of the Abandon button (map, battle), or
   // by the choices of an event; it scrolls itself into view (ConfirmPanel).
@@ -110,13 +121,13 @@ export function RunScreen({ onExit }: RunScreenProps) {
     />
   ) : null;
   const seedLine = (
-    <Text style={[styles.seed, { color: theme.muted }]} testID="run-seed">
+    <AppText style={[styles.seed, { color: theme.muted }]} testID="run-seed">
       {t('battle.seed', { seed: run.seed })}
-    </Text>
+    </AppText>
   );
 
-  // The battle draws its own screen (its layout may pin the choices at the bottom) and its own
-  // log; the run log comes back with the next phase.
+  // The battle draws its own screen (the console shell, with its own log sheet and the Abandon
+  // button in its Settings sheet); the run log comes back with the next phase.
   // The frames' gems take the accent of the run's zone.
   const zone = zoneIdOf(run.zone);
   if (battleRun) {
@@ -126,6 +137,7 @@ export function RunScreen({ onExit }: RunScreenProps) {
           run={battleRun}
           onEnd={onBattleEnd}
           onAbandon={askAbandon}
+          onCancelAbandon={cancelAbandon}
           confirming={confirming}
           confirmPanel={confirmPanel}
           header={<SaveBanner />}
@@ -137,7 +149,6 @@ export function RunScreen({ onExit }: RunScreenProps) {
     );
   }
 
-  const log = <RunLogPanel />;
   let body: ReactNode;
   if (shownView === 'map') {
     body = (
@@ -146,27 +157,37 @@ export function RunScreen({ onExit }: RunScreenProps) {
         trail={snapshot.trail}
         onPick={(id) => session.pickNode(id)}
         onAbandon={askAbandon}
+        onCancelAbandon={cancelAbandon}
         confirming={confirming}
         confirmPanel={confirmPanel}
-        log={log}
+        header={<SaveBanner />}
+        trailer={seedLine}
+        scrollRef={scroll}
+        testID="run-map"
       />
     );
   } else if (shownView !== 'battle') {
     const Phase = PHASE_VIEWS[shownView];
-    body = <Phase run={run} confirming={confirming} onToTitle={onAbandon} confirmPanel={confirmPanel} log={log} />;
+    body = (
+      <Phase
+        run={run}
+        confirming={confirming}
+        onToTitle={onAbandon}
+        confirmPanel={confirmPanel}
+        onAbandon={askAbandon}
+        onCancelAbandon={cancelAbandon}
+        header={<SaveBanner />}
+        trailer={seedLine}
+        scrollRef={scroll}
+        testID={`run-${shownView}`}
+      />
+    );
   }
 
-  return (
-    <ArtZoneContext.Provider value={zone}>
-      <Screen ref={scroll} testID={`run-${shownView}`}>
-        <SaveBanner />
-        {body}
-        {seedLine}
-      </Screen>
-    </ArtZoneContext.Provider>
-  );
+  return <ArtZoneContext.Provider value={zone}>{body}</ArtZoneContext.Provider>;
 }
 
 const styles = StyleSheet.create({
+  empty: { flex: 1 },
   seed: { fontSize: 14 },
 });

@@ -55,8 +55,16 @@ export interface BattleView extends BattleScene {
 const AMBIENT_FPS = 30;
 /** Sky rows hidden on narrow views (the enemy's head is at row 52, the victory title at 40). */
 const NARROW_SKY_CROP = 26;
-/** Windows shorter than this (landscape phones) crop the sky as well. */
+/** The most sky the console layout may trim to fit a short stage (the enemy's head is at row 52). */
+const MAX_SKY_CROP = 50;
+/** Fallback layout (the page scrolls): windows shorter than this (landscape phones) crop the sky as well. */
 const SHORT_WINDOW_PX = 560;
+/**
+ * Console layout: the same crop, decided from the stage rect (the primary region the layout contract
+ * plans for the scene) instead of the window. A region shorter than this cannot hold the whole
+ * 144-row scene at 2x with its plates, so the top of the sky goes.
+ */
+const SHORT_STAGE_PX = 420;
 
 /** Tiny status icons (shape and colour differ; the status name is always shown next to them). */
 const STATUS_SHAPES: Record<StatusId, { color: string; rows: string[] }> = {
@@ -436,6 +444,39 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     app.render();
   };
 
+  // The primary region the scene lives in: only in the console layout, where it is a fixed rect.
+  // `chrome` is what the stacked HUD plates and the canvas border take of its height; on wide
+  // stages the plates float over the sky and take none.
+  const stageEl = host.parentElement;
+  const stageRegion = (): { height: number; chrome: number } | null => {
+    const appEl = doc.querySelector<HTMLElement>('.app');
+    if (!stageEl || appEl?.dataset.mode !== 'console') return null;
+    const hostStyle = getComputedStyle(host);
+    const stacked = getComputedStyle(sides.enemy.plate.root).position !== 'absolute';
+    let chrome = 4; // the canvas border, top and bottom
+    if (stacked) {
+      const gap = parseFloat(hostStyle.rowGap) || 0;
+      for (const side of ['enemy', 'player'] as const) {
+        const root = sides[side].plate.root;
+        if (!root.hidden) chrome += root.offsetHeight + gap;
+      }
+    }
+    return { height: stageEl.clientHeight, chrome };
+  };
+
+  // The one-line log message floats over the canvas's bottom edge, wherever the stacked plates put
+  // the canvas: publish that edge (px from the stage's top) for the CSS.
+  const anchorMessage = (on: boolean) => {
+    const battleEl = stageEl?.parentElement;
+    if (!battleEl || !stageEl) return;
+    if (!on) {
+      battleEl.style.removeProperty('--scene-bottom');
+      return;
+    }
+    const edge = canvas.getBoundingClientRect().bottom - stageEl.getBoundingClientRect().top;
+    battleEl.style.setProperty('--scene-bottom', `${Math.round(edge)}px`);
+  };
+
   // Metrics recomputed by layout().
   const layout = () => {
     // The canvas may bleed into the page padding on phones (negative margins in art.css): its
@@ -446,11 +487,21 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     const W = Math.max(1, Math.floor((host.clientWidth || 320) + extra));
     // Phones (a view narrower than the scene, or a short landscape window) trim the top of the sky
     // so the menu stays close.
+    const region = stageRegion();
     const full = stageFrame(W);
-    const short = (doc.defaultView?.innerHeight ?? 1000) < SHORT_WINDOW_PX;
-    frame = full.viewWidth < SCENE_WIDTH || short ? stageFrame(W, NARROW_SKY_CROP) : full;
+    const short = region ? region.height < SHORT_STAGE_PX : (doc.defaultView?.innerHeight ?? 1000) < SHORT_WINDOW_PX;
+    const cropped = full.viewWidth < SCENE_WIDTH || short;
+    let crop = cropped ? NARROW_SKY_CROP : 0;
+    // In the console layout the picture must fit the stage rect: when even 1x does not fit, more sky
+    // goes (never more than MAX_SKY_CROP, so the heads stay in view); then the largest whole-number
+    // scale whose rows (plus the stacked plates, if any) still fit its height.
+    if (region) crop = Math.min(MAX_SKY_CROP, Math.max(crop, SCENE_HEIGHT - Math.floor(region.height - region.chrome)));
+    const rawScale = region ? (region.height - region.chrome) / (SCENE_HEIGHT - crop) : Number.POSITIVE_INFINITY;
+    const maxScale = Number.isFinite(rawScale) || rawScale === Number.POSITIVE_INFINITY ? rawScale : Number.POSITIVE_INFINITY;
+    frame = cropped || region ? stageFrame(W, crop, undefined, maxScale) : full;
     const H = frame.viewHeight * frame.scale;
     app.renderer.resize(W, H);
+    anchorMessage(region !== null);
     world.scale.set(frame.scale);
     for (const { layer, node } of layerNodes) {
       if (node instanceof TilingSprite) {
@@ -468,7 +519,12 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
     }
   };
 
-  let width = 0;
+  // What the frame depends on: the host width and, in the console layout, the stage rect.
+  const fitKey = (): string => {
+    const region = stageRegion();
+    return `${Math.round(host.clientWidth)}|${region ? `${region.height}|${region.chrome}` : '-'}`;
+  };
+  let fit = '';
   const tick = () => {
     clock += app.ticker.deltaMS;
     animator.tick(app.ticker.deltaMS);
@@ -567,13 +623,17 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
       ? null
       : new ResizeObserver(() => {
           if (destroyed) return;
-          if (Math.round(host.clientWidth) !== width) {
-            width = Math.round(host.clientWidth);
+          if (fitKey() !== fit) {
+            fit = fitKey();
             layout();
             redraw();
           }
         });
   observer?.observe(host);
+  // The stage rect (console layout) and the plates stacked around the canvas change the room it has.
+  if (stageEl) observer?.observe(stageEl);
+  observer?.observe(sides.enemy.plate.root);
+  observer?.observe(sides.player.plate.root);
 
   // ---- event animations -------------------------------------------------------------------------
   const tweenHp = (ctx: PlayContext, side: Side, to: number) => {
@@ -703,7 +763,7 @@ export async function createBattleView(host: HTMLElement): Promise<BattleView> {
         const c = state.teams[side][state.active[side]];
         sides[side].shown = c ? shownOf(c) : null;
       }
-      width = Math.round(host.clientWidth);
+      fit = fitKey();
       layout();
       updateTicker();
       redraw();

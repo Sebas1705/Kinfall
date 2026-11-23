@@ -1,5 +1,6 @@
 import { t } from '@kinfall/core/platform/i18n';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText } from './AppText';
 
 import { useAnnounce } from '../platform/announce';
 import { useLang } from '../platform/LangContext';
@@ -22,9 +23,9 @@ export function SaveBanner() {
     <Plate style={styles.box} testID="save-warning">
       {/* Warning stripe; the words say what happened. */}
       <View style={[styles.stripe, { backgroundColor: theme.danger }]} />
-      <Text style={[styles.text, { color: ink.text }]} accessibilityRole="alert" accessibilityLiveRegion="polite">
+      <AppText style={[styles.text, { color: ink.text }]} accessibilityRole="alert" accessibilityLiveRegion="polite">
         {text}
-      </Text>
+      </AppText>
       <Button label={t('save.dismiss')} onPress={() => session.dismissSaveWarning()} testID="save-warning-dismiss" />
     </Plate>
   );

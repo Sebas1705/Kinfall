@@ -2,6 +2,7 @@
 // never in the way of playing.
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { setLanguage, withSettings } from './run-helpers';
 
 const firstEnabled = (page: Page) => page.locator('#choices button:not([disabled])').first();
 
@@ -43,7 +44,7 @@ test.describe('scene art', () => {
     await page.goto('/?seed=art-title');
     const logo = page.getByRole('img', { name: 'Kinfall' });
     await expect(logo).toBeVisible();
-    await page.selectOption('#lang', 'es');
+    await setLanguage(page, 'es');
     await expect(page.getByRole('img', { name: 'Kinfall' })).toBeVisible();
     // The animated hero behind it is decorative.
     await expect(page.locator('#screen-title .title-scene')).toHaveAttribute('aria-hidden', 'true');
@@ -79,7 +80,7 @@ test.describe('scene art', () => {
     const before = await snapshot(page, '#screen-title .title-scene');
     await expect.poll(() => snapshot(page, '#screen-title .title-scene'), { timeout: 5_000 }).not.toBe(before);
     // Turned off with the page's own setting: still.
-    await page.locator('#reduce-motion').check();
+    await withSettings(page, () => page.locator('#reduce-motion').check());
     await page.waitForTimeout(200);
     const still = await snapshot(page, '#screen-title .title-scene');
     await page.waitForTimeout(800);

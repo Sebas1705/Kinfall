@@ -168,3 +168,62 @@ describe('renderTitle', () => {
     expect(q(host, '[data-action="new-run"]').textContent).toBe('Nueva partida');
   });
 });
+
+describe('renderTitle: console composition', () => {
+  it('heading and starters are in the primary region, Continue and New run in the rail, in reading order', () => {
+    const { host } = render(okSave());
+    const primary = q(host, '.screen-primary');
+    const rail = q(host, '.screen-rail');
+    expect(primary.contains(q(host, 'h2'))).toBe(true);
+    expect(primary.contains(q(host, 'fieldset.starters'))).toBe(true);
+    expect(rail.contains(q(host, '[data-action="continue"]'))).toBe(true);
+    expect(rail.contains(q(host, '[data-action="new-run"]'))).toBe(true);
+    expect(primary.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('the seed field, its hint and the saves note live in the options sheet store', () => {
+    const { host } = render({ kind: 'none' });
+    const store = q(host, '.sheet-store');
+    expect(store.getAttribute('data-sheet-title')).toBe('New run options');
+    expect(store.getAttribute('data-sheet-button')).toBe('Options');
+    expect(store.contains(q(host, 'input[name="seed"]'))).toBe(true);
+    expect(store.contains(q(host, '#title-seed-hint'))).toBe(true);
+    expect(store.textContent).toContain('Saves live in this browser');
+    expect(q(host, '.screen-primary').contains(q(host, 'input[name="seed"]'))).toBe(false);
+  });
+
+  it('options follow the language', () => {
+    setLang('es');
+    const { host } = render({ kind: 'none' });
+    const store = q(host, '.sheet-store');
+    expect(store.getAttribute('data-sheet-title')).toBe('Opciones de la nueva partida');
+    expect(store.getAttribute('data-sheet-button')).toBe('Opciones');
+  });
+
+  it('every starter radio is described by its hint, and the chosen hint shows in one line', () => {
+    const { host } = render({ kind: 'none' });
+    for (const r of host.querySelectorAll<HTMLInputElement>('input[name="starter"]')) {
+      const hint = document.getElementById(r.getAttribute('aria-describedby')!);
+      expect(hint, r.value).not.toBeNull();
+      expect(hint!.textContent!.length).toBeGreaterThan(0);
+    }
+    const line = q(host, '.starter-hint-line');
+    expect(line.textContent).toBe('A fiery creature that scorches its foes.');
+    q<HTMLInputElement>(host, 'input[value="tidewisp"]').checked = true;
+    q(host, 'input[value="tidewisp"]').dispatchEvent(new Event('change', { bubbles: true }));
+    expect(line.textContent).toBe('A nimble creature with plenty of focus.');
+  });
+
+  it('a corrupt save puts its notice and Discard in the rail', () => {
+    const { host } = render({ kind: 'corrupt', error: 'bad' });
+    expect(q(host, '.screen-rail').contains(q(host, '.notice--warn'))).toBe(true);
+    expect(q(host, '.screen-rail').contains(q(host, '[data-action="discard"]'))).toBe(true);
+  });
+
+  it('submitting the form still works with the seed field inside the sheet store', () => {
+    const { host, props } = render({ kind: 'none' });
+    q<HTMLInputElement>(host, 'input[name="seed"]').value = 'in-store';
+    q<HTMLButtonElement>(host, '[data-action="new-run"]').click();
+    expect(props.onStart).toHaveBeenCalledWith('in-store', CONTENT.starters[0]);
+  });
+});
