@@ -27,8 +27,8 @@ export function renderHub(root: HTMLElement, props: HubProps): void {
         'aria-disabled': soon ? 'true' : undefined,
       },
       el('span', { class: 'hub-card__name' }, t(game.nameKey)),
-      el('span', { class: 'hub-card__tagline' }, t(game.taglineKey)),
-      soon ? el('span', { class: 'hub-card__badge' }, t('hub.soon')) : null,
+      // A soon game says so once, in its badge (its tagline is the same words): the card's name reads it once.
+      soon ? el('span', { class: 'hub-card__badge' }, t('hub.soon')) : el('span', { class: 'hub-card__tagline' }, t(game.taglineKey)),
     );
   });
 

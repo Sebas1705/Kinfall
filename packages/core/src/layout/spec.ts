@@ -62,8 +62,16 @@ export const MIN_HEIGHT_PX = 320;
  * The hub was measured the same way on the web, in English and Spanish, with the budget and the 320 px
  * minimum height lifted: the largest minimum-fitting-height / text scale was 232.7 in landscape
  * (Spanish, 640 wide, 150%) and 360 in portrait (320 wide at 100%; 350 at 150%), which round up to
- * 235 and 360. The Android fit proofs (apps/mobile) re-check these two values; a raise needs the
- * proof rows that justify it.
+ * 235 and 360. The landscape value is the web measurement, and the Android proofs hold at it. The
+ * portrait value is NOT the web one: it is set by the Android fit proofs (hub in runMetrics.test.ts).
+ * The web grid sizes its primary area to its content (360 fits there), but Android takes the primary
+ * region from the plan above (portrait: 41% of the height, clipped, with the 48 dp card floors that do not
+ * grow with the text), so three cards plus their gaps and the spare room need about 194 dp, i.e. a window
+ * about 473 dp tall at text 1.0 (the worst scale, since the floors do not scale). The proofs run over every
+ * console row of the matrix plus short portrait windows (generated at the budget for 320, 360 and 411
+ * wide at scales 1 to 1.5, and 360x380, 360x420, 411x440, 360x480): 470 fails (320x470, 360x470 and
+ * 411x470 at 100%), 475 is the smallest value, rounded up to 5, for which every console row fits in English and
+ * Spanish. The web hub still fits within it (a 360x640 phone at 130% is 492 text-sized px).
  *
  * The title and event portrait budgets (460), the title landscape budget (245) and the end portrait
  * budget (330) were raised after the mobile fit proofs (apps/mobile/__tests__/screens/runMetrics.test.ts,
@@ -81,7 +89,7 @@ export const MIN_BUDGET: Record<ScreenId, ScreenBudget> = {
   battle: { landscape: 270, portrait: 480 },
   event: { landscape: 250, portrait: 460 },
   end: { landscape: 210, portrait: 330 },
-  hub: { landscape: 235, portrait: 360 },
+  hub: { landscape: 235, portrait: 475 },
 };
 
 // Band heights (px at text scale 1). The HUD was measured on the web shell: 52 px, which is the

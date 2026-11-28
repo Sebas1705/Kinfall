@@ -8,13 +8,13 @@
 // the longest English and Spanish texts fit their line caps.
 import { describe, expect, it } from '@jest/globals';
 import { CONTENT } from '@kinfall/core/content';
-import { effectiveTextScale, layoutSpec, type ScreenId } from '@kinfall/core/layout/spec';
+import { MIN_BUDGET, effectiveTextScale, layoutSpec, type ScreenId } from '@kinfall/core/layout/spec';
 import { setLang, speciesName, t } from '@kinfall/core/platform/i18n';
 import { startRun } from '@kinfall/core/sim/run/run';
 
 import { GAMES } from '@kinfall/core/games/registry';
 
-import { FONT_SCALES, WINDOW_SIZES, consoleRows, fallbackRows } from '../../test-utils/consoleRows';
+import { FONT_SCALES, WINDOW_SIZES, consoleRows, fallbackRows, type ConsoleRow } from '../../test-utils/consoleRows';
 import { lineHeight, messageHeight, MESSAGE_SIZE } from '../../src/screens/battleMetrics';
 import * as hub from '../../src/screens/hubMetrics';
 import * as end from '../../src/screens/endMetrics';
@@ -223,13 +223,35 @@ describe.each(langs)('hub in %s', (lang) => {
     }
     return out;
   }
+  /**
+   * Short portrait windows (split screen, a phone with a tall keyboard bar): the matrix has none, and the
+   * portrait primary region is 41% of the height, so these are where the cards run out of room. Generated
+   * at the budget itself (the shortest window the contract still calls a console) for the narrow widths
+   * and the scales around it, plus a few fixed short windows.
+   */
+  const shortRows = (): ConsoleRow[] => {
+    const rows: ConsoleRow[] = [];
+    for (const w of [320, 360, 411]) {
+      for (const fs of [1, 1.15, 1.3, 1.5]) {
+        const h = Math.ceil(MIN_BUDGET.hub.portrait * effectiveTextScale(fs, 1));
+        if (h > w) rows.push([`${w}x${h} at ${Math.round(fs * 100)}% (at the budget)`, w, h, fs]);
+      }
+    }
+    for (const [w, h] of [[360, 380], [360, 420], [411, 440], [360, 480]] as const) rows.push([`${w}x${h} at 100% (short)`, w, h, 1]);
+    return rows;
+  };
+  const shortConsoleRows = () => shortRows().filter(([, w, h, fs]) => specOf('hub', w, h, fs).spec.mode === 'console');
   const allRows = (): Array<[string, number, number, number]> => {
     const rows: Array<[string, number, number, number]> = [];
     for (const [w, h] of [...WINDOW_SIZES, [320, 640], [560, 300]] as const) for (const fs of FONT_SCALES) rows.push([`${w}x${h} at ${Math.round(fs * 100)}%`, w, h, fs]);
-    return rows;
+    return [...rows, ...shortRows()];
   };
 
-  it.each(consoleRows('hub'))('%s: console; the cards, their texts, the announcement and Play fit with room to spare', (_l, w, h, fs) => {
+  it('has short portrait console rows to prove (the proof is not vacuous)', () => {
+    expect(shortConsoleRows().length).toBeGreaterThanOrEqual(8);
+  });
+
+  it.each([...consoleRows('hub'), ...shortConsoleRows()])('%s: console; the cards, their texts, the announcement and Play fit with room to spare', (_l, w, h, fs) => {
     expect(specOf('hub', w, h, fs).spec.mode).toBe('console');
     expect(problems(w, h, fs)).toEqual([]);
   });

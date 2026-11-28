@@ -40,6 +40,7 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 | Case | Status |
 |---|---|
 | Every touchable has a role (button, radio, radiogroup, link), a name and its state (disabled, checked, selected, busy) | verified: Jest sweep on title, map, battle, events and end at 360x640 @200% and 1280x800; emulator hierarchy: no unnamed touchable in any configuration  **Old layout evidence, superseded by the console layout, to re-verify on an emulator.** |
+| The hub: a radiogroup (named "Games") of three radio cards with their checked state; the "coming soon" cards carry `disabled` and a name that says it once ("Simulator, Coming soon"); Play is a button | unit-tested only: `HubScreen.test.tsx`, `Layout.test.tsx` (48 dp sweep at 360x640 @200% and 1280x800) |
 | Map nodes read core's `map.nodeLabel` ("Wild creature: available", "you are here" for the current node) | verified: Jest; emulator content descriptions  **Old layout evidence, superseded by the console layout, to re-verify on an emulator.** |
 | Creature sprites, element icons, HP/focus bars and map glyphs are hidden; the same information is in text | verified: Jest (`importantForAccessibility="no-hide-descendants"`); emulator hierarchy  **Old layout evidence, superseded by the console layout, to re-verify on an emulator.** |
 | The seed hint is read once (as the field's hint), not twice | unit-tested only |
@@ -49,6 +50,7 @@ Screens per configuration: title, map (+ confirmation), battle (+ one played tur
 | Focus order follows reading order; in two panes the left pane is read before the right | verified by the view order (Jest and the uiautomator hierarchy), not by a TalkBack walk  **Superseded by the console layout (no page scroll, fixed regions, sheets), to re-verify on an emulator; not claimed as verified for the new layout.** |
 | TalkBack walk-through | partly: TalkBack 16 was enabled on the emulator and its first focus landed on the screen heading ("Start"), but swipes, taps and keyboard shortcuts injected through adb never moved its focus on API 36, so the traversal and spoken output could not be inspected. What TalkBack reads is what the hierarchy exposes (content descriptions, roles, states), which the matrix checked. A walk-through on a real phone is still to do  **Old layout evidence, superseded by the console layout, to re-verify on an emulator.** |
 | VoiceOver (iOS) | not testable here: no Mac or iOS device |
+| Hub: TalkBack on a "coming soon" card, which is disabled for screen readers yet still pressable (selecting it focuses it and speaks the polite "... is coming soon." line; Play with it focused does the same) | not verified: Jest checks the state and the live region text only; TalkBack may skip or dim a disabled item, and may not offer the double tap on it. To check on a real phone |
 
 ### Console layout features (not testable here)
 | Case | Status |

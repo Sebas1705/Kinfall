@@ -473,15 +473,23 @@ describe('hub, title, map, event and end in the console layout', () => {
     expect(screen.getByTestId('hub-title')).toBeTruthy();
   });
 
-  it('hub: a narrow phone at 150% in Spanish (three-line tagline) is a console without the heading', async () => {
+  it('hub: a narrow phone at 150% in Spanish (three-line tagline) is the fallback: the heading and all three cards are there, in a scroll area', async () => {
     setLang('es');
     windowIs({ width: 320, height: 640, fontScale: 1.5 });
     await show('hub');
-    expect(planned('hub', { width: 320, height: 640, fontScale: 1.5 }).mode).toBe('console');
-    expect(screen.queryByTestId('hub-title')).toBeNull();
+    expect(planned('hub', { width: 320, height: 640, fontScale: 1.5 }).mode).toBe('fallback');
+    expect(screen.getByTestId('hub-screen-scroll')).toBeTruthy();
+    expect(screen.getByTestId('hub-title')).toBeTruthy();
     expect(screen.getByTestId('hub-games').props.accessibilityLabel).toBe('Juegos');
     expect(screen.getAllByRole('radio')).toHaveLength(3);
-    expect(pageScrolls()).toBe(0);
+  });
+
+  it('hub: a short portrait window (split screen, 360x420) is the fallback too, with Play still pinned', async () => {
+    windowIs({ width: 360, height: 420, fontScale: 1 });
+    await show('hub');
+    expect(planned('hub', { width: 360, height: 420, fontScale: 1 }).mode).toBe('fallback');
+    expect(screen.getByTestId('hub-screen-scroll')).toBeTruthy();
+    expect(screen.getByTestId('hub-play')).toBeTruthy();
   });
 
   it('hub: at 200% on a small phone it is the pinned fallback: the cards scroll in the primary area, Play stays pinned', async () => {

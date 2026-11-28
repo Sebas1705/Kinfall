@@ -49,6 +49,17 @@ describe('renderHub', () => {
     expect(cards(root).map((c) => c.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false']);
   });
 
+  it('says "coming soon" once on a soon card (the badge, no tagline) and shows the tagline of a playable one', () => {
+    const { root } = render();
+    const [kinfall, simulator, survival] = cards(root);
+    expect(kinfall!.querySelector('.hub-card__tagline')).not.toBeNull();
+    expect(kinfall!.querySelector('.hub-card__badge')).toBeNull();
+    for (const card of [simulator!, survival!]) {
+      expect(card.querySelector('.hub-card__tagline')).toBeNull();
+      expect(card.textContent!.match(/Coming soon/g)).toHaveLength(1);
+    }
+  });
+
   it('marks soon cards aria-disabled', () => {
     const { root } = render();
     expect(cards(root).map((c) => c.getAttribute('aria-disabled'))).toEqual([null, 'true', 'true']);

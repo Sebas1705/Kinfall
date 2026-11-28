@@ -220,13 +220,13 @@ describe('per-screen budgets', () => {
     ['320x640 @1.3', 320, 640, 1.3, all(C)],
     ['360x640 @1.0', 360, 640, 1, all(C)],
     ['360x640 @1.3', 360, 640, 1.3, all(C)],
-    ['360x640 @1.5', 360, 640, 1.5, { title: F, map: F, battle: F, event: F, end: C, hub: C }],
+    ['360x640 @1.5', 360, 640, 1.5, { title: F, map: F, battle: F, event: F, end: C, hub: F }],
     ['360x640 @2.0', 360, 640, 2, all(F)],
     ['600x800 @1.0', 600, 800, 1, all(C)],
     ['600x800 @1.3', 600, 800, 1.3, all(C)],
-    ['600x800 @2.0', 600, 800, 2, { title: F, map: F, battle: F, event: F, end: C, hub: C }],
+    ['600x800 @2.0', 600, 800, 2, { title: F, map: F, battle: F, event: F, end: C, hub: F }],
     ['411x914 @1.5', 411, 914, 1.5, all(C)],
-    ['411x914 @2.0', 411, 914, 2, { title: F, map: F, battle: F, event: F, end: C, hub: C }],
+    ['411x914 @2.0', 411, 914, 2, { title: F, map: F, battle: F, event: F, end: C, hub: F }],
     ['640x360 @1.5', 640, 360, 1.5, { title: F, map: F, battle: F, event: F, end: C, hub: C }],
     ['914x411 @1.5', 914, 411, 1.5, { title: C, map: F, battle: C, event: C, end: C, hub: C }],
     ['800x1280 @1.0', 800, 1280, 1, all(C)],
@@ -272,15 +272,16 @@ describe('per-screen budgets', () => {
 });
 
 describe('the hub screen', () => {
-  // The measured budgets (235 landscape, 360 portrait) are edges: just below falls back, at the value is a console.
+  // The budgets (235 landscape measured on the web; 475 portrait set by the Android fit proofs) are edges: just below falls back, at the value is a console.
   const hubMode = (w: number, h: number, scale: number) => layoutSpec({ width: w, height: h, textScale: scale }, 'hub').mode;
   it.each([
     ['landscape just below (352 / 1.5 < 235)', 640, 352, 1.5, 'fallback'],
     ['landscape at the budget (353 / 1.5 >= 235)', 640, 353, 1.5, 'console'],
-    ['portrait just below (359 / 1 < 360)', 320, 359, 1, 'fallback'],
-    ['portrait at the budget (360 / 1 = 360)', 320, 360, 1, 'console'],
-    ['portrait just below at 1.5 (539 / 1.5 < 360)', 360, 539, 1.5, 'fallback'],
-    ['portrait at the budget at 1.5 (540 / 1.5 = 360)', 360, 540, 1.5, 'console'],
+    ['portrait just below (474 / 1 < 475)', 320, 474, 1, 'fallback'],
+    ['portrait at the budget (475 / 1 = 475)', 320, 475, 1, 'console'],
+    ['portrait just below at 1.5 (712 / 1.5 < 475)', 360, 712, 1.5, 'fallback'],
+    ['portrait at the budget at 1.5 (713 / 1.5 >= 475)', 360, 713, 1.5, 'console'],
+    ['a short portrait window (360x420 @1.0)', 360, 420, 1, 'fallback'],
   ] as const)('hub budget edge, %s', (_n, w, h, scale, mode) => {
     expect(hubMode(w, h, scale)).toBe(mode);
   });
@@ -288,6 +289,11 @@ describe('the hub screen', () => {
   it('is a console at 640x360 @1.0 and 360x640 @1.3', () => {
     expect(layoutSpec({ width: 640, height: 360, textScale: 1 }, 'hub').mode).toBe('console');
     expect(layoutSpec({ width: 360, height: 640, textScale: 1.3 }, 'hub').mode).toBe('console');
+  });
+
+  it('stays a console on the web phone sizes the e2e cover (360x640 at 1.0 and 1.3, 640 / 1.3 = 492 >= 475)', () => {
+    expect(hubMode(360, 640, 1)).toBe('console');
+    expect(hubMode(360, 640, 1.3)).toBe('console');
   });
 
   it('has a budget for both orientations', () => {

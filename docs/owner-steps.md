@@ -17,9 +17,10 @@ The 0.4.0 build opens on a game hub (Kinfall plus two "coming soon" cards) befor
 1. **Back behaviour:** Back on the hub exits the app; Back on the title returns to the hub; in a run Back still asks to abandon. After Abandon the title still returns to the hub with Back.
 2. **TalkBack on the cards:** the three cards are read as radio buttons (checked or not) in a group named "Games"; the "coming soon" cards are read as dimmed/disabled but a double tap still selects them and announces the "coming soon" message; Play on a soon card announces it too.
 3. **Text at 130%:** hub in portrait and landscape, nothing scrolls and every card, tagline and Play stay visible.
-4. **Fallback at 200%:** the hub scrolls inside its primary region, Play stays reachable, and on a tight row (for example 320x640 at 150% in Spanish) the "Choose a game" heading may be missing by design.
+4. **Fallback at 200%:** the hub scrolls inside its primary region, Play stays reachable, and in a short portrait window the whole hub is the scrolling fallback by design (see step 7).
 5. **Both orientations:** rotate on the hub; the focused card is kept.
 6. **Last game:** play Kinfall, close the app completely, reopen: the hub starts with Kinfall focused.
+7. **Split screen / short portrait:** put the app in split screen (or any portrait window shorter than about 475 dp at text 100%, for example 360x420), on the hub: it must be the scrolling fallback (the cards scroll inside the primary region, Play stays pinned and reachable, the three cards are never cut off). A window of about 480 dp or more at 100% is the console and must show all three cards with no scrolling; check the same at text 130% on a 640 dp tall phone (console) and at 150% (fallback).
 
 ## Real-phone checks for 0.3.0 (console layout)
 

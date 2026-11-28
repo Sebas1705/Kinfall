@@ -2,21 +2,23 @@
 
 Date: 2026-11-28. Branch `feat/game-hub`. This note says what was run, what was not, what is known to be limited, and what the owner still has to check. Nothing was tagged, pushed or uploaded. The version in `apps/mobile/app.json` is `0.4.0`.
 
-The hub is a new first screen on both apps: three radio cards (Kinfall, playable; two "coming soon" games), a Play button, and the last game played is focused on the next start. Play on Kinfall opens the existing title. The layout contract (`packages/core/src/layout/spec.ts`) has a sixth screen, `hub`, with `MIN_BUDGET.hub = { landscape: 235, portrait: 360 }`, measured on the web.
+The hub is a new first screen on both apps: three radio cards (Kinfall, playable; two "coming soon" games), a Play button, and the last game played is focused on the next start. Play on Kinfall opens the existing title. The layout contract (`packages/core/src/layout/spec.ts`) has a sixth screen, `hub`, with `MIN_BUDGET.hub = { landscape: 235, portrait: 475 }`. Landscape was measured on the web; portrait is set by the Android fit proofs (the Android portrait primary region is 41% of the height), where 470 fails and 475 is the smallest passing value. The web still shows a console on a 360x640 phone at 100% and 130% text (640 / 1.3 = 492).
 
 ## What was run (automated, on the development PC, 2026-11-28)
 
 | Check | Command | Result |
 |---|---|---|
-| Core and web unit tests | `npx vitest run` | 62 files, 1059 tests passed |
-| Mobile unit tests | `npm run test:mobile` (Jest) | 48 suites, 1304 tests passed |
+| Core and web unit tests | `npx vitest run` | 62 files, 1062 tests passed |
+| Mobile unit tests | `npm run test:mobile` (Jest) | 48 suites, 1327 tests passed |
 | Typecheck, all workspaces | `npm run typecheck` | clean |
 | Build | `npm run build` | ok |
 | Size budget | `npm run size` | initial load 37,771 of 38,000 bytes gzipped, scene art 24,212 of 60,000, within budget |
 | Web e2e | `npm run test:e2e -- --project=chromium --project=phone-landscape --project=phone-portrait` | 364 passed, 65 skipped (project-scoped skips), 0 failed, 5.7 min |
 | Golden files | `git diff origin/main --stat -- packages/core/tests/golden` | empty: goldens untouched |
 
-The hub is covered by `hub.spec.ts` (keyboard, roving focus, soon cards, last game, fallback reachability, 44 px targets), the layout matrix of `layout.spec.ts`, and axe in `run-a11y.spec.ts` (light/dark x en/es x 320/1000 px, text 150%). On Android the Jest proofs cover every console row of the contract at 100 to 200% text in English and Spanish (`runMetrics.test.ts`, `Layout.test.tsx`), plus the hub screen, the last-game storage and the navigation (hub first, Play opens the title, Back from the title returns to the hub). The mobile `mobile` Playwright project of earlier notes was not part of this run.
+The hub is covered by `hub.spec.ts` (keyboard, roving focus, soon cards, last game, fallback reachability, 44 px targets), the layout matrix of `layout.spec.ts`, and axe in `run-a11y.spec.ts` (light/dark x en/es x 320/1000 px, text 150%). On Android the Jest proofs cover the hub console rows of the layout matrix plus generated short portrait windows (widths 320, 360 and 411 at the budget height with text 100, 115, 130 and 150%, and fixed windows 360x380, 360x420, 411x440 and 360x480), in English and Spanish (`runMetrics.test.ts`, `Layout.test.tsx`). This is a matrix, not every possible window, plus the hub screen, the last-game storage and the navigation (hub first, Play opens the title, Back from the title returns to the hub). The mobile `mobile` Playwright project of earlier notes was not part of this run.
+
+The fix wave also removed a duplicate "Coming soon" read on the web soon cards (badge only now; playable cards keep the tagline).
 
 ## What was not run
 

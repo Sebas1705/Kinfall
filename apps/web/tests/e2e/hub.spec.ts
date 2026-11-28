@@ -172,7 +172,7 @@ test('hub: still works when storage access throws', async ({ page }) => {
 
 // The web slider tops out at 150%, so the 200% case cannot be set here (the core budget table pins the
 // 2.0 mode). Instead the window is made short enough that the hub budget fails at 150%: 640x300 is 200
-// text-sized px (landscape budget 235, and under the 320 px minimum) and 360x420 is 280 (portrait 365).
+// text-sized px (landscape budget 235, and under the 320 px minimum) and 360x420 is 280 (portrait 475).
 const fallbackWindows = [
   { name: '640x300', width: 640, height: 300 },
   { name: '360x420', width: 360, height: 420 },
