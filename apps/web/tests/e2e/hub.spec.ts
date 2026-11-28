@@ -170,35 +170,48 @@ test('hub: still works when storage access throws', async ({ page }) => {
   await expect(titleHeading(page)).toBeVisible();
 });
 
-// The web slider tops out at 150%, so the fallback is reached with a window under the hub budget at that
-// scale: 640x320 is 213 text-sized px (budget 235) and 360x480 is 320 (budget 365). The 200% row is
-// covered by the core layout matrix.
+// The web slider tops out at 150%, so the 200% case cannot be set here (the core budget table pins the
+// 2.0 mode). Instead the window is made short enough that the hub budget fails at 150%: 640x300 is 200
+// text-sized px (landscape budget 235, and under the 320 px minimum) and 360x420 is 280 (portrait 365).
 const fallbackWindows = [
-  { name: '640x320', width: 640, height: 320 },
-  { name: '360x480', width: 360, height: 480 },
+  { name: '640x300', width: 640, height: 300 },
+  { name: '360x420', width: 360, height: 420 },
 ] as const;
 for (const win of fallbackWindows) {
-  test(`hub ${win.name} at text 150% (fallback): Play is reachable by scrolling and the page does not scroll`, async ({ page }, info) => {
-    test.skip(info.project.name !== 'chromium', 'sets its own window');
-    await page.setViewportSize({ width: win.width, height: win.height });
-    await openHub(page);
-    await setTextSize(page, 150);
-    await expectFallbackPlay(page);
-  });
+  for (const lang of ['en', 'es'] as const) {
+    test(`hub ${win.name} ${lang} at text 150% (fallback): every card and Play are reachable by scrolling`, async ({ page }, info) => {
+      test.skip(info.project.name !== 'chromium', 'sets its own window');
+      await page.setViewportSize({ width: win.width, height: win.height });
+      await openHub(page);
+      if (lang === 'es') await setLanguage(page, 'es');
+      await setTextSize(page, 150);
+      await expectFallbackReachable(page);
+    });
+  }
 }
 
-async function expectFallbackPlay(page: Page): Promise<void> {
+async function expectFallbackReachable(page: Page): Promise<void> {
   await expect(page.locator('#app')).toHaveAttribute('data-mode', 'fallback');
+  // The fallback really scrolls (otherwise this proves nothing), and only the primary area does.
+  const region = await page.evaluate(() => {
+    const el = document.getElementById('screens')!;
+    return { scroll: el.scrollHeight, client: el.clientHeight, doc: document.scrollingElement!.scrollHeight, inner: innerHeight };
+  });
+  expect(region.scroll).toBeGreaterThan(region.client);
+  expect(region.doc).toBeLessThanOrEqual(region.inner);
+  const inside = (sel: string) =>
+    page.evaluate((s) => {
+      const r = document.querySelector(s)!.getBoundingClientRect();
+      return r.top >= -0.5 && r.bottom <= innerHeight + 0.5 && r.left >= -0.5 && r.right <= innerWidth + 0.5;
+    }, sel);
+  for (const card of await page.locator('.hub-card').all()) {
+    await card.scrollIntoViewIfNeeded();
+    const game = await card.getAttribute('data-game');
+    expect(await inside(`.hub-card[data-game="${game}"]`), `card ${game}`).toBe(true);
+  }
   const play = page.locator('#hub-play');
   await play.scrollIntoViewIfNeeded();
-  const m = await page.evaluate(() => {
-    const r = document.querySelector('#hub-play')!.getBoundingClientRect();
-    const doc = document.scrollingElement!;
-    return { top: r.top, bottom: r.bottom, innerHeight, docScroll: doc.scrollHeight };
-  });
-  expect(m.top).toBeGreaterThanOrEqual(-0.5);
-  expect(m.bottom).toBeLessThanOrEqual(m.innerHeight + 0.5);
-  expect(m.docScroll).toBeLessThanOrEqual(m.innerHeight);
+  expect(await inside('#hub-play'), 'play').toBe(true);
   await play.click();
   await expect(titleHeading(page)).toBeVisible();
 }

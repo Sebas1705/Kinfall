@@ -124,7 +124,8 @@ export function startRunPage(entry: 'hub' | 'kinfall' = 'hub'): void {
     }
     live.textContent = '';
     announceTimer = window.setTimeout(() => {
-      live.textContent = message;
+      // Something else (a route announcement) may have taken the region meanwhile: leave it.
+      if (live.textContent === '') live.textContent = message;
     }, 60);
   };
   const showHub = (focus: boolean) => {

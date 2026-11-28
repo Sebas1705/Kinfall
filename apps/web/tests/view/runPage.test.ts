@@ -79,6 +79,23 @@ describe('startRunPage', () => {
     }
   });
 
+  it('does not overwrite a newer announcement with the delayed repeat', () => {
+    vi.useFakeTimers();
+    try {
+      startRunPage('hub');
+      const live = document.querySelector('[data-announcer]')!;
+      const card = document.querySelector<HTMLElement>('.hub-card[data-game="simulator"]')!;
+      card.click();
+      card.click();
+      expect(live.textContent).toBe('');
+      live.textContent = 'Start';
+      vi.advanceTimersByTime(100);
+      expect(live.textContent).toBe('Start');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a language change re-renders the hub keeping the focused game', () => {
     startRunPage('hub');
     document.querySelector<HTMLElement>('.hub-card[data-game="survival"]')!.click();

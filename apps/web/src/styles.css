@@ -2087,7 +2087,8 @@ button {
    The first screen: one radio-like card per game in the primary region and Play in the rail. A card is
    a div with role="radio", so the roving focus and the checked state are drawn by the card itself.
    Landscape console: the cards sit side by side; portrait console: they stack and Play is the whole
-   actions band. In `fallback` the cards stack and the rail is pinned like every run screen's. */
+   actions band. In `fallback` the cards keep the auto-fit grid (as many per row as fit) and scroll with
+   the primary area, while the rail is pinned like every run screen's. */
 .hub-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));

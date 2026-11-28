@@ -272,6 +272,19 @@ describe('per-screen budgets', () => {
 });
 
 describe('the hub screen', () => {
+  // The measured budgets (235 landscape, 360 portrait) are edges: just below falls back, at the value is a console.
+  const hubMode = (w: number, h: number, scale: number) => layoutSpec({ width: w, height: h, textScale: scale }, 'hub').mode;
+  it.each([
+    ['landscape just below (352 / 1.5 < 235)', 640, 352, 1.5, 'fallback'],
+    ['landscape at the budget (353 / 1.5 >= 235)', 640, 353, 1.5, 'console'],
+    ['portrait just below (359 / 1 < 360)', 320, 359, 1, 'fallback'],
+    ['portrait at the budget (360 / 1 = 360)', 320, 360, 1, 'console'],
+    ['portrait just below at 1.5 (539 / 1.5 < 360)', 360, 539, 1.5, 'fallback'],
+    ['portrait at the budget at 1.5 (540 / 1.5 = 360)', 360, 540, 1.5, 'console'],
+  ] as const)('hub budget edge, %s', (_n, w, h, scale, mode) => {
+    expect(hubMode(w, h, scale)).toBe(mode);
+  });
+
   it('is a console at 640x360 @1.0 and 360x640 @1.3', () => {
     expect(layoutSpec({ width: 640, height: 360, textScale: 1 }, 'hub').mode).toBe('console');
     expect(layoutSpec({ width: 360, height: 640, textScale: 1.3 }, 'hub').mode).toBe('console');
