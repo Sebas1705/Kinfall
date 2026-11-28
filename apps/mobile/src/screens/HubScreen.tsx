@@ -37,7 +37,6 @@ import {
   MAIN_PAD,
   NAME_SIZE,
   RAIL_PAD,
-  TAGLINE_LINES_MAX,
   TAGLINE_MIN_SCALE,
   TAGLINE_SIZE,
   buttonHeight,
