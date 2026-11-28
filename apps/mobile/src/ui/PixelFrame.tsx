@@ -210,7 +210,10 @@ export function FramePressable({
     <Pressable
       ref={ref}
       onPress={disabled ? undefined : onPress}
-      disabled={disabled}
+      // Undefined, not false, when enabled: Pressable lets an explicit `disabled` override the
+      // accessibilityState, and a card that is "disabled" for screen readers but still pressable (the
+      // hub's "soon" games) needs its own state to reach the screen reader.
+      disabled={disabled || undefined}
       onFocus={() => {
         setFocused(true);
         onFocusChange?.(true);

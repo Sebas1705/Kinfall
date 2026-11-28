@@ -15,6 +15,7 @@ import { sampleRun, type SampleKind } from '../../src/dev/sampleRuns';
 import type { RunSession } from '../../src/run/session';
 import { RunSessionProvider } from '../../src/run/useRunSession';
 import { RunScreen } from '../../src/screens/RunScreen';
+import { HubScreen } from '../../src/screens/HubScreen';
 import { TitleScreen } from '../../src/screens/TitleScreen';
 import { flush, mockAnimations, sessionInBattle } from '../../test-support/battleFixtures';
 import { makeSession, memoryStorage, RUN_KEY, STARTER } from '../../test-support/runFixtures';
@@ -400,10 +401,10 @@ describe('abandon from the battle', () => {
   });
 });
 
-describe('title, map, event and end in the console layout', () => {
-  type Kind = 'title' | 'map' | 'event' | 'end';
+describe('hub, title, map, event and end in the console layout', () => {
+  type Kind = 'hub' | 'title' | 'map' | 'event' | 'end';
   /** Test id of each screen's root (the Screen's testID): its regions are `${root}-primary` and `${root}-actions`. */
-  const ROOT: Record<Kind, string> = { title: 'title-screen', map: 'run-map', event: 'run-event', end: 'run-end' };
+  const ROOT: Record<Kind, string> = { hub: 'hub-screen', title: 'title-screen', map: 'run-map', event: 'run-event', end: 'run-end' };
   const windows: Array<[string, Win]> = [
     ['640x360', { width: 640, height: 360, fontScale: 1 }],
     ['640x360 at 130%', { width: 640, height: 360, fontScale: 1.3 }],
@@ -413,6 +414,11 @@ describe('title, map, event and end in the console layout', () => {
   const planned = (kind: Kind, w: Win) => layoutSpec({ width: w.width, height: w.height, textScale: effectiveTextScale(w.fontScale, 1) }, kind);
 
   async function show(kind: Kind): Promise<RunSession> {
+    if (kind === 'hub') {
+      await render(<HubScreen onPlay={() => {}} />);
+      await flush();
+      return makeSession(memoryStorage());
+    }
     if (kind === 'title') {
       const session = makeSession(memoryStorage());
       await render(
@@ -435,7 +441,7 @@ describe('title, map, event and end in the console layout', () => {
     return session;
   }
 
-  for (const kind of ['title', 'map', 'event', 'end'] as Kind[]) {
+  for (const kind of ['hub', 'title', 'map', 'event', 'end'] as Kind[]) {
     for (const [label, win] of windows) {
       it(`${kind} at ${label}: console, no page scroll, the rail beside (landscape) or below (portrait) the primary region, every touchable 48dp`, async () => {
         windowIs(win);
@@ -460,6 +466,32 @@ describe('title, map, event and end in the console layout', () => {
       });
     }
   }
+
+  it('hub: the heading is shown where it fits and dropped where the cards need the room (the list keeps its name)', async () => {
+    windowIs({ width: 360, height: 640, fontScale: 1 });
+    await show('hub');
+    expect(screen.getByTestId('hub-title')).toBeTruthy();
+  });
+
+  it('hub: a narrow phone at 150% in Spanish (three-line tagline) is a console without the heading', async () => {
+    setLang('es');
+    windowIs({ width: 320, height: 640, fontScale: 1.5 });
+    await show('hub');
+    expect(planned('hub', { width: 320, height: 640, fontScale: 1.5 }).mode).toBe('console');
+    expect(screen.queryByTestId('hub-title')).toBeNull();
+    expect(screen.getByTestId('hub-games').props.accessibilityLabel).toBe('Juegos');
+    expect(screen.getAllByRole('radio')).toHaveLength(3);
+    expect(pageScrolls()).toBe(0);
+  });
+
+  it('hub: at 200% on a small phone it is the pinned fallback: the cards scroll in the primary area, Play stays pinned', async () => {
+    windowIs(SMALL_BIG_TEXT);
+    await show('hub');
+    expect(planned('hub', SMALL_BIG_TEXT).mode).toBe('fallback');
+    expect(screen.getByTestId('hub-screen-scroll')).toBeTruthy();
+    expect(screen.getByTestId('hub-title')).toBeTruthy();
+    expect(screen.getByTestId('hub-play')).toBeTruthy();
+  });
 
   for (const [label, win] of windows) {
     it(`map at ${label}: every node is reachable, labelled and at least 48dp wide and tall, inside the primary region`, async () => {
@@ -600,6 +632,13 @@ describe('every touchable is named, has a role and state, and is at least 48dp',
     ['tablet', TABLET],
   ];
   for (const [label, win] of windows) {
+    it(`hub (${label})`, async () => {
+      windowIs(win);
+      await render(<HubScreen onPlay={() => {}} />);
+      await flush();
+      expectAccessibleTouchables();
+    });
+
     it(`title (${label})`, async () => {
       windowIs(win);
       const session = makeSession(memoryStorage());

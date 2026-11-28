@@ -12,12 +12,15 @@ import { effectiveTextScale, layoutSpec, type ScreenId } from '@kinfall/core/lay
 import { setLang, speciesName, t } from '@kinfall/core/platform/i18n';
 import { startRun } from '@kinfall/core/sim/run/run';
 
-import { consoleRows } from '../../test-utils/consoleRows';
-import { lineHeight, messageHeight } from '../../src/screens/battleMetrics';
+import { GAMES } from '@kinfall/core/games/registry';
+
+import { FONT_SCALES, WINDOW_SIZES, consoleRows, fallbackRows } from '../../test-utils/consoleRows';
+import { lineHeight, messageHeight, MESSAGE_SIZE } from '../../src/screens/battleMetrics';
+import * as hub from '../../src/screens/hubMetrics';
 import * as end from '../../src/screens/endMetrics';
 import * as event from '../../src/screens/eventMetrics';
 import * as map from '../../src/screens/mapMetrics';
-import { textLines } from '../../src/screens/textFit';
+import { FILL, textLines, textWidth } from '../../src/screens/textFit';
 import * as title from '../../src/screens/titleMetrics';
 
 /** Room kept free in every region (dp): a gesture bar or cutout inset the contract does not know. */
@@ -181,5 +184,95 @@ describe.each(langs)('end in %s', (lang) => {
     expect([scene, scene >= end.SCENE_MIN]).toEqual([scene, true]);
     fits(end.railHeight(scale) + SLACK, spec.regions.actions.height);
     expect(lineHeight(end.NOTE_SIZE, scale) * lines).toBeLessThanOrEqual(end.noteHeight(scale, lines));
+  });
+});
+
+describe.each(langs)('hub in %s', (lang) => {
+  /** Does the hub fit this window? The primary region, the announcement line, the rail, the texts. */
+  function problems(w: number, h: number, fs: number): string[] {
+    setLang(lang);
+    const { scale, spec } = specOf('hub', w, h, fs);
+    const landscape = spec.orientation === 'landscape';
+    const out: string[] = [];
+    // The tagline lines of the playable cards, as the screen computes them (the longest of the playable games).
+    const lines = Math.max(...GAMES.filter((g) => g.status === 'playable').map((g) => hub.taglineLines(t(g.taglineKey), spec.regions.primary.width, scale)));
+    // The heading gives way when the window is tight; the cards never do.
+    const heading = hub.showHeading(spec.regions.primary.height, scale, landscape, lines);
+    const need = hub.primaryNeed(scale, landscape, lines, heading) + SLACK;
+    if (need > spec.regions.primary.height) out.push(`primary ${need} > ${spec.regions.primary.height}`);
+    const rail = hub.railHeight(scale) + SLACK;
+    if (rail > spec.regions.actions.height) out.push(`rail ${rail} > ${spec.regions.actions.height}`);
+    const inner = spec.regions.primary.width - 2 * hub.MAIN_PAD - hub.CARD_SIDE;
+    for (const g of GAMES) {
+      // The name (with its dot) takes one line, a tagline two; both shrink to fit (adjustsFontSizeToFit). A soon
+      // card has the name and the badge on one row: each shrinks down to 70%, and both widths must fit the row.
+      const name = textLines(`● ${t(g.nameKey)}`, inner, hub.NAME_SIZE * 0.7, scale);
+      if (name > 1) out.push(`name ${g.id} ${name} lines`);
+      if (g.status === 'soon') {
+        const row = textWidth(`● ${t(g.nameKey)}`.length, hub.NAME_SIZE * 0.7, scale) + textWidth(t('hub.soon').length, hub.BADGE_SIZE * 0.7, scale) + hub.BADGE_PAD_X + hub.CARD_GAP;
+        if (row > inner * FILL) out.push(`soon row ${g.id} ${row} > ${Math.round(inner * FILL)}`);
+      } else {
+        // Nothing is cut: the text needs no more lines than the card gives it.
+        const tag = textLines(t(g.taglineKey), inner, hub.TAGLINE_SIZE * hub.TAGLINE_MIN_SCALE, scale);
+        if (tag > lines) out.push(`tagline ${g.id} ${tag} lines`);
+      }
+      // The announcement: one line in landscape (in the primary region's width), two in portrait (the info band).
+      const width = (landscape ? spec.regions.primary.width : spec.regions.content.width) - 8;
+      const msg = textLines(t('hub.soonAnnounce', { game: t(g.nameKey) }), width, MESSAGE_SIZE, scale);
+      if (msg > (landscape ? 1 : 2)) out.push(`announcement ${g.id} ${msg} lines`);
+    }
+    return out;
+  }
+  const allRows = (): Array<[string, number, number, number]> => {
+    const rows: Array<[string, number, number, number]> = [];
+    for (const [w, h] of [...WINDOW_SIZES, [320, 640], [560, 300]] as const) for (const fs of FONT_SCALES) rows.push([`${w}x${h} at ${Math.round(fs * 100)}%`, w, h, fs]);
+    return rows;
+  };
+
+  it.each(consoleRows('hub'))('%s: console; the cards, their texts, the announcement and Play fit with room to spare', (_l, w, h, fs) => {
+    expect(specOf('hub', w, h, fs).spec.mode).toBe('console');
+    expect(problems(w, h, fs)).toEqual([]);
+  });
+
+  it('every row the hub cannot fit is a row the contract sends to the fallback (so the budget is not too low)', () => {
+    for (const [label, w, h, fs] of allRows()) {
+      const p = problems(w, h, fs);
+      if (p.length > 0) expect([label, specOf('hub', w, h, fs).spec.mode, p]).toEqual([label, 'fallback', p]);
+    }
+  });
+
+  it('the fallback rows: nothing is capped (the cards grow with the text), the rail is Play alone', () => {
+    for (const [, w, h, fs] of fallbackRows('hub')) {
+      const { scale } = specOf('hub', w, h, fs);
+      // A card has no fixed height there: its minimum is the console height, so it never shrinks below 48.
+      for (const g of GAMES) expect(hub.cardHeight(scale, g.status)).toBeGreaterThanOrEqual(48);
+    }
+  });
+});
+
+describe('hub heading', () => {
+  it('uses the same spare room as these proofs', () => {
+    expect(hub.SPARE).toBe(SLACK);
+  });
+
+  it('is shown on roomy windows and dropped on the tight ones, never the cards', () => {
+    const roomy = specOf('hub', 360, 640, 1);
+    expect(hub.showHeading(roomy.spec.regions.primary.height, roomy.scale, false)).toBe(true);
+    // 320 wide at 150% in Spanish: the tagline takes three lines and the heading goes.
+    setLang('es');
+    const tight = specOf('hub', 320, 640, 1.5);
+    const lines = hub.taglineLines(t('hub.game.kinfall.tagline'), tight.spec.regions.primary.width, tight.scale);
+    expect(lines).toBe(3);
+    expect(hub.showHeading(tight.spec.regions.primary.height, tight.scale, false, lines)).toBe(false);
+    setLang('en');
+  });
+});
+
+describe('hub touch targets', () => {
+  it('keeps the cards and Play at least 48 dp', () => {
+    for (const s of [1, 1.3, 2]) {
+      for (const g of GAMES) expect(hub.cardHeight(s, g.status)).toBeGreaterThanOrEqual(48);
+      expect(hub.buttonHeight(s)).toBeGreaterThanOrEqual(48);
+    }
   });
 });

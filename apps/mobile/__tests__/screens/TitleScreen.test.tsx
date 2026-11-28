@@ -15,7 +15,7 @@ import { createRunSession, type RunSession } from '../../src/run/session';
 import { RunSessionProvider } from '../../src/run/useRunSession';
 import { TitleScreen } from '../../src/screens/TitleScreen';
 import { createAsyncRunStorage } from '@kinfall/core/platform/asyncRunStorage';
-import { closeTitleOptions, openTitleOptions } from '../../test-support/devTools';
+import { closeTitleOptions, openTitleOptions, playFromHub } from '../../test-support/devTools';
 import { freshRun, makeSession, memoryStorage, RUN_KEY, type MemoryStorage } from '../../test-support/runFixtures';
 
 async function renderTitle(session: RunSession, props: Partial<Parameters<typeof TitleScreen>[0]> = {}) {
@@ -230,8 +230,9 @@ describe('title screen language toggle (whole app)', () => {
   it('switches every text to Spanish, persists the choice and restores it on the next start', async () => {
     const user = userEvent.setup();
     const first = await render(<AppShell session={makeSession(storage)} />);
-    expect(await screen.findByText('Start')).toBeTruthy();
-    // The language switch lives in the Settings sheet (the title has no toggles of its own).
+    // The app opens on the hub.
+    expect(await screen.findByText('Choose a game')).toBeTruthy();
+    // The language switch lives in the Settings sheet (the hub has no toggles of its own).
     expect(screen.queryByTestId('language-en')).toBeNull();
     await user.press(screen.getByTestId('hud-settings'));
     expect(screen.getByTestId('language-en').props.accessibilityState).toMatchObject({ checked: true });
@@ -239,15 +240,21 @@ describe('title screen language toggle (whole app)', () => {
     await user.press(screen.getByTestId('language-es'));
     // The screen behind the sheet is hidden from readers, but it follows the language at once.
     const behind = { includeHiddenElements: true };
-    expect(screen.getByText('Inicio', behind)).toBeTruthy();
-    expect(screen.getByText('Nueva partida', behind)).toBeTruthy();
-    expect(screen.getByLabelText('Elige tu criatura inicial', behind)).toBeTruthy();
-    expect(screen.queryByText('New run', behind)).toBeNull();
+    expect(screen.getByText('Elige un juego', behind)).toBeTruthy();
+    expect(screen.getByText('Jugar', behind)).toBeTruthy();
+    expect(screen.getByText(/Simulador/, behind)).toBeTruthy();
+    expect(screen.queryByText('Choose a game', behind)).toBeNull();
     expect(screen.getByTestId('language-es').props.accessibilityState).toMatchObject({ checked: true });
     await waitFor(async () => expect(await AsyncStorage.getItem('webgames.lang')).toBe('es'));
 
     first.unmount();
     await render(<AppShell session={makeSession(storage)} />);
+    expect(await screen.findByText('Elige un juego')).toBeTruthy();
+    // Play opens the title, in Spanish too.
+    await playFromHub(user);
     expect(await screen.findByText('Inicio')).toBeTruthy();
+    expect(screen.getByText('Nueva partida')).toBeTruthy();
+    expect(screen.getByLabelText('Elige tu criatura inicial')).toBeTruthy();
+    expect(screen.queryByText('New run')).toBeNull();
   });
 });

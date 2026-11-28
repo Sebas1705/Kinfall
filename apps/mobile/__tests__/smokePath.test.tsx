@@ -49,6 +49,10 @@ describe('smoke path (twin of the Maestro flow)', () => {
     const session = makeSession(storage);
     await render(<AppShell session={session} />);
     await flush();
+    // The app opens on the hub: Play (Kinfall is focused) opens the title.
+    expect(await screen.findByTestId('hub-screen')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('hub-play'));
+    await flush();
     expect(await screen.findByTestId('title-screen')).toBeTruthy();
 
     // Title: type the seed (in the options sheet), keep the default (first) starter, start.

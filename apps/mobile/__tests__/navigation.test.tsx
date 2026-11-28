@@ -13,7 +13,7 @@ import { AppShell } from '../App';
 import { navigationRef } from '../src/navigation/AppNavigator';
 import { defaultAsyncStorage } from '../src/platform/asyncStorage';
 import { createRunSession } from '../src/run/session';
-import { closeTitleOptions, openDevTools, openTitleOptions } from '../test-support/devTools';
+import { closeTitleOptions, openDevTools, openTitleOptions, playFromHub } from '../test-support/devTools';
 import { firstNode, makeSession, memoryStorage, RUN_KEY, STARTER, type MemoryStorage } from '../test-support/runFixtures';
 
 type BackFn = Parameters<typeof BackHandler.addEventListener>[1];
@@ -49,9 +49,13 @@ afterEach(() => {
 });
 
 describe('app navigation', () => {
-  it('opens on the title, and New run goes to the run map', async () => {
+  it('opens on the hub, Play shows the title, and New run goes to the run map', async () => {
     const user = userEvent.setup();
     await render(<AppShell session={makeSession(storage)} />);
+    expect(await screen.findByTestId('hub-screen')).toBeTruthy();
+    expect(route()).toBe('Hub');
+    expect(screen.queryByTestId('title-screen')).toBeNull();
+    await user.press(screen.getByTestId('hub-play'));
     expect(await screen.findByTestId('title-screen')).toBeTruthy();
     expect(route()).toBe('Title');
     // The seed field lives in the options sheet.
@@ -67,6 +71,42 @@ describe('app navigation', () => {
     expect(screen.getByTestId('run-seed')).toHaveTextContent('Seed: NAVSEED1');
   });
 
+  it('goes back from the title to the hub, and Play remembers the game for the next start', async () => {
+    const user = userEvent.setup();
+    await render(<AppShell session={makeSession(storage)} />);
+    await playFromHub(user);
+    expect(route()).toBe('Title');
+    await act(async () => navigationRef.goBack());
+    expect(await screen.findByTestId('hub-screen')).toBeTruthy();
+    expect(route()).toBe('Hub');
+    expect(screen.getByTestId('game-kinfall').props.accessibilityState).toMatchObject({ checked: true });
+    await waitFor(async () => expect(await AsyncStorage.getItem('kinfall.lastGame')).toBe('kinfall'));
+    // The hub is the root: nothing handles Android back there, so the app closes.
+    expect(pressBack()).toBe(false);
+  });
+
+  it('a game that is not playable yet announces and stays on the hub', async () => {
+    const user = userEvent.setup();
+    await render(<AppShell session={makeSession(storage)} />);
+    await user.press(await screen.findByTestId('game-simulator'));
+    expect(screen.getByTestId('hub-soon-text')).toHaveTextContent('Simulator is coming soon.');
+    await user.press(screen.getByTestId('hub-play'));
+    expect(route()).toBe('Hub');
+    expect(screen.queryByTestId('title-screen')).toBeNull();
+  });
+
+  it('the dev self-test deep link reaches the self test over the hub, and Back returns to it', async () => {
+    const user = userEvent.setup();
+    await render(<AppShell session={makeSession(storage)} />);
+    expect(await screen.findByTestId('hub-screen')).toBeTruthy();
+    await act(async () => navigationRef.navigate('SelfTest', { autoRun: 1 }));
+    expect(await screen.findByTestId('selftest')).toBeTruthy();
+    expect(route()).toBe('SelfTest');
+    await user.press(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByTestId('hub-screen')).toBeTruthy();
+    expect(route()).toBe('Hub');
+  });
+
   it('Continue resumes the saved run into its exact phase', async () => {
     const user = userEvent.setup();
     const first = makeSession(storage);
@@ -76,6 +116,7 @@ describe('app navigation', () => {
     await first.whenIdle();
 
     await render(<AppShell session={makeSession(storage)} />);
+    await playFromHub(user);
     await waitFor(() => expect(screen.getByTestId('continue').props.accessibilityState).toMatchObject({ disabled: false }));
     await user.press(screen.getByTestId('continue'));
     // The first node of this seed is a wild battle: the battle screen comes back.
@@ -89,6 +130,7 @@ describe('app navigation', () => {
     const user = userEvent.setup();
     const session = makeSession(storage);
     await render(<AppShell session={session} />);
+    await playFromHub(user);
     await user.press(await screen.findByTestId('new-run'));
     const startedSeed = session.getSnapshot().run!.seed;
     expect(startedSeed).toBe('FRESH1');
@@ -113,14 +155,19 @@ describe('app navigation', () => {
     await session.whenIdle();
     expect(storage.data.has(RUN_KEY)).toBe(false);
     expect(screen.getByTestId('continue').props.accessibilityState).toMatchObject({ disabled: true });
-    // Back on the title is not the Run screen's: no handler of ours is left to keep the app open.
-    expect(backHandlers.every((h) => !fire(h))).toBe(true);
+    // Back on the title is not the Run screen's (no abandon prompt): the navigator takes it to the hub.
+    await act(async () => {
+      expect(pressBack()).toBe(true);
+    });
+    expect(await screen.findByTestId('hub-screen')).toBeTruthy();
+    expect(route()).toBe('Hub');
   });
 
   it('Continue on a save that vanished stays on the title', async () => {
     const user = userEvent.setup();
     storage.data.set(RUN_KEY, serializeRun(makeRunToSave()));
     await render(<AppShell session={makeSession(storage)} />);
+    await playFromHub(user);
     await waitFor(() => expect(screen.getByTestId('continue').props.accessibilityState).toMatchObject({ disabled: false }));
     storage.data.delete(RUN_KEY);
     await user.press(screen.getByTestId('continue'));
@@ -156,12 +203,15 @@ describe('app navigation', () => {
 
     const session = makeSession(storage);
     await render(<AppShell session={session} />);
-    await screen.findByTestId('title-screen');
+    await screen.findByTestId('hub-screen');
     await waitFor(() => expect(navigationRef.getCurrentOptions()).toMatchObject({ animation: 'default' }));
 
     // Switched on while the app runs: the next screen change is not animated.
     reduce = true;
     await act(async () => emit?.(true));
+    await user.press(screen.getByTestId('hub-play'));
+    expect(await screen.findByTestId('title-screen')).toBeTruthy();
+    expect(navigationRef.getCurrentOptions()).toMatchObject({ animation: 'none' });
     await user.press(screen.getByTestId('new-run'));
     expect(await screen.findByTestId('map-screen')).toBeTruthy();
     expect(navigationRef.getCurrentOptions()).toMatchObject({ animation: 'none' });
@@ -176,6 +226,7 @@ describe('app navigation', () => {
 
   it('has no dev tools link in the options sheet of production builds', async () => {
     await render(<AppShell session={makeSession(storage)} devTools={false} />);
+    await playFromHub();
     expect(await screen.findByTestId('title-screen')).toBeTruthy();
     await openTitleOptions();
     expect(screen.queryByTestId('dev-tools')).toBeNull();

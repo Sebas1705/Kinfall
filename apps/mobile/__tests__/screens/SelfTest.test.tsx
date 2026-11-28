@@ -139,7 +139,7 @@ describe('Self test wiring in App', () => {
   it('does not auto-run without the env flag or a selftest URL', async () => {
     expect(process.env.EXPO_PUBLIC_SELFTEST_AUTORUN).toBeUndefined();
     await render(<App />);
-    expect(await screen.findByTestId('title-screen')).toBeTruthy();
+    expect(await screen.findByTestId('hub-screen')).toBeTruthy();
     // Give any stray async start a chance to show up.
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByTestId('selftest')).toBeNull();
@@ -163,7 +163,7 @@ describe('Self test wiring in App', () => {
     expect(textOf(await screen.findByTestId('selftest-verdict'))).toBe('PASS');
     expect(selftestLogs()).toHaveLength(2);
 
-    // Back from an auto-run lands on the title (the self test was opened over it).
+    // Back from an auto-run lands on the hub (the self test was opened over it).
     await user.press(screen.getByRole('button', { name: 'Back' }));
     await openDevTools(user);
     await user.press(await screen.findByRole('button', { name: 'Self test' }));
