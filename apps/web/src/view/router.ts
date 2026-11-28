@@ -2,7 +2,7 @@
 // `hidden` and `inert`, so neither the keyboard nor assistive technology can reach them.
 import { t } from '@kinfall/core/platform/i18n';
 
-export type ScreenId = 'title' | 'map' | 'battle' | 'event' | 'end';
+export type ScreenId = 'hub' | 'title' | 'map' | 'battle' | 'event' | 'end';
 
 export interface ShowOptions {
   /** Move focus into the new screen (default true). False for the first paint of the page. */

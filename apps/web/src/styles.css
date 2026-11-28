@@ -2082,3 +2082,115 @@ button {
   width: 100%;
   height: 100%;
 }
+
+/* ---- game hub (see src/view/screens/hub.ts) ----
+   The first screen: one radio-like card per game in the primary region and Play in the rail. A card is
+   a div with role="radio", so the roving focus and the checked state are drawn by the card itself.
+   Landscape console: the cards sit side by side; portrait console: they stack and Play is the whole
+   actions band. In `fallback` the cards keep the auto-fit grid (as many per row as fit) and scroll with
+   the primary area, while the rail is pinned like every run screen's. */
+.hub-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 0.5rem;
+}
+
+.hub-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.2rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.5rem 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.hub-card[aria-checked='true'] {
+  border: 2px solid var(--accent);
+  padding: calc(0.5rem - 1px) calc(0.7rem - 1px);
+  background: var(--surface-2);
+}
+
+.hub-card:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* A game that is not playable yet reads as muted, with a dashed edge, never as a disabled control. */
+.hub-card--soon {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.hub-card__name {
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.hub-card__tagline {
+  font-size: 0.85rem;
+  line-height: 1.25;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.hub-card__badge {
+  padding: 0 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.app[data-mode='console'] .hub-list {
+  gap: 0.35rem;
+  align-content: start;
+}
+
+.app[data-mode='console'] .hub-card {
+  gap: 0.1rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.app[data-mode='console'] .hub-card[aria-checked='true'] {
+  padding: calc(0.3rem - 1px) calc(0.5rem - 1px);
+}
+
+.app[data-mode='console'] .hub-card__name {
+  font-size: 0.95rem;
+}
+
+.app[data-mode='console'] .hub-card__badge {
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+}
+
+.app[data-mode='console'] .hub-card__tagline {
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+/* Landscape: the cards in a row. */
+.app[data-orientation='landscape'][data-mode='console'] .hub-list {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+/* Portrait: stacked cards; Play takes the whole actions band. */
+.app[data-orientation='portrait'][data-mode='console'] .hub-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app[data-orientation='portrait'][data-mode='console'] #screen-hub .screen-rail > .primary {
+  grid-column: 1 / -1;
+}

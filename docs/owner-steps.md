@@ -10,6 +10,18 @@ State after the React Native plan ([tasks 1-10](superpowers/plans/2026-11-16-rea
 - **Firebase:** project `kinfall-sebas1705` (Kinfall), Android app `es.sebas1705.kinfall` with the key's SHA-1 and SHA-256, App Distribution group `testers` (no testers yet), CI service account `kinfall-ci` with only the App Distribution Admin role (key in Doppler).
 - **Pipeline:** `scripts/distribute-android.sh` (with `--dry-run`) and the workflow `.github/workflows/distribute-android.yml` (manual at first; since branch `kinfall-rename` it also uploads on pushed `vX.Y.Z` tags); the first release (0.1.0, versionCode 108) was uploaded to group `testers`. On the emulator the same build started without Metro, played in English and Spanish, resumed a battle after a force stop, followed dark mode and passed the self test on Hermes. Details: [docs/distribution.md](distribution.md).
 
+## Real-phone checks for 0.4.0 (game hub)
+
+The 0.4.0 build opens on a game hub (Kinfall plus two "coming soon" cards) before the title. It is automated as far as Jest and Playwright go; nothing below was run on an emulator or a device, see the [QA note](superpowers/notes/2026-11-23-game-hub-qa.md). Do these on a real Android phone with the 0.4.0 build before tagging (tagging 0.4.0 waits on these checks):
+
+1. **Back behaviour:** Back on the hub exits the app; Back on the title returns to the hub; in a run Back still asks to abandon. After Abandon the title still returns to the hub with Back.
+2. **TalkBack on the cards:** the three cards are read as radio buttons (checked or not) in a group named "Games"; the "coming soon" cards are read as dimmed/disabled but a double tap still selects them and announces the "coming soon" message; Play on a soon card announces it too.
+3. **Text at 130%:** hub in portrait and landscape, nothing scrolls and every card, tagline and Play stay visible.
+4. **Fallback at 200%:** the hub scrolls inside its primary region, Play stays reachable, and in a short portrait window the whole hub is the scrolling fallback by design (see step 7).
+5. **Both orientations:** rotate on the hub; the focused card is kept.
+6. **Last game:** play Kinfall, close the app completely, reopen: the hub starts with Kinfall focused.
+7. **Split screen / short portrait:** put the app in split screen (or any portrait window shorter than about 475 dp at text 100%, for example 360x420), on the hub: it must be the scrolling fallback (the cards scroll inside the primary region, Play stays pinned and reachable, the three cards are never cut off). A window of about 480 dp or more at 100% is the console and must show all three cards with no scrolling; check the same at text 130% on a 640 dp tall phone (console) and at 150% (fallback).
+
 ## Real-phone checks for 0.3.0 (console layout)
 
 The console layout (no page scroll on web and mobile, sheets, immersive mode on Android) is automated as far as Jest, Playwright and a release build go. None of the following was run on an emulator or a device; the full list and the known limitations are in the [QA note](superpowers/notes/2026-11-22-console-layout-qa.md). Do these on a real Android phone with the 0.3.0 build before tagging:

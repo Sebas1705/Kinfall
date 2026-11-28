@@ -1,3 +1,4 @@
+import { hubEn, hubEs } from './strings.hub';
 import { runEn, runEs } from './strings.run';
 
 export type Lang = 'en' | 'es';
@@ -70,7 +71,7 @@ const base = {
   'log.end.lose': 'You lost the battle.',
 } as const;
 
-const en = { ...base, ...runEn } as const;
+const en = { ...base, ...runEn, ...hubEn } as const;
 
 export type StringKey = keyof typeof en;
 
@@ -142,6 +143,6 @@ const esBase: Record<keyof typeof base, string> = {
   'log.end.lose': 'Has perdido el combate.',
 };
 
-const es: Record<StringKey, string> = { ...esBase, ...runEs };
+const es: Record<StringKey, string> = { ...esBase, ...runEs, ...hubEs };
 
 export const STRINGS: Record<Lang, Record<StringKey, string>> = { en, es };

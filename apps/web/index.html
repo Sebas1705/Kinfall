@@ -13,6 +13,8 @@
         <h1 class="title" data-i18n="app.title">Kinfall</h1>
         <div class="hud__party" id="hud-party"></div>
         <div class="hud__buttons">
+          <!-- Back to the game hub; shown only on Kinfall's title screen. -->
+          <button type="button" class="hud__btn hud__btn--text" id="hud-games" data-i18n="hub.games" hidden>Games</button>
           <button type="button" class="hud__btn hud__btn--text" id="hud-log" data-i18n="battle.openLog" hidden>Log</button>
           <!-- Opens the sheet of the visible run screen (options, run details); its label comes from the screen. -->
           <button type="button" class="hud__btn hud__btn--text" id="hud-run" hidden></button>
@@ -53,6 +55,7 @@
           </div>
         </div>
 
+        <section class="screen" data-screen="hub" id="screen-hub" hidden></section>
         <section class="screen" data-screen="title" id="screen-title" hidden></section>
         <section class="screen" data-screen="map" id="screen-map" hidden></section>
 

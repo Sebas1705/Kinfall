@@ -16,12 +16,23 @@ import { bindScreenInput } from './screenInput';
 import { initialSeed, randomSeed } from './screens/title';
 import { applyI18nAttributes, byId, refreshSheetTexts, wireSettingsButton, wireTextSize } from './settings';
 import { wireFullscreenButton } from './fullscreen';
+import { initialFocus } from '@kinfall/core/games/registry';
+import type { GameId } from '@kinfall/core/games/registry';
+import { t } from '@kinfall/core/platform/i18n';
+import { readLastGame, writeLastGame } from '../platform/lastGame';
+import { renderHub } from './screens/hub';
 
-export function startRunPage(): void {
+/** `hub` opens the game hub; `kinfall` goes straight to Kinfall's title (old deep links). */
+export function startRunPage(entry: 'hub' | 'kinfall' = 'hub'): void {
   const root = byId<HTMLElement>('screens');
+  const gamesButton = byId<HTMLButtonElement>('hud-games');
   // The layout driver reads the visible screen from the router, so the router pings it on every change.
   let layout: LayoutHandle | null = null;
-  const router = createRouter(root, () => layout?.refresh());
+  const router = createRouter(root, () => {
+    // "Games" leads back to the hub; it is offered on Kinfall's title only, never mid-run.
+    gamesButton.hidden = router.current() !== 'title';
+    layout?.refresh();
+  });
   const ui = createRunUi({
     title: byId('screen-title'),
     map: byId('screen-map'),
@@ -84,8 +95,54 @@ export function startRunPage(): void {
       }),
   });
 
+  // Hub: the focused game survives re-renders (language change) and starts at the last game played.
+  const storage = defaultStorage();
+  let hubFocus: GameId = initialFocus(readLastGame(storage));
+  const renderHubScreen = () =>
+    renderHub(byId('screen-hub'), {
+      focused: hubFocus,
+      onFocus: (id) => {
+        hubFocus = id;
+      },
+      onPlay: (id) => {
+        hubFocus = id;
+        writeLastGame(storage, id);
+        controller.showTitle();
+      },
+      onSoon: (name) => announce(t('hub.soonAnnounce', { game: name })),
+    });
+  // A live region announces a change of text only: repeating the same message clears it first and
+  // sets it again a moment later, so a screen reader reads it every time.
+  let announceTimer: number | undefined;
+  const announce = (message: string) => {
+    const live = document.querySelector<HTMLElement>('[data-announcer]');
+    if (!live) return;
+    window.clearTimeout(announceTimer);
+    if (live.textContent !== message) {
+      live.textContent = message;
+      return;
+    }
+    live.textContent = '';
+    announceTimer = window.setTimeout(() => {
+      // Something else (a route announcement) may have taken the region meanwhile: leave it.
+      if (live.textContent === '') live.textContent = message;
+    }, 60);
+  };
+  const showHub = (focus: boolean) => {
+    ui.showSeed(null);
+    renderHubScreen();
+    router.show('hub', undefined, { focus });
+  };
+  const refreshAll = () => {
+    if (router.current() === 'hub') {
+      renderHubScreen();
+      router.refreshTitle();
+    } else controller.refreshText();
+  };
+  gamesButton.addEventListener('click', () => showHub(true));
+
   wireTextSize(() => {
-    controller.refreshText();
+    refreshAll();
     layout?.refresh();
   });
   // The effective text scale on the web is the app text size (the #text-size slider) over 100.
@@ -101,12 +158,13 @@ export function startRunPage(): void {
     setLang(langSelect.value === 'es' ? 'es' : 'en');
     applyI18nAttributes();
     refreshSheetTexts();
-    controller.refreshText();
+    refreshAll();
   });
 
   wireSettingsButton(byId<HTMLButtonElement>('hud-settings'));
   wireScreenSheet({ button: byId<HTMLButtonElement>('hud-run'), screens: root, app: byId('app'), log: byId('run-log-panel') });
   wireFullscreenButton(byId<HTMLButtonElement>('hud-fullscreen'));
   applyI18nAttributes();
-  controller.showTitle({ focus: false });
+  if (entry === 'hub') showHub(false);
+  else controller.showTitle({ focus: false });
 }

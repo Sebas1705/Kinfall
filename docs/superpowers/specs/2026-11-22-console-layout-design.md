@@ -16,7 +16,7 @@ What exists today (facts from the code):
 
 ## 2. Goals
 
-- No page or screen scroll on any run screen (title, map, battle, event, end) at any normal phone, tablet or desktop window, in both orientations. **[Owner]**
+- No page or screen scroll on any run screen (title, map, battle, event, end; the game hub of 0.4.0 added a sixth screen, `hub`, to the same contract with its own `MIN_BUDGET` row, see the [game hub QA note](../notes/2026-11-23-game-hub-qa.md)) at any normal phone, tablet or desktop window, in both orientations. **[Owner]**
 - Landscape is the primary design: a console composition (scene on one side, actions on the other). Portrait gets its own composition (scene on top, actions in the thumb zone at the bottom), also without scrolling. **[Owner: option B]**
 - Use the whole display: immersive mode on Android, a fullscreen option on the web, safe-area insets respected. **[Owner: "full screen"]**
 - Game-UI principles on every screen: **[My call]**
