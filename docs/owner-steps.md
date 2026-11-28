@@ -12,7 +12,7 @@ State after the React Native plan ([tasks 1-10](superpowers/plans/2026-11-16-rea
 
 ## Real-phone checks for 0.4.0 (game hub)
 
-The 0.4.0 build opens on a game hub (Kinfall plus two "coming soon" cards) before the title. It is automated as far as Jest and Playwright go; nothing below was run on an emulator or a device, see the [QA note](superpowers/notes/2026-11-23-game-hub-qa.md). Do these on a real Android phone with the 0.4.0 build before tagging:
+The 0.4.0 build opens on a game hub (Kinfall plus two "coming soon" cards) before the title. It is automated as far as Jest and Playwright go; nothing below was run on an emulator or a device, see the [QA note](superpowers/notes/2026-11-23-game-hub-qa.md). Do these on a real Android phone with the 0.4.0 build before tagging (tagging 0.4.0 waits on these checks):
 
 1. **Back behaviour:** Back on the hub exits the app; Back on the title returns to the hub; in a run Back still asks to abandon. After Abandon the title still returns to the hub with Back.
 2. **TalkBack on the cards:** the three cards are read as radio buttons (checked or not) in a group named "Games"; the "coming soon" cards are read as dimmed/disabled but a double tap still selects them and announces the "coming soon" message; Play on a soon card announces it too.

@@ -35,7 +35,9 @@ There is no emulator, device or desktop browser session in this environment, so 
 - The Title test lost its live language-switch coverage (the language is checked after a restart, since the app now starts on the hub).
 - The hub heading is dropped on tight rows (320x640 at 150% in Spanish), leaving the radiogroup label "Games" as the screen's accessible name.
 - The web fallback e2e viewport check does not detect a card hidden under the pinned rail.
-- The web initial bundle is 37,771 of 38,000 bytes (233 B headroom). The budget was raised from 37,000 because the hub is a new first screen (the previous commit was already at 37,508).
+- The web initial bundle is 37,771 of 38,000 bytes (229 B headroom). The budget was raised from 37,000 because the hub is a new first screen: 37,508 measured with the screen and routing, before the console layout and the live-region fix.
+- Web browser Back: the web router never touches `history` (no `pushState`, `popstate` or hash in `apps/web/src`), so browser Back from Kinfall's title does not return to the hub; it leaves the page. The in-page route back is the **Games** button, shown on Kinfall's title only, never mid-run. Not tried in a real browser.
+- Entry URLs: `?game=kinfall`, `?seed=...` and `?mode=battle` bypass the hub (`gameFromSearch`, `apps/web/src/main.ts`; `?mode=battle` loads the demo battle page); an unknown `?game=` shows the hub.
 - The taglines live inside the cards, not in the landscape rail as the first plan said.
 - The web text-size slider caps at 150%, so the 200% fallback is tested with short windows at 150% (640x320, 360x480); 2.0 is covered by the core budget table only.
 - A deep link `?game=kinfall` does not write the last game (only Play from the hub does).

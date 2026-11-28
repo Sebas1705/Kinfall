@@ -70,7 +70,7 @@ Per app:
 
 ## Playing the web game
 
-Run `npm run dev` and open the page. The page opens on the game hub (Kinfall, plus two coming-soon cards; the last game you played is focused); **Play** on Kinfall opens the title screen, which starts a run (an Expedition): pick a starter, keep or type a seed, and choose **New run**. A run is three zones of node maps (wild creatures, elites, shrines, caches, mysteries and a boss per zone). Between battles you recruit defeated creatures, rest or evolve at shrines, and a creature that faints is lost for the run. `?seed=NAME` prefills the seed: the same seed and the same choices always give the same run.
+Run `npm run dev` and open the page. The page opens on the game hub (Kinfall, plus two coming-soon cards; the last game you played is focused); **Play** on Kinfall opens the title screen, which starts a run (an Expedition): pick a starter, keep or type a seed, and choose **New run**. A run is three zones of node maps (wild creatures, elites, shrines, caches, mysteries and a boss per zone). Between battles you recruit defeated creatures, rest or evolve at shrines, and a creature that faints is lost for the run. `?seed=NAME` prefills the seed: the same seed and the same choices always give the same run. The hub is only the default entry: `/?game=kinfall` and any URL with `?seed=` skip it and open Kinfall's title directly, and `?mode=battle` opens the demo battle page without the hub (an unknown `?game=` value shows the hub). The Android app has no such URLs and always opens on the hub.
 
 Play with the keyboard (Tab or arrows, Enter to confirm) or by clicking or tapping; in battle a gamepad also works. The page is available in Spanish and English and has a reduced-motion toggle and a text-size slider.
 

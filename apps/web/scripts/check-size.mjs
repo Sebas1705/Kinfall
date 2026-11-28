@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 // Raised from 30_546 for the console layout (layout driver, sheets, HUD, rail screens and their CSS: +5.7 KB gzipped, measured 36_249).
 // Raised from 37_000 for the game hub (registry, hub strings es+en, hub screen, last-game storage, routing and the hub CSS:
-// measured 37_508 with the screen and routing, 37_767 with the hub console layout and the live-region fix).
+// measured 37_508 with the screen and routing, 37_771 with the hub console layout and the live-region fix).
 const BUDGET = 38_000;
 const ART_BUDGET = 60_000;
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
